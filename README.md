@@ -1,6 +1,6 @@
 # DevOps-Cheat
-![GIT](/Media/git.jpg)
-![ROADMAP](/Media/roadmap.jpg)
+![GIT](/Media/GIT.jpg)
+![ROADMAP](/Media/ROADMAP.jpg)
 ## Infrastructure as Code (IaC)
 
 ### **What is IaC?**
