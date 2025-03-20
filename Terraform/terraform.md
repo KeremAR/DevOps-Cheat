@@ -41,6 +41,3 @@ Terraform enables infrastructure provisioning efficiently by automating setup an
 ## Conclusion
 Terraform is a powerful tool for managing infrastructure as code. By leveraging its declarative approach, it simplifies infrastructure provisioning, maintenance, and replication across different environments. 
 
----
-If you want to learn more, check out additional resources and tutorials!
-
