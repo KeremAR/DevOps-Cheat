@@ -1,6 +1,6 @@
 # Cloud Computing Cheatsheet
 
-[cloud](/Media/cloud.png)
+![cloud](/Media/cloud.png)
 
 ## Platform as a Service (PaaS)
 - **Azure App Service**: Easily build, deploy, and scale web apps without managing servers.
