@@ -26,6 +26,8 @@ Jenkins extensibility is implemented via Jenkins plugins.
 How to create a full backup in Jenkins?
 - Copy Jenkins home directory and create database backup
 
+- ![Regression Testing](/Media/media1.svg)
+
 ## Testing in CI/CD
 
 ### Unit Testing
@@ -33,8 +35,6 @@ How to create a full backup in Jenkins?
 
 ### Regression Testing
 The goal of testing is to ensure that code changes haven't introduced bugs to the software.
-
-![Regression Testing](/Media/media1.svg)
 
 ### Performance Testing
 Performance tests determine:
