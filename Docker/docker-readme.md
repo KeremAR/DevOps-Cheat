@@ -85,6 +85,17 @@ PID namespace used in Docker Engine for process isolation.
 
 ## Docker Commands
 
+## Key Differences between ENTRYPOINT and CMD  
+
+| Feature       | ENTRYPOINT                                      | CMD                                      |
+|--------------|------------------------------------------------|------------------------------------------|
+| **Purpose**   | Defines the main application that always runs  | Provides default arguments for execution |
+| **Overridable?** | ❌ No, unless `--entrypoint` is used        | ✅ Yes, by passing a command at runtime  |
+| **Flexibility** | Less flexible, ensures a specific executable always runs | More flexible, allows runtime overrides |
+| **Best Used For** | Scripts, services, daemons (e.g., Nginx, MySQL) | Default parameters, test commands |
+
+
+
 ### Container Management
 - `docker ps` → Lists currently running containers.
 - `docker ps -a` → Shows all containers that have been run previously.
