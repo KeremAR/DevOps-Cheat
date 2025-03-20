@@ -2,17 +2,24 @@
 
 ## Table of Contents
 - [Docker Basics](#docker-basics)
+- [Docker Benefits](#docker-benefits)
 - [Docker Images and Containers](#docker-images-and-containers)
 - [Dockerfile](#dockerfile)
 - [Docker Storage](#docker-storage)
 - [Docker Compose](#docker-compose)
 - [Docker Engine and System](#docker-engine-and-system)
 - [Docker Commands](#docker-commands)
+- [Artifact Registry](#artifact-registry)
 
 ## Docker Basics
 
 ### What is Docker Client?
 A component of the Docker architecture that provides Command Line Interface tools to interact with Docker daemon.
+
+## Docker Benefits
+- **Isolation**: Processes in one container don't affect those in another.
+- **Consistency**: Ensures applications run consistently across different environments.
+- **Scalability**: Easy to horizontally scale applications.
 
 ## Docker Images and Containers
 
@@ -54,6 +61,9 @@ Anywhere on the host system.
 
 **Docker compose** is tool for defining and running multi container docker applications.
 
+### Docker Compose Commands
+- `docker-compose up -d` → Runs multiple containers defined in a Compose file.
+
 ## Docker Engine and System
 
 ### Docker Engine cgroups
@@ -75,14 +85,31 @@ PID namespace used in Docker Engine for process isolation.
 
 ## Docker Commands
 
-### View All Containers
-If you want to see all containers, including those that are stopped, run:
-```
-docker ps -a
-```
+### Container Management
+- `docker ps` → Lists currently running containers.
+- `docker ps -a` → Shows all containers that have been run previously.
+- `docker container stop [container_id]` → Stops a running container.
+- `docker container start [container_id]` → Restarts a stopped container.
+- `docker container prune` → Cleans up all stopped containers.
 
-### Check Docker Disk Usage
-```
-docker system df --v
-```
-Shows detailed information on Docker disk space usage.
+### Running Ubuntu Inside Docker
+- `docker run -dit ubuntu` → Runs an Ubuntu container in the background.
+- `docker container exec -it [container_id] bash` → Opens a bash shell inside the container.
+
+### Volume Management
+- `docker volume create [volume_name]` → Creates a new Docker volume.
+- `docker inspect [volume_name]` → Displays details about a Docker volume.
+
+### Image and Build Process
+- `docker build -t [image_name]:v1 .` → Builds an image from the Dockerfile in the current directory.
+- `docker run [image_name]:v1` → Runs the created image.
+- `docker images` → Lists all available Docker images.
+
+### System Information
+- `docker system df --v` → Shows detailed information on Docker disk usage.
+
+## Artifact Registry
+
+### What is Artifact Registry?
+- Artifact Registry is a **centralized storage system** used for managing and versioning various build artifacts generated during the software development lifecycle.
+- It helps store, version, and manage artifacts like Docker images, dependencies, or compiled code, ensuring efficient and secure software deployment.
