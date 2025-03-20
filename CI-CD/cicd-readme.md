@@ -34,7 +34,7 @@ How to create a full backup in Jenkins?
 ### Regression Testing
 The goal of testing is to ensure that code changes haven't introduced bugs to the software.
 
-![Regression Testing](media/media1.svg)
+![Testing](Media/media1.svg)
 
 ### Performance Testing
 Performance tests determine:
