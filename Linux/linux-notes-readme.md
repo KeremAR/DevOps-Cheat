@@ -91,7 +91,7 @@ The **/proc filesystem** is a virtual filesystem that provides an interface to k
 
 ### Linux File System and Key Directories
 
-* `/bin` → Contains essential system commands and binaries required for booting and system recovery.
+* `/bin` → Contains essential system commands used by all users. Example: ls, cp, mkdir, cat, bash..
 * `/var` → Stores variable data such as log files, mail spools, and temporary files.
 * `/dev` → Contains device files representing hardware devices and peripherals connected to the system.
 * `/mnt` and `/media` → Used for mounted devices; `/mnt` is traditionally for manually mounted filesystems, while `/media` is often used for automatically mounted removable media.
@@ -102,7 +102,7 @@ The **/proc filesystem** is a virtual filesystem that provides an interface to k
 * `/root` → The home directory for the root user.
 * `/usr` → Contains user programs, libraries, and documentation.
 * `/lib` → Contains essential shared libraries needed by system programs.
-* `/sbin` → Contains system binaries used for system administration tasks.
+* `/sbin` → Contains administrative commands used only by root. Example: fdisk, iptables, reboot, shutdown..
 
 ### Disk and Device Naming
 
