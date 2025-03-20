@@ -6,6 +6,9 @@
   - [Linux Distributions](#linux-distributions)
   - [Shell](#shell)
   - [File Systems](#file-systems)
+  - [Linux File System and Key Directories](#linux-file-system-and-key-directories)
+  - [Disk and Device Naming](#disk-and-device-naming)
+  - [Linux Case Sensitivity](#linux-case-sensitivity)
 - [LVM (Logical Volume Manager)](#lvm-logical-volume-manager)
 - [SWAP](#swap)
 - [Disk Quotas](#disk-quotas)
@@ -57,6 +60,11 @@ Different Linux distributions include:
 
 The shell is the command-line interface that interprets user commands. Common shells include Bash, Zsh, and others.
 
+To check which shell you're currently using:
+```bash
+echo $SHELL
+```
+
 ### File Systems
 
 **Linux Native File Systems:**
@@ -80,6 +88,34 @@ The shell is the command-line interface that interprets user commands. Common sh
 - **Interface to Kernel Data**: Provides a mechanism for interacting with kernel data structures
 
 The **/proc filesystem** is a virtual filesystem that provides an interface to kernel data structures. Files in /proc do not exist on disk; they are virtual and generated dynamically when accessed, providing a real-time snapshot of the system's state.
+
+### Linux File System and Key Directories
+
+* `/bin` → Contains essential system commands and binaries required for booting and system recovery.
+* `/var` → Stores variable data such as log files, mail spools, and temporary files.
+* `/dev` → Contains device files representing hardware devices and peripherals connected to the system.
+* `/mnt` and `/media` → Used for mounted devices; `/mnt` is traditionally for manually mounted filesystems, while `/media` is often used for automatically mounted removable media.
+* `/opt` → Used for optional or third-party software packages installed manually or outside the standard package management system.
+* `/tmp` → Temporary files that are typically deleted upon system reboot.
+* `/etc` → Contains system-wide configuration files and scripts for various programs and services.
+* `/home` → Contains user home directories.
+* `/root` → The home directory for the root user.
+* `/usr` → Contains user programs, libraries, and documentation.
+* `/lib` → Contains essential shared libraries needed by system programs.
+* `/sbin` → Contains system binaries used for system administration tasks.
+
+### Disk and Device Naming
+
+* `/dev/sda` and `/dev/vda` → Represent disk devices:
+  * `sda` refers to SATA, SCSI, or USB disk devices
+  * `vda` refers to virtual disks in virtual machines
+* `/dev/sda1, sda2, sda3...` → Represents partitions (or volumes) on the disk.
+* Modern systems may also use `/dev/nvme0n1` for NVMe SSDs.
+
+### Linux Case Sensitivity
+
+* Linux file names and commands are **case-sensitive**. For example: `Test.txt` is not the same as `test.txt`.
+* This applies to commands, filenames, directory names, and variables.
 
 ## LVM (Logical Volume Manager)
 
@@ -246,6 +282,13 @@ echo $HOME
 - `cp source_file target_file`
 - `mv source_file target_file`
 - `mv -f source_file target_file`
+- `cat file1 > file2` → Writes the content of `file1` into `file2`, overwriting any existing content.
+
+**Working with Grep and Pipes**:
+- `ls | grep li` → Lists files in the current directory containing "li" (case-sensitive).
+- `ls /etc | grep conf` → Search for files containing "conf" in the /etc directory.
+- `ls -R | grep li` → Recursive search in subdirectories for files containing "li".
+- `ls *.txt | grep report` → Search for specific file extensions containing "report".
 
 ### Text Editors
 
