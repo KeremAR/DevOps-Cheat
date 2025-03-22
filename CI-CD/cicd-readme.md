@@ -1,8 +1,23 @@
 # Continuous Integration and Deployment Learning Notes
+- ![CICD](/Media/ci-cd.png)
 
 ## What is Continuous Integration?
 
-Continuous Integration (CI) is a development practice in which developers often integrate code into a shared repository.
+Continuous Integration (CI) is  the practice of regularly merging all developer working copies to a shared mainline.
+
+### Basic Principles of CI
+- Maintain a managed repository of code
+- Integrate changes as frequently as possible
+- Build every commit
+- Implement self-tested builds to identify errors early
+- Store and maintain a history of builds (archive)
+- Use multiple environments sorted by code stability
+
+How often do you need to run a Continuous Integration pipeline?
+- Every commit
+
+### CI/CD Pipeline
+A CI/CD pipeline is a series of steps from code commit to deployment, automating build, test, and release processes.
 
 ## Advantages of CI/CD Pipeline
 
@@ -12,10 +27,14 @@ The CI/CD pipeline provides quick feedback after each change.
 
 An automated manifestation of your process for getting software from version control into the hands of software users.
 
-## Continuous Integration Best Practices
 
-How often do you need to run a Continuous Integration pipeline?
-- Every commit
+### Continuous Delivery (CD)
+Continuous Delivery ensures that code is always in a deployable state and can be released to production at any time with minimal manual intervention.
+
+## Continuous Deployment
+
+Continuous deployment (CD) is a software release process that uses automated testing to validate if changes to a codebase are correct and stable for immediate autonomous deployment to a production environment.
+
 
 ## Jenkins
 
@@ -29,6 +48,9 @@ How to create a full backup in Jenkins?
 - ![Regression Testing](/Media/media1.svg)
 
 ## Testing in CI/CD
+
+### Smoke Testing
+Smoke testing is a basic level of software testing that checks whether the most crucial functions of an application work properly. It helps identify major issues before deeper testing.
 
 ### Unit Testing
 **Unit testing** is a software testing procedure that examines individual software units. A unit refers to a section of an application—a function, method, procedure, or entire module.
@@ -56,20 +78,23 @@ The goal of UI testing is to ensure all UI elements meet performance and functio
 ### SonarQube
 SonarQube is a web-based open-source platform used to measure and analyze the quality of source code.
 
-The following sections of code quality does Sonar cover:
-- Duplicated code and coding standards
+### SonarQube Benefits
+SonarQube boosts productivity by:
+- Detecting and eliminating code duplications and redundancy
+- Making code easier to read and understand
+- Reducing maintenance time
+- Optimizing application size
+
 
 ## Artifact Management
 
 ### Retention Function
-Retention function carries out deleting irrelevant artifacts according to certain criteria.
+ In CI/CD, artifact retention ensures that outdated or irrelevant artifacts (like build or deployment packages) are automatically deleted based on defined criteria. This helps manage storage and maintain a clean environment.
 
 ### Repository Types
-✅ **Mutable** *(Snapshot repositories allow modifications before final release.)* **applies to the snapshot repository**
+ The concept of mutable repositories (like snapshot repositories) refers to a storage type where artifacts can be modified, typically before they are finalized and released. In CI/CD pipelines, this applies to situations where code is being built, tested, and iterated on before being marked as a stable release.
 
-## Continuous Deployment
 
-Continuous deployment (CD) is a software release process that uses automated testing to validate if changes to a codebase are correct and stable for immediate autonomous deployment to a production environment.
 
 ## Deployment Strategies
 
