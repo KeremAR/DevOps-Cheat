@@ -94,6 +94,22 @@ SonarQube boosts productivity by:
 ### Repository Types
  The concept of mutable repositories (like snapshot repositories) refers to a storage type where artifacts can be modified, typically before they are finalized and released. In CI/CD pipelines, this applies to situations where code is being built, tested, and iterated on before being marked as a stable release.
 
+# Behavior-Driven Development (BDD)
+
+## Overview
+
+Behavior-Driven Development (BDD) is a software development methodology that focuses on defining system behavior from an external perspective. Unlike Test-Driven Development (TDD), which emphasizes individual component correctness, BDD ensures that all components work together to meet business goals.
+
+## Key Differences Between BDD and TDD
+
+| Feature  | BDD                                            | TDD                                           |
+| -------- | ---------------------------------------------- | --------------------------------------------- |
+| Approach | Outside-in (system behavior)                   | Inside-out (component correctness)            |
+| Goal     | Ensuring the system does the right thing       | Ensuring individual components work correctly |
+| Audience | Developers, testers, domain experts, customers | Developers                                    |
+| Language | Gherkin (natural language)                     | Unit test assertions                          |
+
+
 
 
 ## Deployment Strategies
