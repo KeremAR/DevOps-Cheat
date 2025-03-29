@@ -24,7 +24,7 @@ Continuous Integration (CI) is the practice of regularly merging all developer w
 - At least once per feature build
 
 **CI/CD Pipeline**
-A CI/CD pipeline is a series of steps from code commit to deployment, automating build, test, and release processes.
+- A CI/CD pipeline is a series of steps from code commit to deployment, automating build, test, and release processes.
 
 **Advantages of CI/CD Pipeline**
 - Provides quick feedback after each change
@@ -35,7 +35,7 @@ A CI/CD pipeline is a series of steps from code commit to deployment, automating
 - Speeds up development cycles by allowing developers to focus on building features instead of manually testing
 
 **Deployment Pipeline**
-An automated manifestation of your process for getting software from version control into the hands of software users. Each change is verified through automated testing before deployment.
+- An automated manifestation of your process for getting software from version control into the hands of software users. Each change is verified through automated testing before deployment.
 
 **Continuous Delivery (CD)**
 - Ensures that code is always in a deployable state and can be released to production at any time with minimal manual intervention.
@@ -44,7 +44,7 @@ An automated manifestation of your process for getting software from version con
 - If production runs on Kubernetes, a development environment should also be set up in Kubernetes.
 
 **Continuous Deployment**
-Continuous deployment (CD) is a software release process that uses automated testing to validate if changes to a codebase are correct and stable for immediate autonomous deployment to a production environment.
+- Continuous deployment (CD) is a software release process that uses automated testing to validate if changes to a codebase are correct and stable for immediate autonomous deployment to a production environment.
 
 ## Jenkins
 
