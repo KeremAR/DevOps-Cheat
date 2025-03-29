@@ -1,10 +1,10 @@
 # Continuous Integration and Deployment Learning Notes
 - ![CICD](/Media/ci-cd.png)
 
-**What is Continuous Integration?**
+## What is Continuous Integration?**
 Continuous Integration (CI) is the practice of regularly merging all developer working copies to a shared mainline. It involves continuously building, testing, and integrating every developer change into the master branch after tests have passed. This results in potentially deployable code.
 
-**Basic Principles of CI**
+### Basic Principles of CI
 - Maintain a managed repository of code
 - Integrate changes as frequently as possible (ideally daily)
 - Build every commit
@@ -19,14 +19,14 @@ Continuous Integration (CI) is the practice of regularly merging all developer w
 - Reduce merge conflicts by working in short-lived feature branches
 - Delete branches after merging to keep the repository clean
 
-**How often do you need to run a Continuous Integration pipeline?**
+### How often do you need to run a Continuous Integration pipeline?
 - Every commit
 - At least once per feature build
 
-**CI/CD Pipeline**
-- A CI/CD pipeline is a series of steps from code commit to deployment, automating build, test, and release processes.
+## CI/CD Pipeline
+A CI/CD pipeline is a series of steps from code commit to deployment, automating build, test, and release processes.
 
-**Advantages of CI/CD Pipeline**
+### Advantages of CI/CD Pipeline
 - Provides quick feedback after each change
 - Reduces the risk of integration issues by working in small batches
 - Ensures that code is reviewed by multiple developers through pull requests
@@ -34,17 +34,17 @@ Continuous Integration (CI) is the practice of regularly merging all developer w
 - Reduces deployment risks by automating the testing process
 - Speeds up development cycles by allowing developers to focus on building features instead of manually testing
 
-**Deployment Pipeline**
-- An automated manifestation of your process for getting software from version control into the hands of software users. Each change is verified through automated testing before deployment.
+## Deployment Pipeline
+An automated manifestation of your process for getting software from version control into the hands of software users. Each change is verified through automated testing before deployment.
 
-**Continuous Delivery (CD)**
+## Continuous Delivery (CD)
 - Ensures that code is always in a deployable state and can be released to production at any time with minimal manual intervention.
 - Code is deployed to a "production-like" environment before reaching production.
 - Enables safe and rapid deployments.
 - If production runs on Kubernetes, a development environment should also be set up in Kubernetes.
 
-**Continuous Deployment**
-- Continuous deployment (CD) is a software release process that uses automated testing to validate if changes to a codebase are correct and stable for immediate autonomous deployment to a production environment.
+## Continuous Deployment
+Continuous deployment (CD) is a software release process that uses automated testing to validate if changes to a codebase are correct and stable for immediate autonomous deployment to a production environment.
 
 ## Jenkins
 
