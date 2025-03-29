@@ -46,6 +46,10 @@ An automated manifestation of your process for getting software from version con
 ## Continuous Deployment
 Continuous deployment (CD) is a software release process that uses automated testing to validate if changes to a codebase are correct and stable for immediate autonomous deployment to a production environment.
 
+### Continuous Deployment vs. Continuous Delivery
+- Continuous Deployment is one step beyond Continuous Delivery and means that deployment to the production environment is fully automated.
+- In Continuous Delivery, the code is production-ready, but deployment can be done with a manual approval step. In Continuous Deployment, the code is always automatically deployed to production.
+
 ## Jenkins
 
 ### Jenkins Extensibility
