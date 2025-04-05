@@ -103,3 +103,52 @@ These practices help teams implement the Agile philosophy effectively:
     -   **Mentorship:** Effective way for junior/senior or new/experienced developers to learn from each other.
     -   **Reduced Long-Term Cost:** Cheaper to find bugs during development than in production.
 
+## Scrum
+
+Scrum is a specific, **prescriptive methodology** for implementing the **Agile philosophy**.
+
+### Agile vs. Scrum
+
+-   **Agile:** A philosophy, a set of principles (not prescriptive).
+-   **Scrum:** A framework/methodology for working in an Agile fashion (prescriptive).
+
+### Key Characteristics of Scrum
+
+-   A management framework for **incremental product development**.
+-   Emphasizes **small, cross-functional, self-managing teams**.
+-   Provides structure: **roles, rules, artifacts, meetings**.
+-   Uses fixed-length iterations called **Sprints**.
+-   Goal: Produce a **potentially shippable increment** each Sprint.
+-   Often described as "easy to understand, difficult to master."
+
+### The Sprint
+
+-   One iteration through the **design, code, test, deploy** cycle.
+-   Has a clear **Sprint Goal**.
+-   Typically **two weeks** long (recommended over 1 or 4 weeks).
+
+### Steps in the Scrum Process
+
+1.  **Product Backlog:** A prioritized list of *everything* desired for the product (features, fixes, etc.).
+2.  **Backlog Refinement (Grooming):** Reviewing and preparing Product Backlog items to make them "sprint ready."
+3.  **Sprint Planning:** Team selects items from the Product Backlog to work on in the upcoming Sprint, creating the **Sprint Backlog**.
+4.  **Sprint Execution (e.g., 2 weeks):**
+    -   **Daily Scrum (Stand-up):** Daily 15-min meeting. Each member answers:
+        -   What did I do yesterday?
+        -   What will I do today?
+        -   Are there any impediments?
+5.  **Potentially Shippable Increment:** The completed work from the Sprint, ready for deployment/feedback.
+6.  **(Sprint Review):**  Demo increment to stakeholders & Sprint Retrospective (team process improvement).
+
+**Note:** Scrum is highly iterative; the cycle (Plan -> Develop -> Deploy -> Feedback) repeats for each Sprint.
+
+## Scrum vs. Kanban Comparison
+
+| Feature             | Scrum                                                                 | Kanban                                         |
+| :------------------ | :-------------------------------------------------------------------- | :--------------------------------------------- |
+| **Cadence**           | Fixed length sprints                                                  | Continuous flow                                |
+| **Release Method**  | End of each sprint                                                    | Continuous delivery                            |
+| **Roles**             | Product Owner, Scrum Master, Development Team                         | No predefined roles (optional Agile Coach)     |
+| **Key Metrics**       | Velocity                                                              | Cycle time                                     |
+| **Change Philosophy** | Strive not to change sprint forecast *during* the sprint              | Change can happen at any time                  |
+
