@@ -1,40 +1,54 @@
 # Continuous Integration and Deployment Learning Notes
 - ![CICD](/Media/ci-cd.png)
 
-## What is Continuous Integration?
-
-Continuous Integration (CI) is  the practice of regularly merging all developer working copies to a shared mainline.
+## What is Continuous Integration?**
+Continuous Integration (CI) is the practice of regularly merging all developer working copies to a shared mainline. It involves continuously building, testing, and integrating every developer change into the master branch after tests have passed. This results in potentially deployable code.
 
 ### Basic Principles of CI
 - Maintain a managed repository of code
-- Integrate changes as frequently as possible
+- Integrate changes as frequently as possible (ideally daily)
 - Build every commit
 - Implement self-tested builds to identify errors early
 - Store and maintain a history of builds (archive)
 - Use multiple environments sorted by code stability
+- Ensure that the master branch is always deployable
+- Use automated tools to monitor the version control system and trigger builds
+- Perform automated tests on every pull request before merging
+- Encourage code reviews via pull requests to improve code quality
+- Assume that untested code does not work and should not be merged into the master branch
+- Reduce merge conflicts by working in short-lived feature branches
+- Delete branches after merging to keep the repository clean
 
-How often do you need to run a Continuous Integration pipeline?
+### How often do you need to run a Continuous Integration pipeline?
 - Every commit
+- At least once per feature build
 
-### CI/CD Pipeline
+## CI/CD Pipeline
 A CI/CD pipeline is a series of steps from code commit to deployment, automating build, test, and release processes.
 
-## Advantages of CI/CD Pipeline
-
-The CI/CD pipeline provides quick feedback after each change.
+### Advantages of CI/CD Pipeline
+- Provides quick feedback after each change
+- Reduces the risk of integration issues by working in small batches
+- Ensures that code is reviewed by multiple developers through pull requests
+- Improves overall code quality and stability
+- Reduces deployment risks by automating the testing process
+- Speeds up development cycles by allowing developers to focus on building features instead of manually testing
 
 ## Deployment Pipeline
+An automated manifestation of your process for getting software from version control into the hands of software users. Each change is verified through automated testing before deployment.
 
-An automated manifestation of your process for getting software from version control into the hands of software users.
-
-
-### Continuous Delivery (CD)
-Continuous Delivery ensures that code is always in a deployable state and can be released to production at any time with minimal manual intervention.
+## Continuous Delivery (CD)
+- Ensures that code is always in a deployable state and can be released to production at any time with minimal manual intervention.
+- Code is deployed to a "production-like" environment before reaching production.
+- Enables safe and rapid deployments.
+- If production runs on Kubernetes, a development environment should also be set up in Kubernetes.
 
 ## Continuous Deployment
-
 Continuous deployment (CD) is a software release process that uses automated testing to validate if changes to a codebase are correct and stable for immediate autonomous deployment to a production environment.
 
+### Continuous Deployment vs. Continuous Delivery
+- Continuous Deployment is one step beyond Continuous Delivery and means that deployment to the production environment is fully automated.
+- In Continuous Delivery, the code is production-ready, but deployment can be done with a manual approval step. In Continuous Deployment, the code is always automatically deployed to production.
 
 ## Jenkins
 
@@ -93,6 +107,22 @@ SonarQube boosts productivity by:
 
 ### Repository Types
  The concept of mutable repositories (like snapshot repositories) refers to a storage type where artifacts can be modified, typically before they are finalized and released. In CI/CD pipelines, this applies to situations where code is being built, tested, and iterated on before being marked as a stable release.
+
+# Behavior-Driven Development (BDD)
+
+## Overview
+
+Behavior-Driven Development (BDD) is a software development methodology that focuses on defining system behavior from an external perspective. Unlike Test-Driven Development (TDD), which emphasizes individual component correctness, BDD ensures that all components work together to meet business goals.
+
+## Key Differences Between BDD and TDD
+
+| Feature  | BDD                                            | TDD                                           |
+| -------- | ---------------------------------------------- | --------------------------------------------- |
+| Approach | Outside-in (system behavior)                   | Inside-out (component correctness)            |
+| Goal     | Ensuring the system does the right thing       | Ensuring individual components work correctly |
+| Audience | Developers, testers, domain experts, customers | Developers                                    |
+| Language | Gherkin (natural language)                     | Unit test assertions                          |
+
 
 
 
