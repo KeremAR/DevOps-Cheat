@@ -30,7 +30,7 @@ Waterfall is a **sequential, phase-based approach** to software development.
 
 ## Extreme Programming (XP)
 
-![ROADMAP](/Media/XP.svg)
+![ROADMAP](/Media/xp.svg)
 Introduced by Kent Beck, XP is an **iterative and incremental** approach, considered one of the first Agile methods. It focuses on improving software quality and responsiveness.
 
 -   Emphasizes **tight feedback loops** (releases, iterations, daily stand-ups, pair programming).
@@ -54,4 +54,52 @@ Originating from Japanese manufacturing (meaning "billboard" or "sign"), Kanban 
 -   **Manage and enhance flow:** Continuously seek ways to improve the workflow speed and efficiency.
 -   **Make policies explicit:** Ensure everyone understands processes and definitions (e.g., Definition of Done).
 -   **Continuously improve:** Use feedback loops to refine the process.
+
+## Agile Working Practices
+
+These practices help teams implement the Agile philosophy effectively:
+
+### 1. Working in Small Batches
+
+-   **Concept:** Process work in small, manageable increments instead of large chunks (like single-piece flow vs. batch processing).
+-   **Benefit:** Allows for faster feedback, quicker detection of errors, and reduced waste if changes are needed.
+
+### 2. Minimum Viable Product (MVP)
+
+-   **Definition:** The *smallest* thing you can build to *test a hypothesis* and gain validated learning about customers.
+-   **Purpose:** It's primarily about **learning**, not just delivering a partial product or phase one.
+-   **Outcome:** Helps decide whether to **pivot** (change direction) or **persevere** (continue) based on feedback.
+-   **Example Contrast:**
+    -   *Good MVP (Learning Focused):* Skateboard -> Scooter -> Bicycle -> Motorcycle -> Convertible (adapting to learned desire).
+    -   *Bad MVP (Delivery Focused):* Wheel -> Chassis -> Car body -> Final Car (just incremental delivery).
+
+### 3. Behavior Driven Development (BDD)
+
+-   **Approach:** Describes and tests system behavior from the **outside-in** (user's perspective).
+-   **Focus:** Ensures you are building the *right thing*.
+-   **Level:** Typically used for integration or acceptance testing, often interacting with the UI.
+-   **Syntax:** Uses **Gherkin** (Given-When-Then) language for scenarios, readable by both technical and non-technical stakeholders.
+    -   `Feature: As a [role], I want [feature], so that [benefit]`
+    -   `Scenario: Given [context], When [action], Then [outcome]`
+
+### 4. Test Driven Development (TDD)
+
+-   **Approach:** Designs and tests code from the **inside-out** (module/unit level).
+-   **Focus:** Ensures you are building the *thing right*.
+-   **Workflow (Red-Green-Refactor):**
+    1.  **Red:** Write a small, failing test case for the desired functionality.
+    2.  **Green:** Write the *simplest* code possible to make the test pass.
+    3.  **Refactor:** Improve the code design while ensuring all tests still pass.
+
+### 5. Pair Programming
+
+-   **Concept:** Two developers work together at one workstation.
+    -   One **driver** writes code.
+    -   One **navigator** observes, reviews, suggests, and thinks strategically.
+    -   Roles switch frequently.
+-   **Benefits:**
+    -   **Higher Code Quality:** Fewer defects due to real-time review.
+    -   **Knowledge Sharing:** Spreads understanding of the codebase.
+    -   **Mentorship:** Effective way for junior/senior or new/experienced developers to learn from each other.
+    -   **Reduced Long-Term Cost:** Cheaper to find bugs during development than in production.
 
