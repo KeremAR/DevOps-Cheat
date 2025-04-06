@@ -221,6 +221,7 @@ PID namespace used in Docker Engine for process isolation.
 ### Image and Build Process
 - `docker build -t [image_name]:v1 .` → Builds an image from the Dockerfile in the current directory.
 - `docker run [image_name]:v1` → Runs the created image.
+- `docker run -dp 8080:8080 myimage:v1`
 - `docker images` → Lists all available Docker images.
 
 ### System Information
