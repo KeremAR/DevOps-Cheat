@@ -297,6 +297,122 @@ kubectl [command] [type] [name] [flags]
 -   `kubectl describe pod my-pod`: Get detailed information about a pod.
 -   `kubectl exec -it my-pod -- /bin/bash`: Execute a command (like a shell) inside a pod's container.
 
+## Kubernetes Practical Examples / Tasks
+
+### Task 1: Create and Expose a Deployment
+
+1.  **Create Deployment:**
+    ```bash
+    kubectl create deployment my-deployment1 --image=nginx
+    ```
+2.  **Expose Deployment as NodePort Service:**
+    ```bash
+    kubectl expose deployment my-deployment1 --port=80 --type=NodePort --name=my-service1
+    ```
+3.  **List Services:**
+    ```bash
+    kubectl get services
+    ```
+
+### Task 2: Manage Pods
+
+1.  **List Pods:**
+    ```bash
+    kubectl get pods
+    ```
+2.  **Show Pod Labels:**
+    ```bash
+    # Replace <pod-name> with the actual pod name
+    kubectl get pod <pod-name> --show-labels
+    ```
+3.  **Label a Pod:**
+    ```bash
+    # Replace <pod-name> with the actual pod name
+    kubectl label pods <pod-name> environment=deployment
+    ```
+4.  **Run a Temporary Pod (for testing/debugging):**
+    ```bash
+    kubectl run my-test-pod --image=nginx --restart=Never
+    ```
+5.  **View Pod Logs:**
+    ```bash
+    # Replace <pod-name> with the actual pod name
+    kubectl logs <pod-name>
+    ```
+
+### Task 3: Deploying a StatefulSet
+
+1.  **Define StatefulSet (`statefulset.yaml`):**
+    ```yaml
+    apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      name: my-statefulset
+    spec:
+      serviceName: "nginx" # Headless service needs to be created separately
+      replicas: 3
+      selector:
+        matchLabels:
+          app: nginx
+      template:
+        metadata:
+          labels:
+            app: nginx
+        spec:
+          containers:
+          - name: nginx
+            image: nginx # Use appropriate image, e.g., k8s.gcr.io/nginx-slim:0.8
+            ports:
+            - containerPort: 80
+              name: web
+      volumeClaimTemplates:
+      - metadata:
+          name: www
+        spec:
+          accessModes: [ "ReadWriteOnce" ]
+          resources:
+            requests:
+              storage: 1Gi
+    ```
+2.  **Apply StatefulSet:**
+    ```bash
+    kubectl apply -f statefulset.yaml
+    ```
+3.  **Verify StatefulSet:**
+    ```bash
+    kubectl get statefulsets
+    ```
+
+### Task 4: Implementing a DaemonSet
+
+1.  **Define DaemonSet (`daemonset.yaml`):**
+    ```yaml
+    apiVersion: apps/v1
+    kind: DaemonSet
+    metadata:
+      name: my-daemonset
+    spec:
+      selector:
+        matchLabels:
+          name: my-daemonset
+      template:
+        metadata:
+          labels:
+            name: my-daemonset
+        spec:
+          containers:
+          - name: my-daemonset
+            image: nginx # Use appropriate image
+    ```
+2.  **Apply DaemonSet:**
+    ```bash
+    kubectl apply -f daemonset.yaml
+    ```
+3.  **Verify DaemonSet:**
+    ```bash
+    kubectl get daemonsets
+    ```
+
 ## Conclusion
 
 Kubernetes automates container management, making systems more resilient, scalable, and efficient. While Docker is used to build and package containers, Kubernetes is responsible for managing and orchestrating them.
