@@ -12,9 +12,24 @@
 - [Artifact Registry](#artifact-registry)
 
 ## Docker Basics
+![ROADMAP](/Media/container_proccess.png)
+Docker uses a **client-server architecture** consisting of three main components:
+1.  **Docker Client:** The primary interface for users to interact with Docker.
+2.  **Docker Host:** Runs the Docker Daemon and manages Docker objects.
+3.  **Docker Registry:** Stores Docker images.
+
+Key Docker objects include images, containers, Dockerfiles, networks, and storage volumes.
 
 ### What is Docker Client?
-A component of the Docker architecture that provides Command Line Interface tools to interact with Docker daemon.
+A component of the Docker architecture that provides Command Line Interface (CLI) tools or uses REST APIs to send instructions to the Docker daemon. The client can communicate with a local or a remote Docker daemon.
+
+### Basic Containerization Process
+1.  **Build:** Use a `Dockerfile` (or an existing base image) and the `docker build` command to create a container image.
+2.  **Push:** Use the `docker push` command to store the built image in a Docker Registry.
+3.  **Run/Pull:** Use the `docker run` command to create and start a container from an image.
+    -   The Docker Host first checks if the image exists locally.
+    -   If not found locally, the Docker Daemon pulls the image from the configured Docker Registry.
+    -   The Daemon then creates and runs the container using the image.
 
 ## Docker Benefits
 - **Isolation**: Processes in one container don't affect those in another.
@@ -23,24 +38,100 @@ A component of the Docker architecture that provides Command Line Interface tool
 
 ## Docker Images and Containers
 
+A **Docker image** is a **read-only template** containing instructions for creating a Docker container. Images are built in layers based on the Dockerfile instructions. When an image is rebuilt, only the changed layers are updated. These layers can be shared across multiple images, saving disk space and network bandwidth.
+
+### Image Naming
+An image name typically follows the format: `[hostname]/[repository]:[tag]`
+-   **hostname:** Identifies the image registry (e.g., `docker.io` for Docker Hub). This is often omitted when using the default Docker Hub via the CLI.
+-   **repository:** A group of related container images (e.g., `ubuntu`, `nginx`).
+-   **tag:** Specifies a particular version or variant of the image (e.g., `latest`, `18.04`, `stable`).
+
 ### What is a Docker Container?
-A container is a runnable instance of the Docker image.
+A **Docker container** is a **runnable instance** of a Docker image.
 
 - You **can** create multiple containers from the **same** Docker image.
-- Each container will run **independently** and can have its own configuration, environment variables, and mounted volumes.
+- Each container runs **independently**, is well **isolated** from other containers and the host machine, and can have its own configuration, environment variables, and mounted volumes.
+
 
 ## Dockerfile
 
 ### What is the Dockerfile?
-It is a special script for Docker that provides commands for building docker images.
+It is a special script (text file) for Docker that provides commands (instructions) for building docker images. You can create a Docker file using any editor from the console or terminal.
+
+A Dockerfile must always begin with a `FROM` instruction that defines a base image, often sourced from a public repository (e.g., an OS like Ubuntu, or a language runtime like Node.js).
 
 ### Key Dockerfile Instructions
 
 - **RUN** executes a command **during the image build process**.
-- Each RUN instruction **creates a new layer** in the Docker image.
-- This is typically used to install dependencies, update packages, or configure the system.
+    - Each RUN instruction **creates a new layer** in the Docker image.
+    - This is typically used to install dependencies, update packages, or configure the system.
+- **CMD** defines the **default command** to be executed when a container starts from the image.
+    - A Dockerfile should only have **one CMD instruction**. If multiple are present, only the **last one takes effect**.
+    - See the `Docker Commands` section for comparison with `ENTRYPOINT`.
+
+### Sample Dockerfile and Instructions
+
+Below is a sample Dockerfile followed by explanations of the commonly used instructions.
+
+```dockerfile
+# Use the official Node.js image as the base image
+FROM node:14
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Set the working directory inside the container
+WORKDIR /app
+
+# Copy package.json and package-lock.json files first for layer caching
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install --production
+
+# Copy the rest of the application code
+COPY . .
+
+# Add additional file (can also handle URLs and auto-extract archives)
+# ADD public/index.html /app/public/index.html
+
+# Expose the port on which the application will run
+EXPOSE $PORT
+
+# Specify the default command to run when the container starts
+CMD ["node", "app.js"]
+
+# Labeling the image with metadata
+LABEL version="1.0"
+LABEL description="Node.js application Docker image"
+LABEL maintainer="Your Name <your.email@example.com>"
+
+# Healthcheck to ensure the container is running correctly
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -fs http://localhost:$PORT || exit 1
+
+# Set a non-root user for security purposes
+USER node
+```
+
+**Instruction Explanations:**
+
+-   **`FROM`**: Specifies the base image to build upon (e.g., `node:14`). Must be the first instruction.
+-   **`ENV`**: Sets persistent environment variables within the image (e.g., `NODE_ENV=production`).
+-   **`WORKDIR`**: Sets the working directory for subsequent instructions (`RUN`, `CMD`, `ENTRYPOINT`, `COPY`, `ADD`) within the Dockerfile and when running the container.
+-   **`COPY`**: Copies files or directories from the build context (your local machine) into the container's filesystem. It's generally preferred for simple file copying.
+-   **`RUN`**: Executes commands in a new layer on top of the current image. Used for installing packages, compiling code, etc. Each `RUN` creates a layer.
+-   **`ADD`**: Similar to `COPY`, but with additional features like handling remote URLs and automatically extracting compressed files (tar, gzip, bzip2) into the destination directory.
+-   **`EXPOSE`**: Informs Docker that the container listens on the specified network ports at runtime. It doesn't actually publish the port; it functions as documentation between the image builder and the person running the container.
+-   **`CMD`**: Provides defaults for an executing container. These defaults can include an executable, or they can omit the executable, in which case you must specify an `ENTRYPOINT` instruction as well. There can only be one `CMD` instruction. If you list more than one `CMD`, only the last `CMD` will take effect. The primary purpose of a `CMD` is to provide default execution parameters that can be easily overridden when running the container (`docker run image_name optional_command`).
+-   **`LABEL`**: Adds metadata to an image, such as version, description, or maintainer information.
+-   **`HEALTHCHECK`**: Defines a command to run inside the container to check if it's still working correctly. Docker can use this to determine the container's health status.
+-   **`USER`**: Sets the user name (or UID) and optionally the user group (or GID) to use when running the image and for any `RUN`, `CMD`, and `ENTRYPOINT` instructions that follow it in the Dockerfile. Running containers as a non-root user is a security best practice.
 
 ## Docker Storage
+
+By default, data generated within a container **does not persist** when the container is removed. Docker provides several ways to persist data:
 
 ### Storage Options
 
@@ -50,6 +141,9 @@ It is a special script for Docker that provides commands for building docker ima
 #### Bind Mounts
 Where are bind mounts stored on the host system?
 Anywhere on the host system.
+
+#### Storage Plugins
+Docker also supports **storage plugins** that allow containers to connect to external storage platforms.
 
 ### Storage Drivers
 
@@ -64,7 +158,20 @@ Anywhere on the host system.
 ### Docker Compose Commands
 - `docker-compose up -d` → Runs multiple containers defined in a Compose file.
 
+## Docker Networking
+
+Docker uses networks to manage and isolate communication between containers, and between containers and the outside world.
+
 ## Docker Engine and System
+
+The Docker Host runs the Docker Engine, which includes the Docker Daemon.
+
+### Docker Daemon (`dockerd`)
+-   The core background service that runs on the Docker Host.
+-   Listens for Docker API requests (from the client via CLI or REST API) and manages Docker objects.
+-   Handles the building, running, and distribution of Docker containers.
+-   Manages images, containers, namespaces, networks, storage volumes, plugins, and add-ons.
+-   Docker daemons can also communicate with other daemons to manage Docker services.
 
 ### Docker Engine cgroups
 Docker Engine uses the following cgroups:
@@ -119,8 +226,19 @@ PID namespace used in Docker Engine for process isolation.
 ### System Information
 - `docker system df --v` → Shows detailed information on Docker disk usage.
 
-## Artifact Registry
 
-### What is Artifact Registry?
+
+## Docker Registry / Artifact Registry
+
+A Docker Registry is a stateless, scalable storage system for Docker images. Registries facilitate the distribution of images.
+
+-   **Access:**
+    -   **Public:** Accessible by everyone (e.g., Docker Hub).
+    -   **Private:** Restricted access, often used by enterprises for security. Private registries can be hosted by third-party providers (e.g., IBM Cloud Container Registry, Google Artifact Registry, AWS ECR) or self-hosted on-premises or in the cloud.
+-   **Mechanism:**
+    -   `docker push`: Uploads an image to a registry.
+    -   `docker pull`: Downloads an image from a registry to the local Docker host.
+
+### What is Artifact Registry (General Concept)?
 - Artifact Registry is a **centralized storage system** used for managing and versioning various build artifacts generated during the software development lifecycle.
 - It helps store, version, and manage artifacts like Docker images, dependencies, or compiled code, ensuring efficient and secure software deployment.
