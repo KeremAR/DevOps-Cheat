@@ -274,7 +274,7 @@ $ git merge origin/master
 ```
 
 ### Revert vs Reset
-![GITrevertreset](/Media/revertreset.png)
+<img src="/Media/revertreset.png" alt="GITrevertreset" width="200"/>
 **Git Revert:**
 - Creates a **new commit** that undoes changes from a previous commit
 - Safe for shared branches as it doesn't alter history
