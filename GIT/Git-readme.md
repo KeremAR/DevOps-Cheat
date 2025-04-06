@@ -224,7 +224,7 @@ Upload to a branch (can then pull request)
 ```bash
 $ git push <alias> <branch>
 ```
-![GITpull](/Media/gitpull.jpg)
+![GITpull](/Media/gitpull.png)
 ## Key Git Concepts Compared
 ## Managing Remote Repositories
 - **Remote Types**:
@@ -274,6 +274,7 @@ $ git merge origin/master
 ```
 
 ### Revert vs Reset
+![GITrevertreset](/Media/revertreset.png)
 **Git Revert:**
 - Creates a **new commit** that undoes changes from a previous commit
 - Safe for shared branches as it doesn't alter history
