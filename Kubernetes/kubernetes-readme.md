@@ -100,6 +100,203 @@ These components run on every node, maintaining running pods and providing the K
 -   Contains **one or more containers** (like Docker containers).
 -   Containers within a Pod share the same network namespace, IP address, and storage volumes.
 
+## Kubernetes Objects
+
+Kubernetes objects are persistent entities within the Kubernetes system representing the state of your cluster.
+
+-   **Key Fields:**
+    -   `spec`: Provided by the user, defining the *desired state* of the object.
+    -   `status`: Provided by Kubernetes, describing the *current state* of the object. Kubernetes constantly works to match the current state to the desired state.
+-   **Interaction:** Managed via the Kubernetes API (e.g., using `kubectl` or client libraries).
+
+### Labels and Selectors
+
+-   **Labels:** Key/value pairs attached to objects (e.g., `app: nginx`). Used for identification and organization, but are not unique; multiple objects can share the same label.
+-   **Label Selectors:** Core grouping mechanism. Used to select a set of objects based on their labels (e.g., in ReplicaSets or Services).
+
+### Namespaces
+
+-   Mechanism for isolating groups of resources within a single cluster.
+-   Useful for multi-tenant environments, separating projects, or organizing resources (e.g., `default`, `kube-system`).
+-   Provide a scope for object names; an object name must be unique within its namespace for its resource type.
+
+### Pod
+
+-   The simplest and smallest deployable unit in Kubernetes.
+-   Represents a single instance of an application/process running in the cluster.
+-   Usually wraps one or more containers.
+-   Can be replicated (scaled horizontally) using higher-level objects like ReplicaSets or Deployments.
+
+**Example Pod YAML:**
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.7.9
+    ports:
+    - containerPort: 80
+```
+
+### ReplicaSet
+
+-   Ensures that a specified number of identical Pod replicas are running at any given time.
+-   Uses a `selector` (with `matchLabels`) to identify the Pods it manages.
+-   Includes a `template` section defining the specification for the Pods it should create.
+-   **Note:** Directly managing ReplicaSets is not recommended. Use Deployments instead.
+
+**Example ReplicaSet YAML:**
+```yaml
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: nginx-replicaset
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
+```
+
+### Deployment
+
+-   A higher-level object that manages ReplicaSets and provides declarative updates for Pods.
+-   Manages the rollout of new versions using strategies like **Rolling Updates** (scaling up the new version while scaling down the old one).
+-   Suitable for stateless applications (StatefulSets are used for stateful ones).
+-   Defines the desired state (e.g., number of replicas, container image, template) and the Deployment controller changes the actual state to match.
+
+**Example Deployment YAML:**
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
+```
+
+### Service
+
+-   An abstraction that defines a logical set of Pods and a policy by which to access them (often acting as an internal load balancer).
+-   Provides a stable IP address and DNS name for a set of Pods, addressing the volatility of Pod IPs.
+-   Uses selectors to target Pods.
+-   Supports multiple protocols (TCP default, UDP, etc.) and port definitions.
+
+**Service Types:**
+
+1.  **`ClusterIP`:** (Default) Exposes the service on an internal IP within the cluster. Makes the service reachable only *from within* the cluster. Used for inter-service communication (e.g., frontend to backend).
+2.  **`NodePort`:** Exposes the service on each Node's IP at a static port. Routes traffic to the `ClusterIP` service automatically. Allows external access but is often not recommended for production security.
+3.  **`LoadBalancer`:** Exposes the service externally using a cloud provider's load balancer. Automatically creates `NodePort` and `ClusterIP` services. Provides an external IP address.
+4.  **`ExternalName`:** Maps the service to an external DNS name (using a CNAME record) instead of using selectors. Useful for accessing external services from within the cluster.
+
+### Ingress
+
+-   An API object that manages external access to services within the cluster, typically HTTP/HTTPS.
+-   Provides routing rules (based on host or path) to direct traffic to different services.
+-   Requires an Ingress Controller to be running in the cluster to fulfill the Ingress rules.
+-   Often used to expose multiple services under a single IP address, potentially with TLS termination.
+
+### DaemonSet
+
+-   Ensures that all (or some specified) Nodes run a copy of a specific Pod.
+-   Pods are automatically added to new nodes joining the cluster.
+-   Useful for cluster-level agents like log collectors, monitoring agents, or storage daemons.
+
+### StatefulSet
+
+-   Manages the deployment and scaling of a set of Pods, specifically designed for **stateful applications**.
+-   Provides guarantees about the ordering and uniqueness of Pods (stable, persistent identifiers).
+-   Provides stable, persistent storage volumes associated with each Pod replica.
+
+### Job
+
+-   Creates one or more Pods and ensures that a specified number of them successfully terminate (complete).
+-   Tracks the completion of tasks; Pods are usually deleted after the Job completes.
+-   Useful for batch processing, one-off tasks, or tasks that need to run to completion.
+-   **CronJob:** Creates Jobs on a repeating schedule (like cron).
+
+## Kubectl (Kubernetes CLI)
+
+`kubectl` (kube control) is the primary command-line interface (CLI) tool for interacting with a Kubernetes cluster.
+
+-   Used to deploy applications, inspect and manage cluster resources, view logs, etc.
+
+### Kubectl Command Structure
+
+```
+kubectl [command] [type] [name] [flags]
+```
+
+-   **`[command]`**: The operation to perform (e.g., `create`, `get`, `apply`, `delete`).
+-   **`[type]`**: The resource type (e.g., `pod`, `deployment`, `replicaset`, `service`).
+-   **`[name]`**: The name of the specific resource (if applicable).
+-   **`[flags]`**: Special options or modifiers (e.g., `-n` for namespace, `-o` for output format).
+
+### Command Types
+
+1.  **Imperative Commands:**
+    -   Operate directly on live objects in the cluster (e.g., `kubectl run my-pod --image=nginx`, `kubectl create deployment ...`, `kubectl expose ...`).
+    -   Easy to learn and use for simple tasks or development/testing.
+    -   **Cons:** No audit trail, less flexible, doesn't use configuration files/templates, hard to replicate.
+
+2.  **Imperative Object Configuration:**
+    -   Uses a specific command (`create`, `replace`, `delete`) along with a configuration file (`-f file.yaml`).
+    -   Requires a full object definition in YAML/JSON.
+    -   Stored in source control (Git), provides audit trail, uses templates.
+    -   **Cons:** Requires understanding the object schema, still requires specifying the *operation* (create vs. replace). Changes made outside the file can be lost.
+
+3.  **Declarative Object Configuration:**
+    -   Uses the `kubectl apply -f <file_or_directory>` command.
+    -   Defines the *desired state* in configuration files (YAML/JSON).
+    -   `kubectl` determines the necessary operations (create, patch, delete) to reach the desired state.
+    -   Configuration stored in source control, ideal for production systems, tracks changes effectively.
+
+### Common Kubectl Commands (Examples)
+
+-   `kubectl get pods`: List pods in the current namespace.
+-   `kubectl get pods -A` or `kubectl get pods --all-namespaces`: List pods in all namespaces.
+-   `kubectl get deployment my-dep`: Get details of a specific deployment.
+-   `kubectl get services`: List services in the current namespace.
+-   `kubectl create -f my-resource.yaml`: Create resources defined in a file (imperative object config).
+-   `kubectl apply -f my-resource.yaml` or `kubectl apply -f ./configs/`: Apply configuration from file(s) or directory (declarative).
+-   `kubectl delete pod my-pod`: Delete a specific pod.
+-   `kubectl delete -f my-resource.yaml`: Delete resources defined in a file.
+-   `kubectl scale deployment my-dep --replicas=5`: Scale a deployment.
+-   `kubectl autoscale deployment my-dep --min=2 --max=10 --cpu-percent=80`: Create a HorizontalPodAutoscaler.
+-   `kubectl logs my-pod`: View logs from a pod.
+-   `kubectl describe pod my-pod`: Get detailed information about a pod.
+-   `kubectl exec -it my-pod -- /bin/bash`: Execute a command (like a shell) inside a pod's container.
+
 ## Conclusion
 
 Kubernetes automates container management, making systems more resilient, scalable, and efficient. While Docker is used to build and package containers, Kubernetes is responsible for managing and orchestrating them.
