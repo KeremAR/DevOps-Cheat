@@ -135,33 +135,37 @@ This example workflow triggers whenever code is pushed to the `main` branch. It 
 ```yaml
 # .github/workflows/ci_pipeline.yml
 
-name: Basic CI Pipeline # Optional: Name for the workflow displayed on GitHub
+name: CI workflow  # Name of the workflow that appears in GitHub Actions tab
 
-on: # Event trigger
+on:  # Events that trigger the workflow
   push:
-    branches: [ main ] # Trigger only on pushes to the main branch
+    branches: [ "main" ]  # Triggered when code is pushed to main branch
+  pull_request:
+    branches: [ "main" ]  # Triggered when a PR is created against main branch
 
 jobs:
-  build: # Name of the job
-    runs-on: ubuntu-latest # Specify the runner environment
+  build:  # Job name
+    runs-on: ubuntu-latest  # The type of runner that the job will run on
+    container: python:3.9-slim  # Uses Docker container with Python 3.9 installed
+    steps:  # List of steps to be executed
+      - name: Checkout  # Get the code
+        uses: actions/checkout@v3  # Official GitHub checkout action
 
-    steps:
-      - name: Check out repository code # Step 1: Get the code
-        uses: actions/checkout@v4 # Use the official checkout action
+      - name: Install dependencies  # Install required packages
+        run: |  # Use pipe (|) to run multiple commands
+          python -m pip install --upgrade pip  # Upgrade pip to latest version
+          pip install -r requirements.txt  # Install dependencies from requirements.txt
 
-      - name: Set up Node.js (Example) # Step 2: Set up environment (if needed)
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20' # Specify Node.js version
+      - name: Lint with flake8  # Check code quality
+        run: |
+          # Check for critical errors (syntax errors, undefined names)
+          flake8 service --count --select=E9,F63,F7,F82 --show-source --statistics
+          # General code quality check (complexity, line length)
+          flake8 service --count --max-complexity=10 --max-line-length=127 --statistics
 
-      - name: Install dependencies (Example)
-        run: echo "Simulating npm install..." # Replace with actual command like: npm install
-
-      - name: Run build command (Example)
-        run: echo "Simulating build process..." # Replace with actual build command like: npm run build
-
-      - name: Run tests (Example)
-        run: echo "Simulating running tests..." # Replace with actual test command like: npm test
+      - name: Run unit tests with nose  # Execute unit tests
+        run: nosetests -v --with-spec --spec-color --with-coverage --cover-package=app
+     
 
 ```
 
