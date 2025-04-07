@@ -244,14 +244,6 @@ $ git push <alias> <branch>
 - **Cloning** directly creates a local copy of an existing remote repository. You usually clone repositories you have write access to, or your own forks.
 - **Forking** creates a *server-side* copy of someone else's repository under your own account. This allows you to experiment freely. You typically *clone your fork* locally to make changes, and then propose changes back to the original repository (upstream) via Pull Requests.
 
-
-
-
-
-
-
-
-
 ### Fetch vs Pull
 **Git Fetch:**
 - Downloads changes from remote repository but **doesn't integrate** them into your working files
@@ -259,7 +251,11 @@ $ git push <alias> <branch>
 - Updates your remote-tracking branches
 ```bash
 $ git fetch origin
-
+```
+- After fetching, you can see the exact code differences before merging:
+```bash
+# Compare your current branch (HEAD) with the fetched remote branch
+$ git diff HEAD origin/main
 ```
 
 **Git Pull:**
