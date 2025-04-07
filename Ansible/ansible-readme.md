@@ -17,6 +17,35 @@ It saves time when managing multiple servers. Instead of manually performing the
    * **Play**: A set of tasks executed on one or more target hosts.
 * **Idempotency**: Changes are only applied if necessary; otherwise, the current state is maintained.
 
+## Ansible Inventory: Defining Target Hosts
+
+Ansible's core function is to run tasks on multiple remote machines (Managed Nodes). The **Inventory** is the file (or collection of files) that tells Ansible which machines it should manage.
+
+*   **Purpose**: Lists the IP addresses or hostnames of the servers and devices Ansible will connect to.
+*   **Grouping**: Hosts can be organized into groups (e.g., `[webservers]`, `[databases]`) for easier targeting in Playbooks.
+*   **Formats**: Inventory files are typically written in INI or YAML format.
+*   **Location**: By default, Ansible looks for an inventory file at `/etc/ansible/hosts`. You can specify a different inventory file using the `-i <path_to_inventory_file>` flag when running `ansible` or `ansible-playbook` commands.
+*   **Playbook Connection**: The `hosts:` line within a Playbook refers to a host pattern (a specific host, a group, or multiple groups) defined in the inventory file.
+
+**Example Inventory File (INI format):**
+
+```ini
+# /etc/ansible/hosts (or a custom inventory file)
+
+[webservers]
+web1.example.com
+192.168.1.50
+
+[databases]
+db1.example.com
+
+[linux:children] # This group includes hosts from other groups
+webservers
+databases
+```
+
+In this example, a Playbook with `hosts: webservers` would only run on `web1.example.com` and `192.168.1.50`. A Playbook with `hosts: linux` would run on all three servers.
+
 ## Ansible Galaxy and Ansible Vault
 
 * **Ansible Galaxy**: A large ecosystem of pre-built playbooks and modules.
