@@ -224,7 +224,8 @@ Upload to a branch (can then pull request)
 ```bash
 $ git push <alias> <branch>
 ```
-![GITpull](/Media/gitpull.png)
+
+<img src="/Media/gitpull.png" alt="GITPULL" width="500"/>
 ## Key Git Concepts Compared
 ## Managing Remote Repositories
 - **Remote Types**:
