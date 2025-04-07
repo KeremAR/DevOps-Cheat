@@ -103,3 +103,70 @@ A shadow deployment is a technique that involves releasing a new version of an a
 
 ### A/B Deployment
 A/B deployment strategy is a technique used to test and compare two different versions of a software or feature. It involves dividing users into two groups: Group A, which receives the existing version (control group), and Group B, which receives the new version (experimental group).
+
+## GitHub Actions: CI/CD Automation
+
+GitHub Actions allows you to automate your software development workflows directly within your GitHub repository. It's commonly used for Continuous Integration (CI) and Continuous Delivery (CD).
+
+### How GitHub Actions Works
+
+1.  **Setup**: Create a `.github/workflows/` directory in the root of your repository.
+2.  **Workflow Files**: Place one or more workflow definition files (YAML format, e.g., `main.yml`) inside this directory.
+3.  **Trigger**: Workflows are triggered by specific **events** occurring in your repository (e.g., a push to a branch, a pull request creation, a new release).
+4.  **Execution**: When triggered, the workflow runs one or more **jobs**.
+5.  **Jobs**: Jobs consist of **steps** that execute on a specified **runner** (a virtual machine hosted by GitHub or self-hosted).
+
+### Key Workflow Components
+
+*   **`on` (Event)**: Defines the trigger for the workflow. Common events include `push`, `pull_request`, `release`. You can specify branches, types (e.g., `opened`, `published`), etc.
+*   **`jobs`**: Contains one or more jobs to be executed. By default, jobs run in parallel.
+    *   **Job Name** (e.g., `build`, `test`): A user-defined name for the job.
+    *   **`runs-on`**: Specifies the type of runner machine to use (e.g., `ubuntu-latest`, `windows-latest`, `macos-latest`).
+    *   **`needs`**: Defines dependencies between jobs. A job with `needs: other_job` will only start after `other_job` completes successfully, forcing serial execution.
+    *   **`steps`**: A sequence of tasks to be executed within a job. Steps run on the same runner and can share data.
+        *   **`name`**: An optional name for the step.
+        *   **`uses`**: Specifies a reusable **action** to run (pre-built scripts/tasks from the marketplace or community, e.g., `actions/checkout@v3` to check out code).
+        *   **`run`**: Executes shell commands directly on the runner.
+
+### Example Workflow: Basic CI on Push
+
+This example workflow triggers whenever code is pushed to the `main` branch. It runs a single job called `build` on an Ubuntu runner, checks out the code, and then simulates running build and test commands.
+
+```yaml
+# .github/workflows/ci_pipeline.yml
+
+name: Basic CI Pipeline # Optional: Name for the workflow displayed on GitHub
+
+on: # Event trigger
+  push:
+    branches: [ main ] # Trigger only on pushes to the main branch
+
+jobs:
+  build: # Name of the job
+    runs-on: ubuntu-latest # Specify the runner environment
+
+    steps:
+      - name: Check out repository code # Step 1: Get the code
+        uses: actions/checkout@v4 # Use the official checkout action
+
+      - name: Set up Node.js (Example) # Step 2: Set up environment (if needed)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Specify Node.js version
+
+      - name: Install dependencies (Example)
+        run: echo "Simulating npm install..." # Replace with actual command like: npm install
+
+      - name: Run build command (Example)
+        run: echo "Simulating build process..." # Replace with actual build command like: npm run build
+
+      - name: Run tests (Example)
+        run: echo "Simulating running tests..." # Replace with actual test command like: npm test
+
+```
+
+**To use this example:**
+1. Create the `.github/workflows/` directory in your project.
+2. Save the YAML content above as a file named `ci_pipeline.yml` (or any other `.yml` name) inside that directory.
+3. Commit and push the changes to your `main` branch on GitHub.
+4. Go to the "Actions" tab in your GitHub repository to see the workflow run.
