@@ -226,6 +226,7 @@ $ git push <alias> <branch>
 ```
 
 <img src="/Media/gitpull.png" alt="GITPULL" width="500"/>
+
 ## Key Git Concepts Compared
 ## Managing Remote Repositories
 - **Remote Types**:
