@@ -162,9 +162,27 @@ Docker also supports **storage plugins** that allow containers to connect to ext
 
 Docker uses networks to manage and isolate communication between containers, and between containers and the outside world.
 
+### Port Mapping (`-p` / `--publish`)
+
+When you run a service inside a container (e.g., a web server listening on port 80), that port is only accessible from within the Docker network by default.
+
+*   **Container Port:** The port the application *inside* the container listens on (e.g., 80 for Nginx).
+*   **Host Port:** A port on the Docker *host* machine (your computer).
+*   **Mapping:** The `-p` (or `--publish`) flag connects a host port to a container port, making the container's service accessible from outside.
+    *   Syntax: `docker run -p <host_port>:<container_port> [image_name]`
+    *   Example: `docker run -d -p 8080:80 nginx`
+        *   This command runs an Nginx container in the background (`-d`).
+        *   Nginx inside the container listens on its default **Container Port** `80`.
+        *   Docker maps the **Host Port** `8080` on your host machine to the container's port `80`.
+        *   You can now access the Nginx server from your browser using `http://<your-host-ip>:8080` or `http://localhost:8080`.
+    *   If you only specify the container port (`-p 80`), Docker will automatically map it to a random available high port number on the host. You can see the assigned port using `docker ps`.
+
 ## Docker Engine and System
 
 The Docker Host runs the Docker Engine, which includes the Docker Daemon.
+
+### Default Docker Data Directory (Linux)
+By default on Linux systems, Docker stores all its data, including images, container filesystems, volumes, and network configurations, within the `/var/lib/docker` directory. It's generally recommended to manage these objects using Docker commands rather than modifying this directory directly.
 
 ### Docker Daemon (`dockerd`)
 -   The core background service that runs on the Docker Host.
@@ -207,8 +225,11 @@ PID namespace used in Docker Engine for process isolation.
 - `docker ps` → Lists currently running containers.
 - `docker ps -a` → Shows all containers that have been run previously.
 - `docker container stop [container_id]` → Stops a running container.
+- `docker stop $(docker ps -q)` → Stops all running containers at once by passing the IDs of running containers (`docker ps -q`) to the stop command.
 - `docker container start [container_id]` → Restarts a stopped container.
-- `docker container prune` → Cleans up all stopped containers.
+- `docker rm [container_id_or_name]` → Removes a *specific* stopped container.
+- `docker rm -f [container_id_or_name]` → Forcefully removes a *specific* running container. Use with caution.
+- `docker container prune` → Cleans up *all* stopped containers (bulk removal).
 
 ### Running Ubuntu Inside Docker
 - `docker run -dit ubuntu` → Runs an Ubuntu container in the background.
@@ -221,8 +242,12 @@ PID namespace used in Docker Engine for process isolation.
 ### Image and Build Process
 - `docker build -t [image_name]:v1 .` → Builds an image from the Dockerfile in the current directory.
 - `docker run [image_name]:v1` → Runs the created image.
-- `docker run -dp 8080:8080 myimage:v1`
+- `docker run -dp 8080:8080 myimage:v1` → Runs a container in detached mode (`-d`) and maps host port 8080 to container port 8080 (`-p`).
+- `docker run -d -e MYSQL_ROOT_PASSWORD=db_pass123 --name mysql-db mysql` → Runs a MySQL container named `mysql-db` in the background, setting the root password via an environment variable (`-e`).
 - `docker images` → Lists all available Docker images.
+- `docker rmi [image_id_or_name]` → Removes a specific Docker image. You might need to use `-f` (force) if the image is used by stopped containers.
+- `docker rmi -f $(docker images -q)` → Removes *all* Docker images forcefully. Use with caution!
+- `docker run --rm <image_name> cat /etc/os-release` → Checks the OS version inside an image by running a command in a temporary container (`--rm` cleans up afterwards).
 
 ### System Information
 - `docker system df --v` → Shows detailed information on Docker disk usage.
