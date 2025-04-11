@@ -139,8 +139,13 @@ By default, data generated within a container **does not persist** when the cont
 **Volumes** are managed by Docker and are the recommended way to persist data. Volumes can be safely shared between multiple docker containers.
 
 #### Bind Mounts
-Where are bind mounts stored on the host system?
-Anywhere on the host system.
+
+*   **How they work:** A file or directory on the host machine is mounted directly into a container.
+*   **Persistence Example (`-v <host_path>:<container_path>`):** Consider `docker run -v /opt/data:/var/lib/mysql ... mysql`.
+    *   The database files created by MySQL *inside* the container (at `/var/lib/mysql`) are actually stored in `/opt/data` on the **host**.
+    *   If you `docker stop` and `docker rm` this container, the `/opt/data` directory on the host **remains untouched**.
+    *   Running the *same* `docker run -v /opt/data:/var/lib/mysql ...` command again will start a **new** container, but it will mount the *existing* `/opt/data` from the host. The new MySQL instance finds the old data and continues.
+    *   **Important:** This restores *access* to the data by connecting a new container to the existing host data. It **does not** protect the data in the host path (`/opt/data`) itself from accidental deletion or corruption on the host. Regular backups of the host path are still necessary for true data safety.
 
 #### Storage Plugins
 Docker also supports **storage plugins** that allow containers to connect to external storage platforms.
@@ -168,7 +173,7 @@ When you run a service inside a container (e.g., a web server listening on port 
 
 *   **Container Port:** The port the application *inside* the container listens on (e.g., 80 for Nginx).
 *   **Host Port:** A port on the Docker *host* machine (your computer).
-*   **Mapping:** The `-p` (or `--publish`) flag connects a host port to a container port, making the container's service accessible from outside.
+*   **Mapping (`-p`):** Connects a host port to a container port, making the container's service accessible from outside. It controls **external access** to a container's port.
     *   Syntax: `docker run -p <host_port>:<container_port> [image_name]`
     *   Example: `docker run -d -p 8080:80 nginx`
         *   This command runs an Nginx container in the background (`-d`).
@@ -176,6 +181,28 @@ When you run a service inside a container (e.g., a web server listening on port 
         *   Docker maps the **Host Port** `8080` on your host machine to the container's port `80`.
         *   You can now access the Nginx server from your browser using `http://<your-host-ip>:8080` or `http://localhost:8080`.
     *   If you only specify the container port (`-p 80`), Docker will automatically map it to a random available high port number on the host. You can see the assigned port using `docker ps`.
+
+### Network Connection (`--network`)
+
+This flag connects a container to a specific Docker network, controlling how it communicates with other containers and its network isolation.
+
+*   **Purpose:** Attaches the container to a network (e.g., `bridge`, `host`, `none`, or a user-defined network).
+*   **Function:** Determines which other containers it can communicate with directly (often using container names for DNS resolution on user-defined networks) and its overall network environment.
+*   **Default:** If omitted, containers connect to the default `bridge` network.
+*   **Example:** `--network my-custom-bridge` connects the container to the network named `my-custom-bridge`.
+
+### `--network` vs. `-p`
+
+*   Use `-p` (or `--publish`) to **expose a container's port** to the host machine, allowing external connections.
+*   Use `--network` to **connect a container to a specific network**, controlling its communication with other containers.
+*   They serve different purposes and are often used together.
+
+### Legacy Linking (`--link`)
+
+*   **Purpose:** A legacy method to connect containers, allowing one container to discover the IP address of another by name.
+*   **Function:** Adds an entry to the `/etc/hosts` file of the recipient container (e.g., `--link mysql-db:db` adds a host entry mapping `db` to the `mysql-db` container's IP).
+*   **Status:** Generally **discouraged** and considered legacy. **User-defined networks (created with `docker network create`) are the preferred modern approach** as they provide cleaner isolation and use Docker's built-in DNS for service discovery by container name.
+*   **Redundancy:** Using `--link` is redundant if containers are already connected to the same user-defined network.
 
 ## Docker Engine and System
 
@@ -239,11 +266,19 @@ PID namespace used in Docker Engine for process isolation.
 - `docker volume create [volume_name]` → Creates a new Docker volume.
 - `docker inspect [volume_name]` → Displays details about a Docker volume.
 
+### Network Management
+- `docker network ls` → Lists all Docker networks on the host (showing ID, Name, Driver, Scope).
+- `docker network create [network_name]` → Creates a new user-defined network (default driver is bridge).
+- `docker network create --driver bridge --subnet 182.18.0.0/24 --gateway 182.18.0.1 wp-mysql-network` → Creates a custom bridge network named `wp-mysql-network` with a specific IP subnet and gateway.
+
 ### Image and Build Process
 - `docker build -t [image_name]:v1 .` → Builds an image from the Dockerfile in the current directory.
 - `docker run [image_name]:v1` → Runs the created image.
 - `docker run -dp 8080:8080 myimage:v1` → Runs a container in detached mode (`-d`) and maps host port 8080 to container port 8080 (`-p`).
 - `docker run -d -e MYSQL_ROOT_PASSWORD=db_pass123 --name mysql-db mysql` → Runs a MySQL container named `mysql-db` in the background, setting the root password via an environment variable (`-e`).
+- `docker run -v /opt/data:/var/lib/mysql -d --name mysql-db -e MYSQL_ROOT_PASSWORD=db_pass123 mysql` → Runs MySQL, **mounting the host directory `/opt/data` to the container's `/var/lib/mysql` (`-v`) for persistent database storage**, setting the root password (`-e`), naming it (`--name`), and running in the background (`-d`).
+- `docker run -d -e MYSQL_ROOT_PASSWORD=db_pass123 --name mysql-db --network wp-mysql-network mysql:5.6` → Runs MySQL 5.6, setting password (`-e`), naming it (`--name`), running in background (`-d`), and **connecting it specifically to the user-defined network `wp-mysql-network` (`--network`)** for isolated communication with other containers on that network.
+- `docker run --network=wp-mysql-network -e DB_Host=mysql-db -e DB_Password=db_pass123 -p 38080:8080 --name webapp --link mysql-db:mysql-db -d kodekloud/simple-webapp-mysql` → Runs a webapp container, connecting it to `wp-mysql-network`, passing DB credentials (`-e`), exposing port (`-p`), naming it (`--name`), using a (redundant) legacy link (`--link`), and running in background (`-d`).
 - `docker images` → Lists all available Docker images.
 - `docker rmi [image_id_or_name]` → Removes a specific Docker image. You might need to use `-f` (force) if the image is used by stopped containers.
 - `docker rmi -f $(docker images -q)` → Removes *all* Docker images forcefully. Use with caution!
