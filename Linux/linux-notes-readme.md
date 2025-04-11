@@ -278,17 +278,42 @@ echo $HOME
 
 ### Basic Shell Commands
 
+**Manual Pages (`man`)**:
+- `man [command_name]` → Displays the manual page (documentation) for a specific command, providing detailed information about its usage, options, and examples. Press `q` to exit the man page viewer.
+
+**Searching Manual Pages (`apropos`)**:
+- `apropos [keyword]` → Searches the names and short descriptions of manual pages for a specific keyword. Useful when you don't know the exact command name but know what it does.
+
 **Commands That Overwrite a Target File Without Prompting**:
 - `cp source_file target_file`
 - `mv source_file target_file`
 - `mv -f source_file target_file`
 - `cat file1 > file2` → Writes the content of `file1` into `file2`, overwriting any existing content.
 
+**Viewing Files (`less`)**:
+- `less [filename]` → A pager used to view text files or command output one screenful at a time.
+- Allows navigation (Space/Enter/Arrows to scroll, `g`/`G` to go to start/end), searching (`/keyword`), and doesn't load the entire file into memory.
+- Commonly used with pipes: `ls -l | less`.
+- Press `q` to quit.
+
 **Working with Grep and Pipes**:
 - `ls | grep li` → Lists files in the current directory containing "li" (case-sensitive).
 - `ls /etc | grep conf` → Search for files containing "conf" in the /etc directory.
 - `ls -R | grep li` → Recursive search in subdirectories for files containing "li".
 - `ls *.txt | grep report` → Search for specific file extensions containing "report".
+- `grep 'CentOS' /etc/os-release` → Searches the `/etc/os-release` file for lines containing the exact string 'CentOS', often used to identify the OS distribution.
+- `grep -i 'error' /var/log/syslog` → Searches the `/var/log/syslog` file for lines containing 'error', ignoring case (matches 'error', 'ERROR', 'Error', etc.).
+- `grep -v '^#' /etc/fstab` → Displays lines from `/etc/fstab` that **do not** start with `#` (useful for filtering out comments).
+- `grep 'sam$' names.txt` → Searches `names.txt` for lines that **end** with the exact string 'sam' (`$` anchors the pattern to the end of the line).
+- `grep -r 'c.t' /etc/` → **Recursively (`-r`)** searches all files under `/etc` for lines containing 'c', followed by **any single character (`.`)**, followed by 't' (e.g., matches 'cat', 'cot', 'c_t').
+- `grep 'let*' file.txt` → Searches `file.txt` for lines containing 'le' followed by **zero or more (`*`) occurrences** of the letter 't' (matches 'le', 'let', 'lett', 'lettt', etc.).
+- `grep '/.*/' filename` → Searches `filename` for lines containing a forward slash `/`, followed by **zero or more of any character (`.*`)**, followed by another forward slash `/` (useful for finding lines that resemble paths).
+- `grep '0\{3,\}' file.txt` → Searches `file.txt` for lines containing the digit '0' repeated **three or more times consecutively** (e.g., '000', '0000'). Note: The backslashes `\` are needed for Basic Regular Expression syntax used by default `grep`.
+- `grep 'disabled\?' file.txt` → Searches `file.txt` for lines containing 'disable' followed by **zero or one (`\?`) occurrences** of the letter 'd' (matches 'disable' and 'disabled'). Note: The backslash `\` is needed for standard `grep`.
+- `grep 'enabled\|disabled' file.txt` → Searches `file.txt` for lines containing either the exact string 'enabled' **OR (`\|`)** the exact string 'disabled'. Note: The backslash `\` before `|` is needed for standard `grep`.
+- `grep 'c[au]t' file.txt` → Searches `file.txt` for lines containing 'c' followed by **either an 'a' or a 'u' (`[au]`)**, followed by 't' (matches 'cat' or 'cut').
+- `egrep '/dev/[a-z]*[0-9]?' file.txt` → Searches `file.txt` using **Extended Regular Expressions (`egrep`)** for lines containing `/dev/`, followed by **zero or more lowercase letters (`[a-z]*`)**, followed by **zero or one digit (`[0-9]?`)** (e.g., matches `/dev/sda`, `/dev/tty`, `/dev/sda1`). Note: `?` doesn't need escaping with `egrep`.
+- `egrep   'http[^s]' file.txt` → Uses `egrep` to search `file.txt` for lines containing 'http' **not** immediately followed by an 1's' (using `[^s]` negated character set), useful for finding non-HTTPS URLs.
 
 ### Text Editors
 
@@ -502,10 +527,68 @@ sudo useradd -u 1040 -g student_group -G cdrom -d /home/student_home -m student
 # -m: Creates the home directory if it doesn't exist
 ```
 
+**User Account Information (`/etc/passwd`)**:
+- `/etc/passwd` → A text file containing essential information for each user account.
+- `cat /etc/passwd` → Displays the content of this file.
+- Each line represents a user and typically contains fields separated by colons (`:`), including: username, encrypted password placeholder (`x`), user ID (UID), group ID (GID), user description (GECOS), home directory, and login shell.
+
+**Deleting a User (`userdel`)**:
+- `sudo userdel [username]` → Deletes a user account.
+- `sudo userdel -r [username]` → Deletes the user account **and** removes their home directory and mail spool (`-r` flag).
+
+**Modifying a User (`usermod`)**:
+- `usermod` is used to modify existing user account details.
+- `sudo usermod -l NEW_USERNAME OLD_USERNAME` → Changes the user's login name.
+- `sudo usermod -d /new/home/dir -m NEW_USERNAME` → Changes the user's home directory (and moves content with `-m`).
+- `sudo usermod -g NEW_PRIMARY_GROUP USERNAME` → Changes the user's primary group.
+- `sudo usermod -G SUPPLEMENTARY_GROUP1,GROUP2 USERNAME` → Sets the user's supplementary groups (replaces existing list).
+- `sudo usermod -aG SUPPLEMENTARY_GROUP USERNAME` → **Adds** the user to a supplementary group without removing others (`-a` for append).
+- `sudo usermod -s /bin/zsh USERNAME` → Changes the user's login shell.
+- `sudo usermod -L USERNAME` → **Locks** a user's account by putting a `!` in front of the encrypted password, preventing login.
+- `sudo usermod -U USERNAME` → **Unlocks** a previously locked user account.
+- `sudo usermod -e YYYY-MM-DD USERNAME` → Sets an expiration date for the user account (in YYYY-MM-DD format). After this date, the account is disabled.
+
+**Removing a User from a Group (`gpasswd`)**:
+- `sudo gpasswd -d USERNAME GROUPNAME` → Removes the specified USERNAME from the specified GROUPNAME (must be a supplementary group).
+
+**Modifying a Group (`groupmod`)**:
+- `groupmod` is used to modify existing group details.
+- `sudo groupmod -n NEW_GROUPNAME OLD_GROUPNAME` → Renames an existing group.
+- `sudo groupmod -g NEW_GID GROUPNAME` → Changes the Group ID (GID) of a group.
+
+**Deleting a Group (`groupdel`)**:
+- `sudo groupdel GROUPNAME` → Deletes an existing group. Note: You usually cannot delete the primary group of an existing user.
+
+**Displaying/Modifying User Defaults (`useradd -D`)**:
+- `useradd -D` (or `useradd --defaults`) → Displays the default values used by `useradd` when creating a new user (e.g., default group, home directory base, default shell, account expiration settings).
+- You can also use `useradd -D [options]` to *change* these defaults (requires root privileges).
+
 **Setting a Password**:
 ```bash
 sudo passwd student
 ```
+
+**Managing Password Aging (`chage`)**:
+- The `chage` command modifies user password expiry information.
+- `sudo chage -l USERNAME` → Lists the current password aging information for the user.
+- `sudo chage -M DAYS USERNAME` → Sets the maximum number of days a password is valid (`-M` for Max days).
+- `sudo chage -m DAYS USERNAME` → Sets the minimum number of days required between password changes (`-m` for Min days).
+- `sudo chage -W DAYS USERNAME` → Sets the number of days before password expiration that a warning is given (`-W` for Warning days).
+- `sudo chage -E YYYY-MM-DD USERNAME` → Sets the date when the user account itself will expire (`-E` for Expire date - same as `usermod -e`).
+- `sudo chage -d 0 USERNAME` → Forces the user to change their password on the next login (`-d 0` sets the last change date to the epoch).
+
+**Listing User's Groups (`groups`)**:
+- `groups [username]` → Lists all the groups a specific user belongs to (primary and supplementary). If username is omitted, lists groups for the current user.
+
+**Changing Group Ownership (`chgrp`)**:
+- `chgrp [NEW_GROUP] [FILE/DIRECTORY]` → Changes the group ownership of a file or directory.
+- `chgrp -R [NEW_GROUP] [DIRECTORY]` → Changes group ownership recursively for a directory and its contents.
+
+**Changing User Ownership (`chown`)**:
+- `chown [NEW_OWNER] [FILE/DIRECTORY]` → Changes the user owner of a file or directory.
+- `chown [NEW_OWNER]:[NEW_GROUP] [FILE/DIRECTORY]` → Changes *both* the user owner and the group owner simultaneously.
+- `chown -R [NEW_OWNER]:[NEW_GROUP] [DIRECTORY]` → Changes user and group ownership recursively.
+- **Example:** `sudo chown aaron:family family_dog.jpg` → Changes the owner of `family_dog.jpg` to user `aaron` and the group owner to `family`.
 
 The UID for the root user is always 0.
 
@@ -516,6 +599,50 @@ sudo -u username whoami
 
 ### Permission Model
 
+**File Type Identifiers** (First character in `ls -l` output):
+
+| Identifier | File Type          | Description                                       |
+| :--------- | :----------------- | :------------------------------------------------ |
+| `-`        | Regular File       | A normal file containing data (text, binary, etc.) |
+| `d`        | Directory          | A file used to store other files and directories. |
+| `l`        | Symbolic Link      | A file pointing to another file or directory by path. |
+| `c`        | Character Device   | A device file that handles data character by character (e.g., terminal, `/dev/null`). |
+| `b`        | Block Device       | A device file that handles data in blocks (e.g., hard drives, `/dev/sda`). |
+| `s`        | Socket             | A file used for inter-process communication (IPC). |
+| `p`        | Named Pipe (FIFO) | A file used for IPC, acting like a pipe.          |
+
+**Viewing Permissions and Numeric IDs (`ls -ln`)**:
+- `ls -l` → Displays files in long format, showing permissions, owner name, group name, size, etc.
+- `ls -ln` → Similar to `ls -l`, but displays the **numeric User ID (UID)** and **numeric Group ID (GID)** instead of the owner and group names.
+
+**Changing Permissions (`chmod`)**:
+- The `chmod` command modifies the read, write, and execute permissions of files and directories.
+- It operates in two main modes: Symbolic and Octal.
+
+*   **Symbolic Mode:** Uses letters to represent users, operations, and permissions.
+    *   **Users:** `u` (user/owner), `g` (group), `o` (others), `a` (all - ugo)
+    *   **Operations:** `+` (add permission), `-` (remove permission), `=` (set exact permissions)
+    *   **Permissions:** `r` (read), `w` (write), `x` (execute)
+    *   **Examples:**
+        *   `chmod u+x script.sh` → Adds execute permission for the owner.
+        *   `chmod g-w config.txt` → Removes write permission for the group.
+        *   `chmod o=r notes.txt` → Sets others' permissions to read-only.
+        *   `chmod a+r data/` → Adds read permission for everyone (user, group, others).
+        *   `chmod ug+rw,o-w file.log` → Adds read/write for user/group, removes write for others.
+
+*   **Octal (Numeric) Mode:** Uses numbers (0-7) to represent permissions for user, group, and others.
+    *   `4` = Read (r)
+    *   `2` = Write (w)
+    *   `1` = Execute (x)
+    *   Permissions are added together for each category (user, group, others).
+    *   **Examples:**
+        *   `chmod 755 script.sh` → `rwxr-xr-x` (Owner: rwx=4+2+1=7, Group: r-x=4+0+1=5, Others: r-x=4+0+1=5)
+        *   `chmod 644 config.txt` → `rw-r--r--` (Owner: rw-=4+2+0=6, Group: r--=4+0+0=4, Others: r--=4+0+0=4)
+        *   `chmod 700 private_dir/` → `rwx------` (Owner: rwx=7, Group: ---=0, Others: ---=0)
+
+*   **Recursive Option (`-R`):**
+    *   `chmod -R [permissions] [directory]` → Applies the permission changes recursively to a directory and all its contents.
+
 **Understanding File Permissions**: `-rws--xr-x`
 - Regular file
 - Owner: Read, Write, Execute with SetUID (rws)
@@ -523,8 +650,21 @@ sudo -u username whoami
 - Others: Read and Execute (r-x)
 
 **Special Permission: s (SetUID)**
-- When set in the owner's execute position, it means SetUID is enabled
-- Effect: File executes as the file owner, not the user running it
+- When set in the owner's execute position (`ls -l` shows `rws`), it means SetUID is enabled.
+- Effect (on executable files): The process executes with the privileges of the **file owner**, not the user running it. Useful for commands that need temporary root privileges.
+
+**Special Permission: s (SetGID)**
+- When set in the *group's* execute position (`ls -l` shows `rwxrwsr-x`), it means SetGID is enabled.
+- Effect (on executable files): The process executes with the group ID of the **file's group owner**, not the user's primary group.
+- Effect (on directories): 
+    - Files created *within* this directory inherit the group ownership of the directory itself, regardless of the creator's primary group.
+    - Subdirectories created within this directory automatically inherit the SetGID bit.
+    - Useful for shared directories where files created by different users need consistent group ownership for collaboration.
+
+**Sticky Bit**:
+- When set on a directory, it restricts file deletion/renaming
+- Only the file owner, directory owner, or root can delete/rename files
+- Other users with write permissions cannot delete files they don't own
 
 **Making a File Immutable**:
 1. Create the file:
@@ -552,16 +692,28 @@ This prevents the file from being:
 - Modified
 - Renamed
 
-**Sticky Bit**:
-- When set on a directory, it restricts file deletion/renaming
-- Only the file owner, directory owner, or root can delete/rename files
-- Other users with write permissions cannot delete files they don't own
-
 **Inode**:
-- Stores metadata about files but not the filename
-- Filename is stored in directory entries that link to inodes
-- Allows multiple filenames (hard links) to point to the same inode
-- Filesystems have a finite number of inodes
+- Stores metadata about files (permissions, owner, size, data block locations, etc.) but **not the filename**.
+- Filename is stored in directory entries that point to inodes.
+- Filesystems have a finite number of inodes.
+
+**Hard Links vs. Symbolic (Soft) Links**:
+*   **Hard Link (`ln target link_name`)**:
+    *   Creates another directory entry (filename) pointing directly to the **same inode** as the original file.
+    *   All hard links share the same inode, meaning they share the same metadata (permissions, owner, etc.).
+    *   Changing permissions via one hard link instantly affects all others (because the shared inode is modified).
+    *   **Must** reside on the **same filesystem** as the original file/inode.
+    *   The actual file data (inode) is deleted only when the link count (number of hard links pointing to it) drops to zero.
+    *   Cannot link to directories (usually).
+*   **Symbolic Link (`ln -s target link_name`)**:
+    *   Creates a **new file** with its **own inode**.
+    *   The *data* of this new file is simply the **text path** to the target file or directory.
+    *   Acts like a shortcut.
+    *   **Can** cross filesystem boundaries (because it stores a path).
+    *   If the target is deleted or moved, the symbolic link becomes "broken".
+    *   Permissions of the symbolic link itself are usually irrelevant; permissions of the *target* file are checked when accessed via the link.
+    *   Deleting the symbolic link does not affect the target.
+    *   Can link to directories.
 
 To check inode usage:
 ```bash
@@ -623,6 +775,9 @@ ip route show
 
 ### Networking Tools
 
+**Displaying IP Addresses (`ip a`)**:
+- `ip a` (or `ip address show`) → Shows details about all network interfaces on the system, including their IP addresses (IPv4 and IPv6), MAC addresses, and status.
+
 **netstat (Network Statistics)**:
 - Displays active network connections, routing tables, and open ports
 - Used to view network-related information
@@ -658,6 +813,12 @@ scp data.txt targetuser@h1:~
 ```
 
 **Creating Sudo Rules**:
+
+*   **Editing Sudo Configuration (`sudo visudo`)**: 
+    *   The command `sudo visudo` is the **recommended and safest way** to edit the main sudo configuration file (`/etc/sudoers`).
+    *   It locks the sudoers file to prevent simultaneous edits and performs syntax checking before saving changes, preventing you from locking yourself out due to errors.
+    *   It's generally preferred to add custom rules in separate files under `/etc/sudoers.d/` rather than editing the main `/etc/sudoers` file directly. Use `sudo visudo -f /etc/sudoers.d/<your_rule_file>` to safely edit these files.
+
 ```bash
 sudo visudo -f /etc/sudoers.d/student
 ```
@@ -701,16 +862,3 @@ top
 # or
 htop
 ```
-
-### Monitoring Storage
-
-(No specific information provided in the original document)
-
-### Logs
-
-**Log Locations**:
-- `/var/log/`: Standard directory for most system and application logs
-
-**Making Scripts Globally Runnable**:
-1. Move the script to a directory in $PATH (e.g., /usr/local/bin/)
-2. Or create a symbolic link in /usr/local/bin/
