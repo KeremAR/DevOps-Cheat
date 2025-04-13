@@ -365,6 +365,30 @@ echo $HOME
 - `mv file1 dir1/` → Moves `file1` into directory `dir1`.
 - `mv /home/bob/lfcs/* /home/bob/new-data/` → Moves all files and directories (`*` wildcard) from inside `/home/bob/lfcs/` to `/home/bob/new-data/`.
 
+**Input/Output (I/O) Redirection**:
+- Controls where a command's input comes from and where its output goes.
+- **Standard Streams:**
+  - `stdin` (Standard Input, file descriptor 0): Default input source (usually keyboard).
+  - `stdout` (Standard Output, file descriptor 1): Default output destination (usually screen).
+  - `stderr` (Standard Error, file descriptor 2): Default destination for error messages (usually screen).
+- **Redirection Operators:**
+  - `>`: Redirect `stdout` to a file (overwrites existing file).
+    - `ls -l > file_list.txt`
+  - `>>`: Redirect `stdout` to a file (appends to existing file).
+    - `echo "Log message" >> system.log`
+  - `<`: Redirect `stdin` from a file.
+    - `sort < unsorted_list.txt`
+  - `2>`: Redirect `stderr` to a file.
+    - `find / -name "*.conf" 2> find_errors.log`
+  - `&>` or `2>&1`: Redirect both `stdout` and `stderr` to the same file.
+    - `make &> build.log` (Bash shortcut)
+    - `updatedb > update.log 2>&1` (POSIX compliant)
+  - `|` (Pipe): Redirect `stdout` of one command to `stdin` of another.
+    - `ps aux | grep sshd | sort -k3`
+  - `<<<` (Here String): Redirect a string directly to `stdin`.
+    - `bc <<< "5 * 4"` (outputs 20)
+  - `<<DELIMITER` (Here Document): Redirect multiple lines to `stdin` until `DELIMITER` is found (See `tee` example further down).
+
 **Deleting Files and Directories (`rm`)**:
 - `rm [OPTIONS] FILE...`
 - `rm file1` → Deletes `file1`.
@@ -896,6 +920,18 @@ This prevents the file from being:
     *   Deleting the symbolic link does not affect the target.
     *   Can link to directories.
 
+**Default File Permissions (`umask`)**:
+- `umask` (user file-creation mode mask) controls the default permissions set on newly created files and directories.
+- It represents the permissions that should be **removed** from the base permissions (666 for files, 777 for directories).
+- `umask` → Displays the current mask in octal format (e.g., `0022`).
+- `umask -S` → Displays the current mask in symbolic format (e.g., `u=rwx,g=rx,o=rx`).
+- **Calculation Example (mask=0022):**
+  - Files: Base=666 (`rw-rw-rw-`). Mask=022 (`----w--w-`). Result=644 (`rw-r--r--`).
+  - Dirs: Base=777 (`rwxrwxrwx`). Mask=022 (`----w--w-`). Result=755 (`rwxr-xr-x`).
+- **Setting the mask:**
+  - `umask 0027` → Sets mask to remove write for group and all for others (results in 640 for files, 750 for dirs).
+  - Usually set in shell initialization files (`~/.bashrc`, `/etc/profile`).
+
 To check inode usage:
 ```bash
 df -i
@@ -1082,6 +1118,37 @@ This means:
 - Can be removed by killing the parent process or using wait()
 - Zombies do not consume CPU or memory
 
+**Listing Processes (`ps`)**:
+- `ps` displays information about running processes.
+- **Common Options:**
+  - `ps aux`: BSD-style, shows processes for *all* users (`a`), including those without a controlling terminal (`x`), in user-oriented format (`u`).
+  - `ps ef`: System V-style, shows *every* process (`e`) in full format (`f`).
+  - `ps -ejH`: Shows processes in a hierarchy (tree view).
+  - `ps -eo pid,ppid,user,%cpu,%mem,cmd --sort=-%cpu`: Custom format (`-eo`) showing specific fields and sorting by CPU usage (descending).
+
+**Sending Signals (`kill`, `pkill`, `killall`)**:
+- Signals are used to communicate with processes (e.g., to terminate, reload configuration).
+- **Common Signals:**
+  - `1` or `SIGHUP`: Hangup (often used to reload configuration).
+  - `9` or `SIGKILL`: Force kill (use as last resort, process gets no chance to clean up).
+  - `15` or `SIGTERM`: Terminate (default signal for `kill`, allows graceful shutdown).
+- **Commands:**
+  - `kill <PID>`: Sends SIGTERM (15) to the process with the specified Process ID (PID).
+  - `kill -9 <PID>` or `kill -SIGKILL <PID>`: Sends SIGKILL (9) to the process.
+  - `kill -1 <PID>` or `kill -SIGHUP <PID>`: Sends SIGHUP (1) to the process.
+  - `pkill <process_name>`: Sends SIGTERM to all processes matching the name.
+    - `pkill -f <pattern>`: Kills processes matching a full command line pattern.
+    - `pkill -u <username>`: Kills processes owned by a specific user.
+  - `killall <process_name>`: Similar to `pkill`, sends SIGTERM to processes by name (behavior can vary slightly between systems).
+
+**Job Control (Interactive Shell)**:
+- Managing processes started from the current shell.
+- `command &`: Runs `command` in the background.
+- `jobs`: Lists processes running in the background or stopped in the current shell session.
+- `Ctrl+Z`: Suspends (stops) the currently running foreground process.
+- `bg [%job_number]`: Resumes a stopped job in the background (e.g., `bg %1`). If no job number is given, uses the most recently stopped job.
+- `fg [%job_number]`: Brings a background or stopped job to the foreground (e.g., `fg %1`). If no job number is given, uses the most recently backgrounded/stopped job.
+
 ### Monitoring CPU
 
 (No specific information provided in the original document)
@@ -1100,3 +1167,46 @@ top
 # or
 htop
 ```
+
+### System Information & Hardware
+
+**Viewing CPU Information (`lscpu`)**:
+- `lscpu` → Displays detailed information about the CPU architecture, cores, threads, cache sizes, etc.
+
+**Listing Block Devices (`lsblk`)**:
+- `lsblk` → Lists information about all available block devices (disks, partitions, LVM volumes) and their mount points in a tree-like format.
+  - `lsblk -f`: Includes filesystem type and UUID information.
+
+**Listing PCI Devices (`lspci`)**:
+- `lspci` → Lists all PCI buses and devices connected to them (e.g., network cards, graphics cards, controllers).
+  - `lspci -v`: Provides more verbose output.
+  - `lspci -k`: Shows kernel drivers handling each device.
+
+**Listing USB Devices (`lsusb`)**:
+- `lsusb` → Lists all USB hubs and devices connected to them.
+  - `lsusb -v`: Provides more verbose output.
+
+**Kernel Messages (`dmesg`)**:
+- `dmesg` → Prints the kernel ring buffer messages. Very useful for troubleshooting hardware detection issues, driver errors, or boot problems.
+  - `dmesg | less`: View messages page by page.
+  - `dmesg -T`: Include human-readable timestamps.
+  - `dmesg -f kern`: Filter for kernel-level messages.
+  - `dmesg --follow`: Continuously display new messages.
+
+### Log Management
+
+**Systemd Journal (`journalctl`)**:
+- Modern Linux systems using systemd store logs in a structured binary journal.
+- `journalctl` → Displays the entire journal (usually starting with oldest entries).
+- `journalctl -n 20` → Shows the last 20 journal entries.
+- `journalctl -f` → Follows the journal, showing new entries in real-time (like `tail -f`).
+- `journalctl -u <service_name>` → Shows logs for a specific systemd unit (e.g., `journalctl -u sshd`).
+- `journalctl --since "yesterday"` → Shows logs since yesterday.
+- `journalctl --since "2 hours ago"` → Shows logs from the last 2 hours.
+- `journalctl -p err` → Shows logs with priority "error" or higher (err, crit, alert, emerg).
+- `journalctl _PID=<PID>` → Shows logs for a specific process ID.
+
+**Following Text Logs (`tail -f`)**:
+- For traditional text log files (often in `/var/log`).
+- `tail -f /var/log/syslog` → Continuously displays new lines added to `/var/log/syslog`.
+- `tail -n 50 -f /var/log/nginx/access.log` → Displays the last 50 lines and then follows the Nginx access log.
