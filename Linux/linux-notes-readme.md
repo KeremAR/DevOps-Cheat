@@ -119,55 +119,112 @@ The **/proc filesystem** is a virtual filesystem that provides an interface to k
 
 ## LVM (Logical Volume Manager)
 
-LVM allows for flexible disk space management through:
+LVM allows for flexible disk space management by abstracting physical storage. Here's a practical example of setting up an LVM volume for a database team:
 
-1. **Identify Available Devices**:
-```bash
-lsblk
-# or
-sudo fdisk -l
-```
+**Scenario:** Add an LVM volume using disks `/dev/vdb` and `/dev/vdc` for the Database team, mount it persistently at `/mnt/dba_storage`, and configure permissions for the `dba_users` group.
 
-2. **Create Physical Volume**:
-```bash
-sudo pvcreate /dev/sdc
-```
+**Steps:**
 
-3. **Create Volume Group**:
-```bash
-sudo vgcreate student /dev/sdc
-```
+1.  **Install LVM Packages (if needed):**
+    *   Ensures the necessary LVM tools are available (CentOS/RHEL example).
+    ```bash
+    sudo yum install -y lvm2
+    # Or on newer Fedora/CentOS:
+    # sudo dnf install -y lvm2
+    ```
 
-4. **Create Logical Volume**:
-```bash
-sudo lvcreate -L 500M -n student student
-```
+2.  **Create Physical Volumes (PVs):**
+    *   Marks the physical disks as available for LVM.
+    ```bash
+    sudo pvcreate /dev/vdb /dev/vdc
+    ```
+    *   Verify with `sudo pvs`. 
 
-5. **Format the Volume**:
-```bash
-sudo mkfs.ext4 /dev/student/student
-```
+3.  **Create Volume Group (VG):**
+    *   Combines the PVs into a single storage pool named `dba_storage`.
+    ```bash
+    sudo vgcreate dba_storage /dev/vdb /dev/vdc
+    ```
+    *   Verify with `sudo vgs`.
 
-6. **Find UUID and Mount Permanently**:
-```bash
-sudo blkid /dev/student/student
-```
+4.  **Create Logical Volume (LV):**
+    *   Creates a logical volume named `volume_1` from the `dba_storage` VG, using all available space.
+    ```bash
+    # The -l 100%FREE flag uses all available extents in the VG
+    sudo lvcreate -l 100%FREE -n volume_1 dba_storage
+    ```
+    *   The device path will be `/dev/dba_storage/volume_1` or `/dev/mapper/dba_storage-volume_1`.
+    *   Verify with `sudo lvs`.
 
-7. **Add to /etc/fstab for permanent mounting**:
-```bash
-sudo nano /etc/fstab
-# Add: UUID=<UUID> /lvm/student ext4 defaults 0 2
-```
+5.  **Format the Logical Volume (XFS Filesystem):**
+    *   Creates an XFS filesystem on the new LV.
+    ```bash
+    sudo mkfs.xfs /dev/dba_storage/volume_1
+    ```
 
-8. **Create Mount Point and Mount**:
-```bash
-sudo mkdir -p /lvm/student
-sudo mount -a
-```
+6.  **Create the Mount Point Directory:**
+    *   Creates the directory where the filesystem will be mounted.
+    ```bash
+    sudo mkdir -p /mnt/dba_storage
+    ```
+
+7.  **Make the Mount Persistent (`/etc/fstab`):**
+    *   **a. Get the UUID:** Find the unique identifier for the new filesystem.
+        ```bash
+        sudo blkid /dev/dba_storage/volume_1
+        ```
+        *Copy the UUID value (e.g., `UUID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"`)*
+    *   **b. Add Entry to `/etc/fstab`:** Use the UUID to ensure the correct device is mounted even if device names change. Replace `<UUID_FROM_BLKID>` with the actual UUID.
+        ```bash
+        # Edit using a text editor like nano or vi:
+        # sudo nano /etc/fstab
+        # Add the following line:
+        UUID=<UUID_FROM_BLKID>  /mnt/dba_storage  xfs  defaults  0 0
+        
+        # Or append using echo/tee (ensure correct syntax):
+        # echo 'UUID=<UUID_FROM_BLKID>  /mnt/dba_storage  xfs  defaults  0 0' | sudo tee -a /etc/fstab
+        ```
+        *   `/etc/fstab` fields: `<Device/UUID> <Mount Point> <FS Type> <Options> <Dump> <Pass>`.
+        *   `defaults`: Standard mount options.
+        *   `0 0`: No dump, no filesystem check on boot (XFS handles checks differently).
+    *   **c. Reload Systemd:** Inform systemd about the `/etc/fstab` changes.
+        ```bash
+        sudo systemctl daemon-reload
+        ```
+
+8.  **Mount the Filesystem:**
+    *   Mounts the filesystem based on the new `/etc/fstab` entry.
+    ```bash
+    sudo mount -a
+    # Or specifically:
+    # sudo mount /mnt/dba_storage
+    ```
+    *   Verify with `df -h` or `mount | grep dba_storage`.
+
+9.  **Create the Group:**
+    ```bash
+    sudo groupadd dba_users
+    ```
+
+10. **Add User to the Group:**
+    ```bash
+    sudo usermod -aG dba_users bob
+    ```
+    *   Verify with `groups bob`.
+
+11. **Set Ownership and Permissions on Mount Point:**
+    *   Allow the `dba_users` group to write to the mounted volume.
+    ```bash
+    # Set group ownership
+    sudo chgrp dba_users /mnt/dba_storage
+    
+    # Set permissions (Owner=rwx, Group=rwx, Others=---)
+    sudo chmod 770 /mnt/dba_storage
+    ```
 
 **Important Notes:**
-- After resizing LVM logical volume, remember to resize the filesystem
-- Using UUID for mount points is more secure than device paths
+- Always use UUIDs in `/etc/fstab` for reliability.
+- Remember to resize the filesystem (e.g., `xfs_growfs`) if you later extend the Logical Volume.
 
 ## SWAP
 
@@ -278,6 +335,11 @@ echo $HOME
 
 ### Basic Shell Commands
 
+**Creating Directories (`mkdir`)**:
+- `mkdir [OPTIONS] DIRECTORY...`
+- `mkdir new_dir` → Creates a directory named `new_dir`.
+- `mkdir -p /tmp/1/2/3/4/5/6/7/8/9` → Creates the directory `/tmp/1/2/3/4/5/6/7/8/9`. The `-p` flag ensures that all necessary parent directories (`/tmp/1`, `/tmp/1/2`, etc.) are created automatically if they don't already exist.
+
 **Manual Pages (`man`)**:
 - `man [command_name]` → Displays the manual page (documentation) for a specific command, providing detailed information about its usage, options, and examples. Press `q` to exit the man page viewer.
 
@@ -289,6 +351,25 @@ echo $HOME
 - `mv source_file target_file`
 - `mv -f source_file target_file`
 - `cat file1 > file2` → Writes the content of `file1` into `file2`, overwriting any existing content.
+
+**Copying Files and Directories (`cp`)**:
+- `cp [OPTIONS] SOURCE DESTINATION`
+- `cp file1 file2` → Copies `file1` to `file2`.
+- `cp file1 dir1/` → Copies `file1` into directory `dir1`.
+- `cp -r dir1 dir2` → Recursively copies directory `dir1` and its contents into directory `dir2`.
+- `cp -a SOURCE DESTINATION` → Archive copy. Copies recursively (`-r`), preserves links (`-d`), and preserves all attributes like permissions, ownership, timestamps (`--preserve=all`). Useful for backups.
+
+**Moving/Renaming Files and Directories (`mv`)**:
+- `mv [OPTIONS] SOURCE DESTINATION`
+- `mv oldname newname` → Renames `oldname` to `newname`.
+- `mv file1 dir1/` → Moves `file1` into directory `dir1`.
+- `mv /home/bob/lfcs/* /home/bob/new-data/` → Moves all files and directories (`*` wildcard) from inside `/home/bob/lfcs/` to `/home/bob/new-data/`.
+
+**Deleting Files and Directories (`rm`)**:
+- `rm [OPTIONS] FILE...`
+- `rm file1` → Deletes `file1`.
+- `rm -r directory1` → Recursively deletes directory `directory1` and its contents (prompts for confirmation usually).
+- `rm -rf directory1` → Forcefully (`-f`) and recursively (`-r`) deletes directory `directory1` and its contents **without prompting**. **Use with extreme caution!**
 
 **Viewing Files (`less`)**:
 - `less [filename]` → A pager used to view text files or command output one screenful at a time.
@@ -313,7 +394,35 @@ echo $HOME
 - `grep 'enabled\|disabled' file.txt` → Searches `file.txt` for lines containing either the exact string 'enabled' **OR (`\|`)** the exact string 'disabled'. Note: The backslash `\` before `|` is needed for standard `grep`.
 - `grep 'c[au]t' file.txt` → Searches `file.txt` for lines containing 'c' followed by **either an 'a' or a 'u' (`[au]`)**, followed by 't' (matches 'cat' or 'cut').
 - `egrep '/dev/[a-z]*[0-9]?' file.txt` → Searches `file.txt` using **Extended Regular Expressions (`egrep`)** for lines containing `/dev/`, followed by **zero or more lowercase letters (`[a-z]*`)**, followed by **zero or one digit (`[0-9]?`)** (e.g., matches `/dev/sda`, `/dev/tty`, `/dev/sda1`). Note: `?` doesn't need escaping with `egrep`.
-- `egrep   'http[^s]' file.txt` → Uses `egrep` to search `file.txt` for lines containing 'http' **not** immediately followed by an 1's' (using `[^s]` negated character set), useful for finding non-HTTPS URLs.
+- `egrep   'http[^s]' file.txt` → Uses `egrep` to search `file.txt` for lines containing 'http' **not** immediately followed by an 's' (using `[^s]` negated character set), useful for finding non-HTTPS URLs.
+- `egrep -w '[A-Z][a-z]{2}' /etc/nsswitch.conf > /home/bob/filtered1` → Uses `egrep` to find lines in `/etc/nsswitch.conf` containing **whole words (`-w`)** that start with one uppercase letter `[A-Z]` followed by exactly two lowercase letters `[a-z]{2}` (e.g., "Tcp", "Dns"). The matching lines are **redirected (`>`)** to the file `/home/bob/filtered1`.
+- `grep -c '^2' textfile > /home/bob/count` → **Counts (`-c`)** the number of lines in `textfile` that **start (`^`)** with the digit '2'. The resulting count (a number) is **redirected (`>`)** and saved to the file `/home/bob/count`.
+
+**Stream Editor (`sed`)**:
+- `sed` is a powerful stream editor for filtering and transforming text, often used for find-and-replace operations.
+- Basic substitution: `sed 's/old/new/g' filename` → Replaces all (`g`) occurrences of 'old' with 'new' in each line of `filename` and prints the result to standard output.
+- In-place editing (modifies the file): `sed -i 's/old/new/g' filename` (Use `-i` with caution).
+- Range and case-insensitive replace: `sed -i '500,2000 s/enabled/disabled/gi' filename` → Edits file in-place (`-i`), replacing all (`g`) occurrences of 'enabled' (case-insensitive `i`) with 'disabled' only on lines **between 500 and 2000** inclusive.
+
+**Tee Command (`tee`)**:
+- `tee` reads from standard input and writes to *both* standard output and one or more files.
+- Useful for capturing the output of a command to a file while still seeing it on the screen.
+- `ls -l | tee file_list.txt` → Lists files (`ls -l`), displays the list on the screen, and saves the same list to `file_list.txt`.
+- `echo "Important Line" | sudo tee -a /var/log/important.log` → Appends (`-a`) the text "Important Line" to the specified log file (requires `sudo` for system logs) and also displays it.
+- Often used with here-documents to write blocks of text to files non-interactively:
+  ```bash
+  sudo tee /etc/someconfig.conf > /dev/null <<'EOF'
+  ConfigSetting1=Value1
+  ConfigSetting2=Value2
+  EOF
+  ```
+  *   `> /dev/null`: Redirects the standard output copy to prevent it from showing on the terminal.
+  *   `<<'EOF' ... EOF`: Here-document providing input to `tee`.
+
+**Comparing Files (`diff`)**:
+- `diff [OPTIONS] file1 file2` → Compares two files line by line and shows the differences.
+- Output indicates lines that need to be added (`>`), deleted (`<`), or changed (`c`) to make `file1` identical to `file2`.
+- Useful for tracking changes between file versions.
 
 ### Text Editors
 
@@ -462,6 +571,32 @@ To start a service manually:
 sudo systemctl start httpd
 ```
 
+To enable a service to start automatically at boot:
+```bash
+sudo systemctl enable httpd
+```
+This creates the necessary symbolic links in systemd's target directories.
+
+To check the status of a service (running, stopped, failed):
+```bash
+sudo systemctl status httpd
+```
+
+To stop a service:
+```bash
+sudo systemctl stop httpd
+```
+
+To restart a service (stop then start):
+```bash
+sudo systemctl restart httpd
+```
+
+To disable a service from starting automatically at boot:
+```bash
+sudo systemctl disable httpd
+```
+
 ## Crond
 
 **Cron Job**:
@@ -474,6 +609,27 @@ sudo systemctl start httpd
   - Server maintenance and updates
   - Sending emails
   - Database operations
+
+**Editing Cron Jobs (`crontab -e`)**:
+- Each user (including root) can have their own crontab file listing scheduled jobs.
+- `crontab -e` → Opens the current user's crontab file in the default text editor (often `vi` or `nano`). Requires `sudo crontab -e` to edit root's crontab.
+- `crontab -l` → Lists the current user's scheduled cron jobs.
+- `crontab -r` → Removes the current user's entire crontab file (use with caution!).
+- **Crontab Format:** Each line represents a job and has 6 fields:
+  ```
+  # ┌───────────── minute (0 - 59)
+  # │ ┌───────────── hour (0 - 23)
+  # │ │ ┌───────────── day of month (1 - 31)
+  # │ │ │ ┌───────────── month (1 - 12)
+  # │ │ │ │ ┌───────────── day of week (0 - 6) (Sunday=0 or 7)
+  # │ │ │ │ │
+  # │ │ │ │ │
+  # * * * * *  command_to_execute
+  ```
+- **Examples:**
+  - `0 2 * * * /usr/local/bin/backup.sh` → Run `backup.sh` at 2:00 AM every day.
+  - `*/15 * * * * /path/to/script.sh` → Run `script.sh` every 15 minutes.
+  - `0 8 * * 1-5 /path/to/morning_report.sh` → Run `morning_report.sh` at 8:00 AM every weekday (Monday to Friday).
 
 **Logrotate**:
 - Tool to rotate and manage log files
@@ -527,6 +683,20 @@ sudo useradd -u 1040 -g student_group -G cdrom -d /home/student_home -m student
 # -m: Creates the home directory if it doesn't exist
 ```
 
+**Creating a System Account**:
+- `sudo useradd -r apachedev` → Creates a system account named `apachedev`. System accounts (`-r`) typically get UIDs in a lower range, no home directory created by default, and are intended for running services, not for user logins.
+
+**Pros and Cons of System Accounts**:
+*   **Pros (Advantages):**
+    *   **Security (Least Privilege):** Significantly enhances security. If a service running under a system account is compromised, the attacker only gains the limited privileges of that account, not root or a regular user's access. This limits potential damage.
+    *   **Isolation:** Prevents services from interfering with each other's files or configurations.
+    *   **Resource Management:** Allows for tracking and potentially limiting resource usage (CPU, memory) per service.
+    *   **Organization:** Provides a clear separation between background system processes and interactive user sessions.
+*   **Cons (Disadvantages):**
+    *   **Management Overhead:** Requires administrators to create and manage these additional accounts.
+    *   **Permission Complexity:** Setting up the precise minimal permissions needed by a service can sometimes be complex.
+    *   **Troubleshooting:** Debugging permission-related issues for services can occasionally be more involved than if they ran as root (though the security benefit usually outweighs this).
+
 **User Account Information (`/etc/passwd`)**:
 - `/etc/passwd` → A text file containing essential information for each user account.
 - `cat /etc/passwd` → Displays the content of this file.
@@ -547,13 +717,18 @@ sudo useradd -u 1040 -g student_group -G cdrom -d /home/student_home -m student
 - `sudo usermod -L USERNAME` → **Locks** a user's account by putting a `!` in front of the encrypted password, preventing login.
 - `sudo usermod -U USERNAME` → **Unlocks** a previously locked user account.
 - `sudo usermod -e YYYY-MM-DD USERNAME` → Sets an expiration date for the user account (in YYYY-MM-DD format). After this date, the account is disabled.
+- `sudo usermod -e "" USERNAME` → Removes any previously set account expiration date, making the account non-expiring.
+
+**Unlocking an Account (`passwd -u`)**:
+- While `usermod -U` works, `passwd -u` is also commonly used specifically for unlocking.
+- `sudo passwd -u USERNAME` → Unlocks the specified user account (removes the `!` or `*` preceding the encrypted password in `/etc/shadow`).
 
 **Removing a User from a Group (`gpasswd`)**:
 - `sudo gpasswd -d USERNAME GROUPNAME` → Removes the specified USERNAME from the specified GROUPNAME (must be a supplementary group).
 
 **Modifying a Group (`groupmod`)**:
 - `groupmod` is used to modify existing group details.
-- `sudo groupmod -n NEW_GROUPNAME OLD_GROUPNAME` → Renames an existing group.
+- `sudo groupmod -n NEW_GROUPNAME OLD_GROUPNAME` → Renames an existing group. keeping the same GID
 - `sudo groupmod -g NEW_GID GROUPNAME` → Changes the Group ID (GID) of a group.
 
 **Deleting a Group (`groupdel`)**:
@@ -567,6 +742,12 @@ sudo useradd -u 1040 -g student_group -G cdrom -d /home/student_home -m student
 ```bash
 sudo passwd student
 ```
+- Prompts interactively for the new password.
+- **Non-interactive password setting:**
+```bash
+echo 'NewPassword123' | sudo passwd --stdin username
+```
+- Sets the password for `username` to `NewPassword123` directly from standard input. Useful for scripting, but be mindful of command history security.
 
 **Managing Password Aging (`chage`)**:
 - The `chage` command modifies user password expiry information.
@@ -747,6 +928,48 @@ sudo nano /etc/hostname
 # Replace content with "student"
 ```
 
+**Network Manager Command Line Tool (`nmcli`)**:
+- `nmcli` is the command-line interface for NetworkManager, commonly used on modern CentOS, RHEL, Fedora, and Ubuntu systems for managing network connections persistently.
+- **Viewing Connections and Devices:**
+  ```bash
+  # List all network connection profiles
+  nmcli con show
+
+  # List active network connection profiles
+  nmcli con show --active
+
+  # List network devices and their status
+  nmcli dev status
+  ```
+- **Modifying Connections:**
+  *   Requires the **connection name** (from `nmcli con show`), which might differ from the device name.
+  *   Names with spaces must be quoted.
+  ```bash
+  # Add an IP address to a connection (e.g., named "System eth1")
+  sudo nmcli con mod "System eth1" +ipv4.addresses 10.0.0.50/24
+
+  # Set the IPv4 gateway
+  sudo nmcli con mod "System eth1" ipv4.gateway 192.168.1.1
+
+  # Set DNS servers (overwrites existing)
+  sudo nmcli con mod "System eth1" ipv4.dns "8.8.8.8 8.8.4.4"
+
+  # Add a DNS server (appends to existing)
+  sudo nmcli con mod "System eth1" +ipv4.dns 1.1.1.1
+
+  # Set connection to auto-connect on boot
+  sudo nmcli con mod "System eth1" connection.autoconnect yes
+  ```
+- **Applying Changes:**
+  *   After modifying a connection, you often need to reactivate it.
+  ```bash
+  # Bring a connection down and then up (applies changes)
+  sudo nmcli con down "System eth1" && sudo nmcli con up "System eth1"
+
+  # Or, more simply, just bring it up (often sufficient)
+  sudo nmcli con up "System eth1"
+  ```
+
 **Mounting Shared Folders in Vagrant**:
 ```bash
 sudo mount -o uid=1000,gid=1000 -t vboxsf vagrant /vagrant
@@ -834,6 +1057,21 @@ This means:
 - `(ALL)`: Can run commands as any user
 - `NOPASSWD:`: No password required for these commands
 - `/usr/bin/apt install, /usr/bin/apt-get install`: Only these commands can be run without a password
+
+Example rule (Group):
+```
+%salesteam ALL=(ALL) ALL
+```
+
+This means:
+- `%salesteam`: The rule applies to all users in the `salesteam` group (the `%` denotes a group).
+- `ALL=`: Applies to all machines.
+- `(ALL)`: Can run commands as any user (typically meaning as root).
+- `ALL`: Can run **any** command.
+
+This means:
+- `student`: User the rule applies to
+- `ALL=`: Applies to all machines
 
 ## Monitoring, Processes Control, Logs
 
