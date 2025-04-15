@@ -32,11 +32,6 @@
   - [Users and Groups](#users-and-groups)
   - [Permission Model](#permission-model)
   - [SELinux](#selinux)
-- [Networking, Remote Access](#networking-remote-access)
-  - [Network Configuration](#network-configuration)
-  - [Networking Tools](#networking-tools)
-  - [Firewall.d and IPtables](#firewalld-and-iptables)
-  - [Remote Access](#remote-access)
 - [Monitoring, Processes Control, Logs](#monitoring-processes-control-logs)
   - [Process Monitoring](#process-monitoring)
   - [Monitoring CPU](#monitoring-cpu)
@@ -333,6 +328,16 @@ env
 echo $HOME
 ```
 
+**Shell Initialization Files**:
+- Files executed when a shell session starts, used to set up the user environment (aliases, functions, environment variables, PATH).
+- **Login Shells (e.g., SSH login, console login):**
+  - `/etc/profile`: System-wide, executed first for all users.
+  - `~/.bash_profile`, `~/.bash_login`, `~/.profile`: User-specific, executed in this order; only the first one found is read by Bash.
+- **Non-Login Interactive Shells (e.g., opening a new terminal window):**
+  - `~/.bashrc`: User-specific, typically executed for every interactive shell.
+- **Common Practice:** `~/.bash_profile` often sources `~/.bashrc` (e.g., `if [ -f ~/.bashrc ]; then . ~/.bashrc; fi`) so settings are consistent between login and non-login shells.
+- **PATH Variable:** An environment variable listing directories the shell searches for executable commands. Modify it in initialization files (e.g., `export PATH="$PATH:/usr/local/bin"`).
+
 ### Basic Shell Commands
 
 **Creating Directories (`mkdir`)**:
@@ -421,6 +426,56 @@ echo $HOME
 - `egrep   'http[^s]' file.txt` → Uses `egrep` to search `file.txt` for lines containing 'http' **not** immediately followed by an 's' (using `[^s]` negated character set), useful for finding non-HTTPS URLs.
 - `egrep -w '[A-Z][a-z]{2}' /etc/nsswitch.conf > /home/bob/filtered1` → Uses `egrep` to find lines in `/etc/nsswitch.conf` containing **whole words (`-w`)** that start with one uppercase letter `[A-Z]` followed by exactly two lowercase letters `[a-z]{2}` (e.g., "Tcp", "Dns"). The matching lines are **redirected (`>`)** to the file `/home/bob/filtered1`.
 - `grep -c '^2' textfile > /home/bob/count` → **Counts (`-c`)** the number of lines in `textfile` that **start (`^`)** with the digit '2'. The resulting count (a number) is **redirected (`>`)** and saved to the file `/home/bob/count`.
+
+**AWK Command (`awk`)**:
+- `awk` is a powerful pattern scanning and processing language, particularly useful for working with column-based or field-separated text data.
+- It processes input line by line, splitting each line into fields based on a delimiter.
+- **Basic Syntax:** `awk [options] 'pattern { action }' filename`
+- **Example (Provided): Extract Usernames**
+  ```bash
+  awk -F ":" '{print $1}' /etc/passwd
+  ```
+  *   `-F ":"`: Sets the **Field Separator** to a colon (`:`). `/etc/passwd` uses colons to separate fields.
+  *   `'{print $1}'`: This is the **action** block. For every line in the input file:
+      *   `$1` refers to the **first field** (the username in `/etc/passwd`).
+      *   `print $1` prints the value of the first field to standard output.
+  *   `/etc/passwd`: The input file to process.
+
+- **Example: Extract Shell Names**
+  ```bash
+  awk -F "/" '/^\// {print $NF}' /etc/shells | uniq
+  ```
+  *   `-F "/"`: Sets the field separator to a forward slash (`/`).
+  *   `'/^\//'`: This is the **pattern**. It selects only lines that **start with** a forward slash (`^\/`). (The `\` escapes the `/` because `/` also delimits the pattern).
+  *   `{print $NF}`: This is the **action** executed for matching lines.
+      *   `NF` is a built-in variable holding the **N**umber of **F**ields on the current line.
+      *   `$NF` refers to the value of the **last field**.
+  *   `/etc/shells`: The input file.
+  *   `| uniq`: The output of `awk` (the list of shell names) is **piped (`|`)** to the `uniq` command. `uniq` removes adjacent duplicate lines, ensuring each unique shell name appears only once in the final output.
+  *   **Purpose:** For lines in `/etc/shells` starting with `/`, this command extracts the shell name (last part of the path) and then filters the list to show only the unique shell names available.
+
+- **Example: Temperature Conversion (Celsius)**
+  ```bash
+  # Assumes temps.csv has lines like "Header,Unit" and then "77,F" or "25,C"
+  # Might need -F ',' if the file is strictly comma-separated without spaces
+  awk 'NR==1; NR>1 {print ($2=="F" ? ($1-32)/1.8 : $1)" C"; }' temps.csv
+  ```
+  *   This command processes `temps.csv`, assuming the first column is temperature and the second is unit ('F' or 'C').
+  *   It uses two pattern-action blocks separated by a semicolon `;`.
+  *   **`NR==1;`**: 
+      *   `NR` is the current line number.
+      *   This pattern matches only the first line (`NR==1`).
+      *   No action is specified, so the default action `print $0` (print the whole line) is executed, effectively printing the header.
+  *   **`NR>1 {print ($2=="F" ? ($1-32)/1.8 : $1)" C"; }`**:
+      *   This pattern matches all lines *after* the first (`NR>1`).
+      *   The action `{...}` is executed for these lines:
+      *   `($2=="F" ? ($1-32)/1.8 : $1)`: This is a ternary operator.
+          *   It checks if the second field (`$2`) is exactly `"F"`.
+          *   If true, it calculates Celsius: `($1-32)/1.8`.
+          *   If false, it assumes the temperature (`$1`) is already Celsius.
+      *   `... " C"`: The calculated Celsius value is concatenated with the string `" C"`.
+      *   `print ...`: The final string (e.g., `"25 C"`) is printed.
+  *   **Purpose:** To read a file of temperatures, print the header row, and convert all subsequent temperature values to Celsius, displaying them with a " C" suffix.
 
 **Stream Editor (`sed`)**:
 - `sed` is a powerful stream editor for filtering and transforming text, often used for find-and-replace operations.
@@ -600,6 +655,12 @@ To enable a service to start automatically at boot:
 sudo systemctl enable httpd
 ```
 This creates the necessary symbolic links in systemd's target directories.
+
+To both enable and start a service immediately:
+```bash
+sudo systemctl enable --now httpd
+```
+This performs the enable action and then immediately starts the service in the current session.
 
 To check the status of a service (running, stopped, failed):
 ```bash
@@ -802,6 +863,60 @@ To execute a command as a specific user:
 sudo -u username whoami
 ```
 
+**Switching Users (`su`)**:
+- `su` (substitute user) allows you to start a new shell session as a different user.
+- `su - <username>` or `su -l <username>`: Starts a **login shell** as `<username>`. This means:
+  - You'll be prompted for `<username>`'s password (unless PAM is configured otherwise, e.g., `pam_wheel.so trust`).
+  - The environment will be set up as if `<username>` logged in directly (reads `/etc/profile`, `~/.bash_profile`, etc.).
+  - The current directory changes to `<username>`'s home directory.
+  - `-` or `-l` or `--login` are crucial for a clean environment.
+- `su <username>` (without `-`): Starts a shell as `<username>` but **keeps the original user's environment variables** (like `$PATH`, `$HOME`) and **stays in the current directory**. This can lead to unexpected behavior and is generally discouraged for administrative tasks.
+- `su -` or `su -l` (no username specified): Switches to the `root` user (requires root password).
+- `exit`: Type `exit` to close the `su` shell session and return to your original user.
+- **`su` vs `sudo`:**
+  - `sudo` executes a *single command* as another user (usually root) after authenticating with *your own* password (if configured in `/etc/sudoers`). Preferred for most administrative tasks.
+  - `su` starts a *new interactive shell* as another user, requiring *their* password (typically root's). Less commonly needed than `sudo`.
+
+  **Creating Sudo Rules**:
+
+*   **Editing Sudo Configuration (`sudo visudo`)**:
+    *   The command `sudo visudo` is the **recommended and safest way** to edit the main sudo configuration file (`/etc/sudoers`).
+    *   It locks the sudoers file to prevent simultaneous edits and performs syntax checking before saving changes, preventing you from locking yourself out due to errors.
+    *   It's generally preferred to add custom rules in separate files under `/etc/sudoers.d/` rather than editing the main `/etc/sudoers` file directly. Use `sudo visudo -f /etc/sudoers.d/<your_rule_file>` to safely edit these files.
+
+```bash
+sudo visudo -f /etc/sudoers.d/student
+```
+
+Example rule:
+```
+student ALL=(ALL) NOPASSWD: /usr/bin/apt install, /usr/bin/apt-get install
+```
+
+This means:
+- `student`: User the rule applies to
+- `ALL=`: Applies to all machines
+- `(ALL)`: Can run commands as any user
+- `NOPASSWD:`: No password required for these commands
+- `/usr/bin/apt install, /usr/bin/apt-get install`: Only these commands can be run without a password
+
+Example rule (Group):
+```
+%salesteam ALL=(ALL) ALL
+```
+
+This means:
+- `%salesteam`: The rule applies to all users in the `salesteam` group (the `%` denotes a group).
+- `ALL=`: Applies to all machines.
+- `(ALL)`: Can run commands as any user (typically meaning as root).
+- `ALL`: Can run **any** command.
+
+This means:
+- `student`: User the rule applies to
+- `ALL=`: Applies to all machines
+
+---
+
 ### Permission Model
 
 **File Type Identifiers** (First character in `ls -l` output):
@@ -946,168 +1061,6 @@ df -i
   - **Enforcing** (default): SELinux policies are actively applied
   - **Permissive**: Logs policy violations but doesn't block them
   - **Disabled**: SELinux is completely turned off
-
-## Networking, Remote Access
-
-### Network Configuration
-
-**Changing Hostname**:
-
-Temporarily:
-```bash
-sudo hostnamectl set-hostname student
-```
-
-Permanently (edit /etc/hostname):
-```bash
-sudo nano /etc/hostname
-# Replace content with "student"
-```
-
-**Network Manager Command Line Tool (`nmcli`)**:
-- `nmcli` is the command-line interface for NetworkManager, commonly used on modern CentOS, RHEL, Fedora, and Ubuntu systems for managing network connections persistently.
-- **Viewing Connections and Devices:**
-  ```bash
-  # List all network connection profiles
-  nmcli con show
-
-  # List active network connection profiles
-  nmcli con show --active
-
-  # List network devices and their status
-  nmcli dev status
-  ```
-- **Modifying Connections:**
-  *   Requires the **connection name** (from `nmcli con show`), which might differ from the device name.
-  *   Names with spaces must be quoted.
-  ```bash
-  # Add an IP address to a connection (e.g., named "System eth1")
-  sudo nmcli con mod "System eth1" +ipv4.addresses 10.0.0.50/24
-
-  # Set the IPv4 gateway
-  sudo nmcli con mod "System eth1" ipv4.gateway 192.168.1.1
-
-  # Set DNS servers (overwrites existing)
-  sudo nmcli con mod "System eth1" ipv4.dns "8.8.8.8 8.8.4.4"
-
-  # Add a DNS server (appends to existing)
-  sudo nmcli con mod "System eth1" +ipv4.dns 1.1.1.1
-
-  # Set connection to auto-connect on boot
-  sudo nmcli con mod "System eth1" connection.autoconnect yes
-  ```
-- **Applying Changes:**
-  *   After modifying a connection, you often need to reactivate it.
-  ```bash
-  # Bring a connection down and then up (applies changes)
-  sudo nmcli con down "System eth1" && sudo nmcli con up "System eth1"
-
-  # Or, more simply, just bring it up (often sufficient)
-  sudo nmcli con up "System eth1"
-  ```
-
-**Mounting Shared Folders in Vagrant**:
-```bash
-sudo mount -o uid=1000,gid=1000 -t vboxsf vagrant /vagrant
-```
-
-**Adding a Route to a Network**:
-
-Using ip command (modern method):
-```bash
-sudo ip route add 10.0.0.0/8 dev wlp2s0
-```
-
-Using route command (older method):
-```bash
-sudo route add -net 10.0.0.0/8 dev wlp2s0
-```
-
-Check the route:
-```bash
-ip route show
-```
-
-**The mount Command**:
-- Makes storage devices accessible in the filesystem
-- The initial volume mount table (/etc/fstab) defines how volumes are mounted at boot
-
-### Networking Tools
-
-**Displaying IP Addresses (`ip a`)**:
-- `ip a` (or `ip address show`) → Shows details about all network interfaces on the system, including their IP addresses (IPv4 and IPv6), MAC addresses, and status.
-
-**netstat (Network Statistics)**:
-- Displays active network connections, routing tables, and open ports
-- Used to view network-related information
-
-**Default Ports**:
-- DNS: Port 53 (UDP and TCP)
-- SSH: Port 22 (TCP)
-
-### Firewall.d and IPtables
-
-**iptables**:
-```bash
-sudo iptables -L
-```
-
-Lists all rules for each chain:
-- **INPUT Chain**: Controls incoming traffic to the system
-- **OUTPUT Chain**: Controls outgoing traffic from the system
-- **FORWARD Chain**: Controls packets that are forwarded through the system
-
-### Remote Access
-
-**SSH Keys**:
-- Public keys for authorizing SSH users are stored in `~/.ssh/authorized_keys` on the remote server
-- Private key is kept secure on the client machine
-- During connection, the server checks if the public key matches the client's private key
-
-**SCP (Secure Copy)**:
-- Command-line tool for secure file transfers over SSH
-- Example: Copy a file to a remote user's home directory:
-```bash
-scp data.txt targetuser@h1:~
-```
-
-**Creating Sudo Rules**:
-
-*   **Editing Sudo Configuration (`sudo visudo`)**: 
-    *   The command `sudo visudo` is the **recommended and safest way** to edit the main sudo configuration file (`/etc/sudoers`).
-    *   It locks the sudoers file to prevent simultaneous edits and performs syntax checking before saving changes, preventing you from locking yourself out due to errors.
-    *   It's generally preferred to add custom rules in separate files under `/etc/sudoers.d/` rather than editing the main `/etc/sudoers` file directly. Use `sudo visudo -f /etc/sudoers.d/<your_rule_file>` to safely edit these files.
-
-```bash
-sudo visudo -f /etc/sudoers.d/student
-```
-
-Example rule:
-```
-student ALL=(ALL) NOPASSWD: /usr/bin/apt install, /usr/bin/apt-get install
-```
-
-This means:
-- `student`: User the rule applies to
-- `ALL=`: Applies to all machines
-- `(ALL)`: Can run commands as any user
-- `NOPASSWD:`: No password required for these commands
-- `/usr/bin/apt install, /usr/bin/apt-get install`: Only these commands can be run without a password
-
-Example rule (Group):
-```
-%salesteam ALL=(ALL) ALL
-```
-
-This means:
-- `%salesteam`: The rule applies to all users in the `salesteam` group (the `%` denotes a group).
-- `ALL=`: Applies to all machines.
-- `(ALL)`: Can run commands as any user (typically meaning as root).
-- `ALL`: Can run **any** command.
-
-This means:
-- `student`: User the rule applies to
-- `ALL=`: Applies to all machines
 
 ## Monitoring, Processes Control, Logs
 
