@@ -152,26 +152,49 @@ Here are concise answers to common DevOps interview questions, suitable for verb
 
 **27. Quick Definitions:**
 
-    *   **Istio:** A popular service mesh for Kubernetes, managing communication between microservices.
-    *   **Service Mesh:** An infrastructure layer handling service-to-service communication, providing features like traffic management, security, and observability.
-    *   **containerd:** A core container runtime (manages the container lifecycle). Used by Docker.
-    *   **Hypervisor:** Software or hardware that creates and runs virtual machines (VMs).
-    *   **mTLS (Mutual TLS):** Both client and server authenticate each other using TLS certificates for secure communication.
-    *   **VPA (Vertical Pod Autoscaler):** Automatically adjusts CPU/memory requests/limits for Kubernetes Pods.
-    *   **HPA (Horizontal Pod Autoscaler):** Automatically scales the number of Pod replicas based on metrics like CPU/memory usage.
-    *   **KEDA (Kubernetes Event-driven Autoscaling):** Scales Kubernetes workloads based on external event sources (like message queue length).
-    *   **REST vs SOAP:** REST is an architectural style (often using JSON over HTTP), simpler and more flexible. SOAP is a protocol (usually XML-based), more rigid.
-    *   **Cardinality:** The number of unique values in a dataset. High cardinality can impact performance in monitoring systems.
-    *   **Uniqueness:** A database constraint ensuring that values in a column or set of columns are not repeated.
-    *   **RAID:** A storage technology combining multiple disks for performance, redundancy, or both.
-    *   **Split Brain:** A state in a cluster where network partitions cause subsets of nodes to operate independently, potentially leading to data inconsistency.
-    *   **ICMP:** Used for network diagnostics and error messages (e.g., `ping`).
-    *   **CIDR:** Classless Inter-Domain Routing. A method for allocating IP addresses and routing (e.g., `192.168.1.0/24`).
-    *   **Prefix:** The network portion of an IP address in CIDR notation (e.g., `/24`).
-    *   **Calico:** A popular networking and network policy provider (CNI plugin) for Kubernetes.
-    *   **VPN (Virtual Private Network):** Creates a secure, encrypted tunnel over a public network (like the internet) to access a private network's resources.
-    *   **Active Directory (AD):** Microsoft's directory service for managing users, computers, and policies in a Windows domain network.
-    *   **Dockerfile COPY vs ADD:** `COPY` simply copies local files/dirs into the image. `ADD` does the same but can also handle URLs and auto-extract compressed archives. Prefer `COPY` unless `ADD`'s extra features are needed.
-    *   **Dockerfile ENTRYPOINT vs CMD:** `ENTRYPOINT` defines the main command/executable. `CMD` defines default arguments for `ENTRYPOINT` or the default command if no `ENTRYPOINT` exists. `CMD` is easily overridden at runtime.
-    *   **Embedded Database:** A database engine that runs within the application process, without needing a separate server (e.g., SQLite).
-    *   **GitLab Runner:** An agent that executes CI/CD jobs defined in `.gitlab-ci.yml` for GitLab CI/CD.
+*   **Istio:**
+    A popular service mesh for Kubernetes, managing communication between microservices.
+*   **Service Mesh:**
+    An infrastructure layer handling service-to-service communication, providing features like traffic management, security, and observability.
+*   **containerd:**
+    A core container runtime (manages the container lifecycle). Used by Docker.
+*   **Hypervisor:**
+    Software or hardware that creates and runs virtual machines (VMs).
+*   **mTLS (Mutual TLS):**
+    Both client and server authenticate each other using TLS certificates for secure communication.
+*   **VPA (Vertical Pod Autoscaler):**
+    Automatically adjusts CPU/memory requests/limits for Kubernetes Pods.
+*   **HPA (Horizontal Pod Autoscaler):**
+    Automatically scales the number of Pod replicas based on metrics like CPU/memory usage.
+*   **KEDA (Kubernetes Event-driven Autoscaling):**
+    Scales Kubernetes workloads based on external event sources (like message queue length).
+*   **REST vs SOAP:**
+    REST is an architectural style (often using JSON over HTTP), simpler and more flexible. SOAP is a protocol (usually XML-based), more rigid.
+*   **Cardinality:**
+    The number of unique values in a dataset. High cardinality can impact performance in monitoring systems.
+*   **Uniqueness:**
+    A database constraint ensuring that values in a column or set of columns are not repeated.
+*   **RAID:**
+    A storage technology combining multiple disks for performance, redundancy, or both.
+*   **Split Brain:**
+    A state in a cluster where network partitions cause subsets of nodes to operate independently, potentially leading to data inconsistency.
+*   **ICMP:**
+    Used for network diagnostics and error messages (e.g., `ping`).
+*   **CIDR:**
+    Classless Inter-Domain Routing. A method for allocating IP addresses and routing (e.g., `192.168.1.0/24`).
+*   **Prefix:**
+    The network portion of an IP address in CIDR notation (e.g., `/24`).
+*   **Calico:**
+    A popular networking and network policy provider (CNI plugin) for Kubernetes.
+*   **VPN (Virtual Private Network):**
+    Creates a secure, encrypted tunnel over a public network (like the internet) to access a private network's resources.
+*   **Active Directory (AD):**
+    Microsoft's directory service for managing users, computers, and policies in a Windows domain network.
+*   **Dockerfile COPY vs ADD:**
+    `COPY` simply copies local files/dirs into the image. `ADD` does the same but can also handle URLs and auto-extract compressed archives. Prefer `COPY` unless `ADD`'s extra features are needed.
+*   **Dockerfile ENTRYPOINT vs CMD:**
+    `ENTRYPOINT` defines the main command/executable. `CMD` defines default arguments for `ENTRYPOINT` or the default command if no `ENTRYPOINT` exists. `CMD` is easily overridden at runtime.
+*   **Embedded Database:**
+    A database engine that runs within the application process, without needing a separate server (e.g., SQLite).
+*   **GitLab Runner:**
+    An agent that executes CI/CD jobs defined in `.gitlab-ci.yml` for GitLab CI/CD.
