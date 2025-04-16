@@ -198,3 +198,16 @@ Here are concise answers to common DevOps interview questions, suitable for verb
     A database engine that runs within the application process, without needing a separate server (e.g., SQLite).
 *   **GitLab Runner:**
     An agent that executes CI/CD jobs defined in `.gitlab-ci.yml` for GitLab CI/CD.
+
+**28. Compare Local Development vs VirtualBox vs Docker.**
+
+    *   **Local Development:** Running applications directly on your main OS. **Pros:** Simple setup, fast performance. **Cons:** Environment inconsistencies ("works on my machine"), potential conflicts between project dependencies, difficult to replicate exact production setup.
+    *   **VirtualBox (VMs):** Running a full guest OS inside your host OS. **Pros:** Complete OS-level isolation, can run different OSes (e.g., Linux on Windows). **Cons:** High resource usage (RAM, CPU, disk), slower startup, larger image sizes.
+    *   **Docker (Containers):** Running applications in isolated environments sharing the host OS kernel. **Pros:** Lightweight, fast startup, consistent environments, efficient resource usage, easily shareable images. **Cons:** Shares host kernel (less isolation than VMs), potential security concerns if not configured properly, primarily Linux-based (though Docker Desktop handles Windows/macOS).
+
+**29. What is a Hypervisor and how does it work?**
+
+    A hypervisor (or Virtual Machine Monitor - VMM) is software, firmware, or hardware that creates and runs virtual machines (VMs). It allows one host computer to support multiple guest VMs by virtually sharing its resources like CPU, memory, and storage.
+    *   **How it works:** The hypervisor sits between the physical hardware and the virtual machines. It intercepts requests from the guest OSes for hardware resources and manages their allocation, ensuring that the VMs don't interfere with each other or the host system. There are two main types:
+        *   **Type 1 (Bare Metal):** Runs directly on the host's hardware (e.g., VMware ESXi, Microsoft Hyper-V, KVM). More efficient.
+        *   **Type 2 (Hosted):** Runs as an application within a conventional host OS (e.g., VirtualBox, VMware Workstation/Fusion). Easier setup, less performant.

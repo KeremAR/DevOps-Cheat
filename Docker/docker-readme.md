@@ -74,45 +74,24 @@ A Dockerfile must always begin with a `FROM` instruction that defines a base ima
 Below is a sample Dockerfile followed by explanations of the commonly used instructions.
 
 ```dockerfile
-# Use the official Node.js image as the base image
-FROM node:14
+# Use the official PHP 7.2 CLI image as the base image
+FROM php:7.2-cli
 
-# Set environment variables
-ENV NODE_ENV=production
-ENV PORT=3000
+# Inform Docker that the container listens on port 8000 at runtime
+EXPOSE 8000
 
-# Set the working directory inside the container
-WORKDIR /app
+# Create a directory for the project inside the image
+RUN mkdir /myproject
 
-# Copy package.json and package-lock.json files first for layer caching
-COPY package*.json ./
+# Copy the index.php file from the build context to /myproject in the image
+COPY index.php /myproject
 
-# Install dependencies
-RUN npm install --production
-
-# Copy the rest of the application code
-COPY . .
-
-# Add additional file (can also handle URLs and auto-extract archives)
-# ADD public/index.html /app/public/index.html
-
-# Expose the port on which the application will run
-EXPOSE $PORT
+# Set the working directory for subsequent commands
+WORKDIR /myproject
 
 # Specify the default command to run when the container starts
-CMD ["node", "app.js"]
-
-# Labeling the image with metadata
-LABEL version="1.0"
-LABEL description="Node.js application Docker image"
-LABEL maintainer="Your Name <your.email@example.com>"
-
-# Healthcheck to ensure the container is running correctly
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -fs http://localhost:$PORT || exit 1
-
-# Set a non-root user for security purposes
-USER node
+# This starts the PHP built-in web server on port 8000, serving files from the current directory (WORKDIR)
+CMD [ "php", "-S", "0.0.0.0:8000" ]
 ```
 
 **Instruction Explanations:**
@@ -128,6 +107,21 @@ USER node
 -   **`LABEL`**: Adds metadata to an image, such as version, description, or maintainer information.
 -   **`HEALTHCHECK`**: Defines a command to run inside the container to check if it's still working correctly. Docker can use this to determine the container's health status.
 -   **`USER`**: Sets the user name (or UID) and optionally the user group (or GID) to use when running the image and for any `RUN`, `CMD`, and `ENTRYPOINT` instructions that follow it in the Dockerfile. Running containers as a non-root user is a security best practice.
+
+**Important Distinction:** Commands that install software or configure the *image* environment (e.g., `apt-get install`, `npm install`, `docker-php-ext-install`) belong in the **Dockerfile** using the `RUN` instruction. These commands define the image itself during the build process. **Docker Compose** files, on the other hand, define how to *run* containers based on existing images, specifying runtime configurations like ports, volumes, networks, and environment variables.
+
+**Example Build and Run Commands:**
+
+```bash
+# Build the Docker image from the Dockerfile in the current directory (.)
+# Tag the image as 'myphpapp' with the tag 'web'
+$ docker build -t myphpapp:web .
+
+# Run a container from the built image
+# Map port 8080 on the host to port 8000 inside the container
+# (Port 8000 is exposed by the Dockerfile and used by the CMD)
+$ docker run -p 8080:8000 myphpapp:web
+```
 
 ## Docker Storage
 
@@ -179,7 +173,40 @@ Docker also supports **storage plugins** that allow containers to connect to ext
 
 ## Docker Compose
 
-**Docker compose** is tool for defining and running multi container docker applications.
+**Docker compose** is a tool for defining and running multi-container docker applications using a YAML file (typically `docker-compose.yml`). It simplifies the management of applications that require multiple services (e.g., a web application and a database).
+
+**Example `docker-compose.yml` (Multi-Service):**
+
+```yaml
+version: '3.8' # Specifies the Compose file format version (using a slightly newer common version)
+
+services: # Defines the different containers (services)
+  phpapp: # The name of the PHP application service
+    build: # Instead of using a pre-built image, build one from a Dockerfile
+      context: ./ # Specifies the build context directory (current directory)
+      dockerfile: Dockerfile # Specifies the name of the Dockerfile to use
+    image: phpapp:123 # Name and tag for the image built by Compose (optional but good practice)
+    ports:
+      - "8080:80" # Maps port 8080 on the host to port 80 in the phpapp container
+    volumes:
+      - ".:/var/www/html" # Mounts the current directory (.) on the host
+                         # to /var/www/html inside the container (bind mount)
+    container_name: myphpapp-app # Explicitly sets the container name
+    # depends_on: # Might add this later if phpapp needs db to be ready first
+    #  - db
+
+  db: # The name of the database service
+    image: mysql:latest # Use the official MySQL image
+    restart: always # Always restart the db container if it stops
+    environment:
+      MYSQL_ROOT_PASSWORD: my!!!root!!!pw # Set the root password via environment variable
+    container_name: myphpapp-db # Explicitly sets the container name
+    # volumes: # Add a volume to persist database data
+    #  - db_data:/var/lib/mysql
+
+# volumes: # Define named volumes if used
+#  db_data:
+```
 
 ### Docker Compose Commands
 - `docker-compose up -d` → Runs multiple containers defined in a Compose file.
@@ -291,6 +318,7 @@ PID namespace used in Docker Engine for process isolation.
     # Run a non-interactive command
     docker exec my-container ls /app
     ```
+- `docker run -it -w /myfiles [image_name] [command]` → Creates a new container from `[image_name]`, starts an interactive TTY session (`-it`), sets the working directory inside the container to `/myfiles` (`-w`), and then runs `[command]` (or the image's default command if none is provided) from within that directory.
 
 ### Running Ubuntu Inside Docker
 - `docker run -dit ubuntu sleep infinity` → Runs an Ubuntu container in detached (`d`), interactive (`i`), TTY (`t`) mode, kept alive by `sleep infinity`.
@@ -302,7 +330,7 @@ PID namespace used in Docker Engine for process isolation.
 - `docker volume rm [volume_name...]` → Removes one or more specified volumes. Volume must not be in use by any container.
 - `docker volume prune` → Removes all unused local volumes (not attached to any container).
 - `--volumes-from [container_name_or_id]` (Option for `docker run`): Mounts all the volumes defined in another container into the new container. Useful for sharing persistent data (e.g., databases) or for backup/restore scenarios. **Note:** This is less common now; using the same named volume (`-v my_volume:/path`) in multiple containers is often preferred.
-    ```bash
+    ```bash  
     # Run a data container (might exit, doesn't matter)
     docker create -v /app/data --name my-data-container busybox
     # Run an app container using the data volume
