@@ -199,13 +199,15 @@ services: # Defines the different containers (services)
     image: mysql:latest # Use the official MySQL image
     restart: always # Always restart the db container if it stops
     environment:
-      MYSQL_ROOT_PASSWORD: my!!!root!!!pw # Set the root password via environment variable
+      MYSQL_ROOT_PASSWORD: somepass # Set the root password via environment variable
+      MYSQL_DATABASE: somedatabase # Set the database name via environment variable
     container_name: myphpapp-db # Explicitly sets the container name
-    # volumes: # Add a volume to persist database data
-    #  - db_data:/var/lib/mysql
-
-# volumes: # Define named volumes if used
-#  db_data:
+      volumes:
+        - my_vol:/var/lib/.mysql # Add a volume to persist database data
+    
+  volumes:
+    my_vol:
+      name: my-vol
 ```
 
 ### Docker Compose Commands
