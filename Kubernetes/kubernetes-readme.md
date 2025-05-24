@@ -1,5 +1,7 @@
 # Kubernetes Learning Notes
 
+![k8s cheatsheet](/Media/k8s-cheatsheet.png)
+
 ## What is Kubernetes and Why is it Needed?
 
 Kubernetes is an open-source container orchestration tool used to manage and scale containers efficiently. As microservices became more common, managing containers became increasingly complex. Kubernetes solves this problem by automatically scaling applications based on load and ensuring service continuity.
