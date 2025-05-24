@@ -37,12 +37,54 @@ Add all changes made to tracked files & commit
 $ git commit -am "commit message"
 ```
 
+## File Status Lifecycle
+
+<img src="/Media/files-lifecycle.png" alt="files-lifecycle" width="500"/>
+
+Files in your Git working directory can be in one of four main states:
+
+-   **Untracked:** The file exists in your working directory but hasn't been added to the Git repository yet (`git add` has not been run). Git is not tracking changes to this file.
+-   **Unmodified:** The file is tracked by Git and matches the version in the last commit. No changes have been made since the last snapshot.
+-   **Modified:** The file is tracked by Git, but you've made changes to it since the last commit. These changes haven't been staged yet.
+-   **Staged:** You have marked the current version of a modified file to go into your next commit snapshot by using `git add`. The file is now in the staging area.
+
+These states help you understand what `git status` reports and which files will be included when you run `git commit`.
+
 ## Basic Concepts
 -   **main**: default development branch
 -   **origin**: default upstream repo
 -   **HEAD**: current branch
 -   **HEAD^**: parent of HEAD
 -   **HEAD~4**: great-great grandparent of HEAD
+
+## Git Object Types
+
+Git stores its data as objects in its object database. There are four main types:
+
+1.  **Blob (Binary Large Object):**
+    *   **What it is:** Stores the raw content of a file (just the bytes).
+    *   **Key Feature:** Identified by a SHA-1 hash of its content. Identical file content results in the same blob object, regardless of filename or location.
+    *   **Metadata:** Contains *no* file metadata (like name or path). That information is stored in tree objects.
+
+2.  **Tree:**
+    *   **What it is:** Represents a directory structure; a snapshot of a folder.
+    *   **Key Feature:** Contains a list of entries, each pointing to a blob (file) or another tree (subdirectory) via their SHA-1 hash.
+    *   **Metadata:** Stores mode (permissions), type (blob/tree), SHA-1 hash, and filename/directory name for each entry.
+
+3.  **Commit:**
+    *   **What it is:** Represents a snapshot of the entire project at a point in time.
+    *   **Key Feature:** Points to a single top-level `tree` object representing the project's root directory for that snapshot. Links to parent commit(s) to form the history.
+    *   **Metadata:** Contains the top-level tree hash, parent commit hash(es), author info, committer info, and the commit message.
+
+4.  **Tag:**
+    *   **What it is:** Marks a specific commit as important (e.g., for releases like `v1.0`).
+    *   **Types:**
+        *   **Lightweight Tag:** A simple pointer (reference) directly to a commit. No extra metadata.
+        *   **Annotated Tag:** A full Git object. Points to a commit but also stores tagger info, date, message, and optionally a GPG signature. Recommended for releases.
+
+**How they relate:** Commits point to Trees, Trees point to other Trees or Blobs. Tags point to Commits.
+
+<img src="/Media/object-tree.png" alt="git" width="500"/>
 
 ## Branches
 List all local branches. Add -r flag to show all remote branches. -a flag for all branches.
@@ -143,6 +185,11 @@ $ git diff
 Show changes between two commits
 ```bash
 $ git diff <commit1_ID> <commit2_ID>
+```
+
+List files in the staging area (index) with mode, SHA-1, and stage number
+```bash
+$ git ls-files -s
 ```
 
 ## Stashing
@@ -331,5 +378,3 @@ $ git rebase main
    - Use `rebase` for local feature branches to maintain clean history
 
 **Best Practice Tip:** When in doubt, prefer the safer options (`fetch`, `revert`, `merge`) for shared repositories, and use the history-altering options (`reset`, `rebase`) only for local changes.
-
-

@@ -211,3 +211,8 @@ Use interactive rebase: `git rebase -i <commit_hash_BEFORE_the_one_to_remove>`. 
     *   **How it works:** The hypervisor sits between the physical hardware and the virtual machines. It intercepts requests from the guest OSes for hardware resources and manages their allocation, ensuring that the VMs don't interfere with each other or the host system. There are two main types:
         *   **Type 1 (Bare Metal):** Runs directly on the host's hardware (e.g., VMware ESXi, Microsoft Hyper-V, KVM). More efficient.
         *   **Type 2 (Hosted):** Runs as an application within a conventional host OS (e.g., VirtualBox, VMware Workstation/Fusion). Easier setup, less performant.
+
+**30. What's the difference between IPv4 and IPv6?**
+
+    *   **IPv4:** Older version, uses 32-bit addresses (e.g., `192.168.1.1`), limited address space (~4.3 billion), running out of addresses.
+    *   **IPv6:** Newer version, uses 128-bit addresses (e.g., `2001:0db8:85a3:0000:0000:8a2e:0370:7334`), virtually unlimited address space, enhanced security features, simplified header.
