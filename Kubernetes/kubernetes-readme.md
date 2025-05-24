@@ -70,6 +70,7 @@ These components typically run on the master node(s) and manage the overall clus
 -   **etcd:**
     -   A consistent and highly-available distributed key-value store.
     -   Stores all cluster data and represents the desired state of the cluster.
+    -   Backup and restore of the entire cluster state is made from etcd snapshots.
 -   **kube-scheduler (Scheduler):**
     -   Assigns newly created Pods to available Nodes based on resource requirements, policies, and other constraints.
 -   **kube-controller-manager (Controller Manager):**
@@ -119,8 +120,44 @@ Kubernetes objects are persistent entities within the Kubernetes system represen
 ### Namespaces
 
 -   Mechanism for isolating groups of resources within a single cluster.
--   Useful for multi-tenant environments, separating projects, or organizing resources (e.g., `default`, `kube-system`).
 -   Provide a scope for object names; an object name must be unique within its namespace for its resource type.
+-   Each namespace must define its own ConfigMap.
+-   **Use Cases:**
+    -   Grouping resources for different teams or projects.
+    -   Resolving naming conflicts when multiple teams deploy the same application.
+    -   Sharing resources between environments like staging and development.
+    -   Enforcing access control and resource quotas on a per-namespace basis.
+
+#### Common Namespace Commands:
+
+-   Get list of all namespaces:
+    ```bash
+    kubectl get namespace
+    # or
+    kubectl get ns
+    ```
+-   Create a namespace:
+    ```bash
+    kubectl create namespace test
+    # or
+    kubectl create ns test
+    ```
+-   Get list of pods in a specific namespace (e.g., monitoring):
+    ```bash
+    kubectl get pods -n monitoring
+    ```
+    The `-n` flag specifies the namespace to query.
+
+#### Default Namespaces
+
+When you create or update resources using `kubectl` without specifying a namespace, Kubernetes uses the `default` namespace.
+
+After a Kubernetes cluster is created, you can find these pre-created namespaces:
+
+-   `default`: The default namespace for objects with no other namespace specified.
+-   `kube-system`: The namespace for objects created by the Kubernetes system itself.
+-   `kube-public`: This namespace is created automatically and is readable by all users (including those not authenticated). It's primarily for cluster usage, in case some resources need to be publicly visible and readable throughout the cluster. The public aspect of this namespace is a convention, not a strict requirement.
+-   `kube-node-lease`: This namespace holds Lease objects associated with each node. Node leases allow the kubelet to send heartbeats so that the control plane can detect node failure.
 
 ### Pod
 
@@ -134,13 +171,42 @@ Kubernetes objects are persistent entities within the Kubernetes system represen
 apiVersion: v1
 kind: Pod
 metadata:
-  name: nginx
+  name: i-know-who-i-am
+  namespace: default
+  labels:
+    app: nginx
 spec:
   containers:
-  - name: nginx
-    image: nginx:1.7.9
+  - name: main
+    image: busybox:1.34
     ports:
     - containerPort: 80
+    command: ["sh", "-c", "env && sleep infinity"]
+    env:
+        - name: STUDENT_FIRST_NAME
+          value: "Ali"
+        - name: STUDENT_LAST_NAME
+          value: "Yılmaz"
+        - name: MY_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: MY_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: MY_POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: MY_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: MY_POD_SERVICE_ACCOUNT
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.serviceAccountName
 ```
 
 ### ReplicaSet
@@ -298,6 +364,8 @@ kubectl [command] [type] [name] [flags]
 -   `kubectl logs my-pod`: View logs from a pod.
 -   `kubectl describe pod my-pod`: Get detailed information about a pod.
 -   `kubectl exec -it my-pod -- /bin/bash`: Execute a command (like a shell) inside a pod's container.
+-   `kubectl logs <pod_name>`: View logs from a specific pod (alternative to `kubectl logs my-pod`).
+-   `kubectl delete pods --all -n <namespace_name>`: Delete all pods in a specific namespace.
 
 ## Kubernetes Practical Examples / Tasks
 
@@ -414,6 +482,71 @@ kubectl [command] [type] [name] [flags]
     ```bash
     kubectl get daemonsets
     ```
+
+## Filesystem-Hosted Static Pod Creation Steps
+
+These steps describe how to create a static Pod that is managed directly by the kubelet daemon on a specific node, not by the API server.
+
+1.  **(Optional) If using a custom namespace:**
+    ```bash
+    kubectl create namespace <namespace-name>
+    ```
+2.  **SSH into Minikube (or your target node):**
+    ```bash
+    minikube ssh
+    ```
+3.  **Navigate to the manifest directory:**
+    The kubelet periodically scans this directory for Pod manifest files.
+    ```bash
+    cd /etc/kubernetes/manifests
+    ```
+4.  **Create the Pod manifest file (e.g., `nginx-static.yaml`):**
+    Use `sudo` if necessary to write to this directory.
+    ```bash
+    sudo vi nginx-static.yaml
+    ```
+    Example content for `nginx-static.yaml`:
+    ```yaml
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: nginx-static
+      labels:
+        role: myrole
+    spec:
+      containers:
+        - name: nginx
+          image: nginx
+          ports:
+            - name: web
+              containerPort: 80
+              protocol: TCP
+    ```
+5.  **(Still inside Minikube/node) Restart kubelet:**
+    This prompts kubelet to re-scan the manifest directory.
+    ```bash
+    sudo systemctl restart kubelet
+    ```
+6.  **Exit Minikube/node:**
+    ```bash
+    exit
+    ```
+    Or press `Ctrl+D`.
+7.  **Check if the static Pod is running:**
+    Static Pods usually have the node name appended to their name and are visible across all namespaces when listing.
+    ```bash
+    kubectl get pods -A
+    ```
+
+**To delete a static Pod:**
+
+Simply remove the manifest file (e.g., `nginx-static.yaml`) from the `/etc/kubernetes/manifests` directory on the node and restart the kubelet again.
+
+```bash
+# Inside Minikube/node
+sudo rm /etc/kubernetes/manifests/nginx-static.yaml
+sudo systemctl restart kubelet
+```
 
 ## Conclusion
 
