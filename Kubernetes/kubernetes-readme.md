@@ -1,6 +1,6 @@
 # Kubernetes Learning Notes
 
-![k8s cheatsheet](/Media/k8s-cheatsheet.png)
+![k8s cheatsheet](/Media/k8s_cheatsheet.png)
 
 ## What is Kubernetes and Why is it Needed?
 
