@@ -184,9 +184,9 @@ spec:
     command: ["sh", "-c", "env && sleep infinity"]
     env:
         - name: STUDENT_FIRST_NAME
-          value: "Ali"
+          value: "Kerem"
         - name: STUDENT_LAST_NAME
-          value: "Yılmaz"
+          value: "Ar"
         - name: MY_NODE_NAME
           valueFrom:
             fieldRef:
@@ -215,6 +215,10 @@ spec:
 -   Uses a `selector` (with `matchLabels`) to identify the Pods it manages.
 -   Includes a `template` section defining the specification for the Pods it should create.
 -   **Note:** Directly managing ReplicaSets is not recommended. Use Deployments instead.
+-   **Purpose:** Maintains a constant number of Pod instances to prevent application downtime if a Pod fails.
+-   **Key Functions:** Automatically replaces failed Pods, scales up if instances are below the target, and scales down if there are too many.
+-   **Benefits:** Improves reliability, enables load balancing, and facilitates scaling.
+-   **When to Use:** Choose ReplicaSets when you don't need automatic Pod upgrades (use Deployments for that) or when implementing custom upgrade logic. For batch jobs, prefer the `Job` resource. For running a Pod on every node, use `DaemonSet`.
 
 **Example ReplicaSet YAML:**
 ```yaml
@@ -505,23 +509,7 @@ These steps describe how to create a static Pod that is managed directly by the 
     ```bash
     sudo vi nginx-static.yaml
     ```
-    Example content for `nginx-static.yaml`:
-    ```yaml
-    apiVersion: v1
-    kind: Pod
-    metadata:
-      name: nginx-static
-      labels:
-        role: myrole
-    spec:
-      containers:
-        - name: nginx
-          image: nginx
-          ports:
-            - name: web
-              containerPort: 80
-              protocol: TCP
-    ```
+
 5.  **(Still inside Minikube/node) Restart kubelet:**
     This prompts kubelet to re-scan the manifest directory.
     ```bash
