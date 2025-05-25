@@ -370,6 +370,8 @@ kubectl [command] [type] [name] [flags]
 -   `kubectl exec -it my-pod -- /bin/bash`: Execute a command (like a shell) inside a pod's container.
 -   `kubectl logs <pod_name>`: View logs from a specific pod (alternative to `kubectl logs my-pod`).
 -   `kubectl delete pods --all -n <namespace_name>`: Delete all pods in a specific namespace.
+-   `kubectl rollout status deployment <deploy-name> -n <namespace-name>`: Check the status of a deployment rollout in a specific namespace.
+-   `kubectl edit deployment <deployment-name> -n <namespace-name>`: Edit a deployment in a specific namespace using the default editor.
 
 ## Kubernetes Practical Examples / Tasks
 
