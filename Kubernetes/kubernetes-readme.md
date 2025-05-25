@@ -310,6 +310,37 @@ spec:
 -   Provides guarantees about the ordering and uniqueness of Pods (stable, persistent identifiers).
 -   Provides stable, persistent storage volumes associated with each Pod replica.
 
+**Key Characteristics:**
+
+1. **Pod Identity:**
+   - Each Pod gets a fixed, predictable name (e.g., mysql-0, mysql-1, mysql-2)
+   - Pods maintain their identity even after rescheduling
+   - Each Pod gets its own DNS endpoint
+
+2. **Ordered Operations:**
+   - Pods are created in order (0, 1, 2...)
+   - Pods are deleted in reverse order (2, 1, 0)
+   - Next Pod won't be created until previous one is running
+
+3. **Storage:**
+   - Each Pod gets its own persistent storage
+   - Storage is tied to Pod's identity
+   - Requires remote storage for Pod rescheduling
+   - Data synchronization between Pods must be configured manually
+
+4. **Use Cases:**
+   - Databases (MySQL, MongoDB, Elasticsearch)
+   - Applications that need to maintain state
+   - Applications requiring ordered deployment/scaling
+
+**Important Notes:**
+- Stateful applications are more complex to manage than stateless ones
+- Kubernetes provides the framework, but you need to handle:
+  - Data synchronization
+  - Storage management
+  - Backup procedures
+- Not all stateful applications are ideal for containerization
+
 ### Job
 
 -   Creates one or more Pods and ensures that a specified number of them successfully terminate (complete).
