@@ -208,6 +208,31 @@ spec:
             fieldRef:
               fieldPath: spec.serviceAccountName
 ```
+Manage Pods
+
+1.  **List Pods:**
+    ```bash
+    kubectl get pods
+    ```
+2.  **Show Pod Labels:**
+    ```bash
+    # Replace <pod-name> with the actual pod name
+    kubectl get pod <pod-name> --show-labels
+    ```
+3.  **Label a Pod:**
+    ```bash
+    # Replace <pod-name> with the actual pod name
+    kubectl label pods <pod-name> environment=deployment
+    ```
+4.  **Run a Temporary Pod (for testing/debugging):**
+    ```bash
+    kubectl run my-test-pod --image=nginx --restart=Never
+    ```
+5.  **View Pod Logs:**
+    ```bash
+    # Replace <pod-name> with the actual pod name
+    kubectl logs <pod-name>
+    ```
 
 ### ReplicaSet
 
@@ -286,6 +311,19 @@ spec:
         - containerPort: 80
 ```
 
+1.  **Create Deployment:**
+    ```bash
+    kubectl create deployment my-deployment1 --image=nginx
+    ```
+2.  **Expose Deployment as NodePort Service:**
+    ```bash
+    kubectl expose deployment my-deployment1 --port=80 --type=NodePort --name=my-service1
+    ```
+3.  **List Services:**
+    ```bash
+    kubectl get services
+    ```
+
 #### Setting a New Deployment Image
 
 To update the image for a container within a Deployment, you can use the `kubectl set image` command.
@@ -354,6 +392,49 @@ kubectl scale deployments.apps my-dep --replicas=5
   - Storage management
   - Backup procedures
 - Not all stateful applications are ideal for containerization
+
+Deploying a StatefulSet
+
+1.  **Define StatefulSet (`statefulset.yaml`):**
+    ```yaml
+    apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      name: my-statefulset
+    spec:
+      serviceName: "nginx" # Headless service needs to be created separately
+      replicas: 3
+      selector:
+        matchLabels:
+          app: nginx
+      template:
+        metadata:
+          labels:
+            app: nginx
+        spec:
+          containers:
+          - name: nginx
+            image: nginx # Use appropriate image, e.g., k8s.gcr.io/nginx-slim:0.8
+            ports:
+            - containerPort: 80
+              name: web
+      volumeClaimTemplates:
+      - metadata:
+          name: www
+        spec:
+          accessModes: [ "ReadWriteOnce" ]
+          resources:
+            requests:
+              storage: 1Gi
+    ```
+2.  **Apply StatefulSet:**
+    ```bash
+    kubectl apply -f statefulset.yaml
+    ```
+3.  **Verify StatefulSet:**
+    ```bash
+    kubectl get statefulsets
+    ```
 
 #### Setting a New StatefulSet Image
 
@@ -451,91 +532,7 @@ kubectl [command] [type] [name] [flags]
 -   `kubectl rollout status deployment <deploy-name> -n <namespace-name>`: Check the status of a deployment rollout in a specific namespace.
 -   `kubectl edit deployment <deployment-name> -n <namespace-name>`: Edit a deployment in a specific namespace using the default editor.
 
-## Kubernetes Practical Examples / Tasks
 
-### Task 1: Create and Expose a Deployment
-
-1.  **Create Deployment:**
-    ```bash
-    kubectl create deployment my-deployment1 --image=nginx
-    ```
-2.  **Expose Deployment as NodePort Service:**
-    ```bash
-    kubectl expose deployment my-deployment1 --port=80 --type=NodePort --name=my-service1
-    ```
-3.  **List Services:**
-    ```bash
-    kubectl get services
-    ```
-
-### Task 2: Manage Pods
-
-1.  **List Pods:**
-    ```bash
-    kubectl get pods
-    ```
-2.  **Show Pod Labels:**
-    ```bash
-    # Replace <pod-name> with the actual pod name
-    kubectl get pod <pod-name> --show-labels
-    ```
-3.  **Label a Pod:**
-    ```bash
-    # Replace <pod-name> with the actual pod name
-    kubectl label pods <pod-name> environment=deployment
-    ```
-4.  **Run a Temporary Pod (for testing/debugging):**
-    ```bash
-    kubectl run my-test-pod --image=nginx --restart=Never
-    ```
-5.  **View Pod Logs:**
-    ```bash
-    # Replace <pod-name> with the actual pod name
-    kubectl logs <pod-name>
-    ```
-
-### Task 3: Deploying a StatefulSet
-
-1.  **Define StatefulSet (`statefulset.yaml`):**
-    ```yaml
-    apiVersion: apps/v1
-    kind: StatefulSet
-    metadata:
-      name: my-statefulset
-    spec:
-      serviceName: "nginx" # Headless service needs to be created separately
-      replicas: 3
-      selector:
-        matchLabels:
-          app: nginx
-      template:
-        metadata:
-          labels:
-            app: nginx
-        spec:
-          containers:
-          - name: nginx
-            image: nginx # Use appropriate image, e.g., k8s.gcr.io/nginx-slim:0.8
-            ports:
-            - containerPort: 80
-              name: web
-      volumeClaimTemplates:
-      - metadata:
-          name: www
-        spec:
-          accessModes: [ "ReadWriteOnce" ]
-          resources:
-            requests:
-              storage: 1Gi
-    ```
-2.  **Apply StatefulSet:**
-    ```bash
-    kubectl apply -f statefulset.yaml
-    ```
-3.  **Verify StatefulSet:**
-    ```bash
-    kubectl get statefulsets
-    ```
 
 ### Task 4: Implementing a DaemonSet
 
