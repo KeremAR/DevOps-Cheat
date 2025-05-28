@@ -245,6 +245,15 @@ spec:
         - containerPort: 80
 ```
 
+#### Scaling a ReplicaSet
+
+To change the number of replicas managed by a ReplicaSet, you can use the `kubectl scale` command.
+
+For example, to scale a ReplicaSet named `frontend` to 2 replicas:
+```bash
+kubectl scale --replicas=2 rs/frontend
+```
+
 ### Deployment
 
 -   A higher-level object that manages ReplicaSets and provides declarative updates for Pods.
@@ -277,6 +286,24 @@ spec:
         - containerPort: 80
 ```
 
+#### Setting a New Deployment Image
+
+To update the image for a container within a Deployment, you can use the `kubectl set image` command.
+
+For example, to set the `nginx` container in the Deployment named `my-dep` to use the `nginx:1.9.1` image:
+```bash
+kubectl set image deployment/my-dep nginx=nginx:1.9.1
+```
+
+#### Scaling a Deployment
+
+To change the number of replicas for a Deployment, you can use the `kubectl scale` command.
+
+For example, to scale the Deployment named `my-dep` to 5 replicas:
+```bash
+kubectl scale deployments.apps my-dep --replicas=5
+```
+
 ### Service
 
 -   An abstraction that defines a logical set of Pods and a policy by which to access them (often acting as an internal load balancer).
@@ -290,19 +317,6 @@ spec:
 2.  **`NodePort`:** Exposes the service on each Node's IP at a static port. Routes traffic to the `ClusterIP` service automatically. Allows external access but is often not recommended for production security.
 3.  **`LoadBalancer`:** Exposes the service externally using a cloud provider's load balancer. Automatically creates `NodePort` and `ClusterIP` services. Provides an external IP address.
 4.  **`ExternalName`:** Maps the service to an external DNS name (using a CNAME record) instead of using selectors. Useful for accessing external services from within the cluster.
-
-### Ingress
-
--   An API object that manages external access to services within the cluster, typically HTTP/HTTPS.
--   Provides routing rules (based on host or path) to direct traffic to different services.
--   Requires an Ingress Controller to be running in the cluster to fulfill the Ingress rules.
--   Often used to expose multiple services under a single IP address, potentially with TLS termination.
-
-### DaemonSet
-
--   Ensures that all (or some specified) Nodes run a copy of a specific Pod.
--   Pods are automatically added to new nodes joining the cluster.
--   Useful for cluster-level agents like log collectors, monitoring agents, or storage daemons.
 
 ### StatefulSet
 
@@ -341,7 +355,40 @@ spec:
   - Backup procedures
 - Not all stateful applications are ideal for containerization
 
+#### Setting a New StatefulSet Image
+
+To update the image for a container within a StatefulSet, you can use the `kubectl set image` command.
+
+For example, to set the `nginx` container in the StatefulSet named `nginx` to use the `nginx:1.9.1` image:
+```bash
+kubectl set image statefulset/nginx nginx=nginx:1.9.1
+```
+
+#### Scaling a StatefulSet
+
+To change the number of replicas for a StatefulSet, you can use the `kubectl scale` command.
+
+For example, to scale the StatefulSet named `nginx` to 1 replica:
+```bash
+kubectl scale statefulsets.apps nginx --replicas=1
+```
+
+### Ingress
+
+-   An API object that manages external access to services within the cluster, typically HTTP/HTTPS.
+-   Provides routing rules (based on host or path) to direct traffic to different services.
+-   Requires an Ingress Controller to be running in the cluster to fulfill the Ingress rules.
+-   Often used to expose multiple services under a single IP address, potentially with TLS termination.
+
+### DaemonSet
+
+-   Ensures that all (or some specified) Nodes run a copy of a specific Pod.
+-   Pods are automatically added to new nodes joining the cluster.
+-   Useful for cluster-level agents like log collectors, monitoring agents, or storage daemons.
+
+
 ### Job
+
 
 -   Creates one or more Pods and ensures that a specified number of them successfully terminate (complete).
 -   Tracks the completion of tasks; Pods are usually deleted after the Job completes.
