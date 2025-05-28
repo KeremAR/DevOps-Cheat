@@ -209,6 +209,8 @@ spec:
               fieldPath: spec.serviceAccountName
 ```
 Manage Pods
+-   `--dry-run=client`: Quick, local syntax check and template generation.
+-   `--dry-run=server`: More thorough validation against the actual API server and its logic, good for pre-flight checks and understanding server-side mutations.
 
 1.  **List Pods:**
     ```bash
@@ -513,6 +515,8 @@ kubectl [command] [type] [name] [flags]
     -   Configuration stored in source control, ideal for production systems, tracks changes effectively.
 
 ### Common Kubectl Commands (Examples)
+
+-   `kubectl run nginx-pod --image=nginx:alpine --dry-run=client -o yaml > nginx_pod.yaml`: Generates the YAML manifest for a new pod without creating it in the cluster, saving it to `nginx_pod.yaml`. Useful for quickly creating a template for declarative configuration.
 
 -   `kubectl get pods`: List pods in the current namespace.
 -   `kubectl get pods -A` or `kubectl get pods --all-namespaces`: List pods in all namespaces.
