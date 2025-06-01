@@ -467,8 +467,58 @@ kubectl scale statefulsets.apps nginx --replicas=1
 
 -   Ensures that all (or some specified) Nodes run a copy of a specific Pod.
 -   Pods are automatically added to new nodes joining the cluster.
+-   As nodes are removed from the cluster, the DaemonSet controller ensures that Pods running on those nodes are garbage collected (automatically deleted).
+-   Deleting a DaemonSet Will clean up the Pods it created
+-   The `spec.selector` field of a DaemonSet is immutable; to change it, the DaemonSet must be deleted and recreated.
 -   Useful for cluster-level agents like log collectors, monitoring agents, or storage daemons.
 
+### Taints and Tolerations
+
+Taints and tolerations are used to control which pods can be scheduled on which nodes.
+
+**Taints:**
+- Applied to nodes to repel pods that don't have matching tolerations
+- Three effects:
+  - `NoSchedule`: Pods without matching toleration won't be scheduled
+  - `PreferNoSchedule`: System will try to avoid scheduling pods without matching toleration
+  - `NoExecute`: Pods without matching toleration will be evicted if already running
+
+**Common Taint Patterns:**
+- Control-plane nodes: `node-role.kubernetes.io/control-plane:NoSchedule`
+- Worker nodes: `node-role.kubernetes.io/worker:NoSchedule`
+
+**Tolerations:**
+- Applied to pods to allow them to be scheduled on tainted nodes
+- Can be specific to a taint or general:
+  ```yaml
+  tolerations:
+  - key: "node-role.kubernetes.io/control-plane"
+    operator: "Exists"
+    effect: "NoSchedule"
+  ```
+- General toleration for all NoSchedule taints:
+  ```yaml
+  tolerations:
+  - operator: "Exists"
+    effect: "NoSchedule"
+  ```
+
+**Common Use Cases:**
+- Keeping control-plane nodes dedicated to system workloads
+- Creating specialized worker nodes for specific workloads
+- Ensuring DaemonSets can run on all nodes regardless of taints
+
+**Commands:**
+```bash
+# Add a taint
+kubectl taint nodes <node-name> node-role.kubernetes.io/worker:NoSchedule
+
+# Remove a taint
+kubectl taint nodes <node-name> node-role.kubernetes.io/worker:NoSchedule-
+
+# List node taints
+kubectl describe node <node-name> | grep Taints
+```
 
 ### Job
 
