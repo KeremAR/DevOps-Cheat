@@ -239,14 +239,30 @@ Manage Pods
 ### ReplicaSet
 
 -   Ensures that a specified number of identical Pod replicas are running at any given time.
+-   Maintains a constant number of Pod instances to prevent application downtime if a Pod fails.
+-   Automatically replaces failed Pods, scales up if instances are below the target, and scales down if there are too many (load balancing).
+-   Does not handle updates to pod templates automatically. If you change the pod spec (like the container image), you must manually delete and recreate the ReplicaSet or the pods.
 -   Uses a `selector` (with `matchLabels`) to identify the Pods it manages.
 -   Includes a `template` section defining the specification for the Pods it should create.
--   **Note:** Directly managing ReplicaSets is not recommended. Use Deployments instead.
--   **Purpose:** Maintains a constant number of Pod instances to prevent application downtime if a Pod fails.
--   **Key Functions:** Automatically replaces failed Pods, scales up if instances are below the target, and scales down if there are too many.
--   **Benefits:** Improves reliability, enables load balancing, and facilitates scaling.
 -   **When to Use:** Choose ReplicaSets when you don't need automatic Pod upgrades (use Deployments for that) or when implementing custom upgrade logic. For batch jobs, prefer the `Job` resource. For running a Pod on every node, use `DaemonSet`.
--  ReplicaSet can be used on its own, but it’s rare. The most valid use case is blue-green deployment, or when you need manual control without auto-updates or rollback logic
+
+#### ReplicaSet Scenarios for Manual Control
+
+While Deployments are generally preferred, ReplicaSets offer fine-grained manual control in specific scenarios, especially when automatic updates or rollback logic are not desired:
+
+1.  **Detailed Canary Deployments:**
+    *   Allows exposing a new version to a very small, specific user percentage (e.g., 1% traffic) for extended monitoring.
+    *   Achieved by creating two ReplicaSets (old and new versions) and manually adjusting pod counts to precisely control traffic distribution, offering more granular control than standard Deployment strategies.
+
+2.  **Blue/Green Deployments:**
+    *   **Blue Environment:** Runs the current, stable version (e.g., ReplicaSet A with 3 pods).
+    *   **Green Environment:** Runs the new version (e.g., ReplicaSet B with 3 pods).
+    *   The new version in the Green environment is tested thoroughly.
+    *   If tests pass, traffic is switched instantly from Blue to Green by updating the Service configuration.
+    *   If issues arise in Green, traffic is immediately reverted to Blue by updating the Service again.
+    *   "Manual control" here means explicitly deciding which ReplicaSet (and thus version) receives live traffic and managing pod counts for each version independently, bypassing Deployment's automated rolling updates.
+
+- ReplicaSet can be used on its own, but it's rare. The most valid use case is blue-green deployment, or when you need manual control without auto-updates or rollback logic
 
 **Example ReplicaSet YAML:**
 ```yaml
@@ -285,9 +301,16 @@ kubectl scale --replicas=2 rs/frontend
 ### Deployment
 
 -   A higher-level object that manages ReplicaSets and provides declarative updates for Pods.
--   Manages the rollout of new versions using strategies like **Rolling Updates** (scaling up the new version while scaling down the old one).
--   Suitable for stateless applications (StatefulSets are used for stateful ones).
+-   Manages the application lifecycle through ReplicaSets, handling rolling updates (by creating a new ReplicaSet and gradually scaling it up while scaling down the old one), rollbacks (by reverting to a previous ReplicaSet's state), and ensuring zero-downtime deployments.
+-   Suitable for stateless applications (does not store any data or state between requests.).
 -   Defines the desired state (e.g., number of replicas, container image, template) and the Deployment controller changes the actual state to match.
+
+**Why Expose a Deployment?**
+
+A Deployment itself (which manages Pods) is not directly accessible from outside its own Pod network or from outside the cluster by default. To make the application running in a Deployment's Pods accessible, you "expose" it, typically using a Service. You expose a Deployment to:
+
+*   Allow other services or Pods within the cluster to communicate with it.
+*   Allow users or systems outside the cluster to access your application (e.g., a website or an API), often via an Ingress controller in conjunction with a Service.
 
 **Example Deployment YAML:**
 ```yaml
@@ -558,6 +581,29 @@ kubectl taint nodes <node-name> node-role.kubernetes.io/worker:NoSchedule-
 # List node taints
 kubectl describe node <node-name> | grep Taints
 ```
+
+#### Node Affinity
+
+Node affinity is another mechanism to control pod placement, working with node labels. Unlike taints (which repel pods), affinity rules attract pods to nodes with specific labels.
+
+-   **`requiredDuringSchedulingIgnoredDuringExecution`**: The pod will *only* be scheduled on a node if the label condition is met. If the node's labels change later, the pod continues to run.
+-   **`preferredDuringSchedulingIgnoredDuringExecution`**: The scheduler *tries* to find a node matching the label condition. If not found, the pod can still be scheduled on other nodes.
+
+Node affinity provides more expressive control over pod scheduling based on node characteristics. It can be used alongside or as an alternative to taints and tolerations.
+```yaml
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: ssd
+            operator: In
+            values:
+            - "true"
+```
+
+
 ### Ingress
 
 -   An API object that manages external access to services within the cluster, typically HTTP/HTTPS.
