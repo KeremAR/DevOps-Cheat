@@ -64,18 +64,22 @@ Every cluster has at least one worker node and one master node, which runs the *
 These components typically run on the master node(s) and manage the overall cluster state.
 
 -   **kube-apiserver (API Server):**
-    -   Exposes the Kubernetes API. It's the front-end for the control plane.
-    -   All communication (internal and external) goes through the API server.
-    -   Designed to scale horizontally (run multiple instances).
+    -   The front-end for the Kubernetes control plane, exposing the Kubernetes API.
+    -   Acts as the central management point for the entire cluster. All internal and external communications, including `kubectl` commands, go through the API Server.
+    -   Validates and processes requests: performs authentication, authorization, and admission control (e.g., applying security policies, resource quotas) before persisting objects to etcd.
+    -   The only component that directly interacts with `etcd` to store and retrieve cluster state and configuration.
+    -   Coordinates actions between other control plane components (like kube-scheduler, kube-controller-manager) and worker node agents (kubelets) by serving as their primary interface to the cluster state.
+    -   Designed to scale horizontally for high availability (can run multiple instances).
 -   **etcd:**
-    -   A consistent and highly-available distributed key-value store.
     -   Stores all cluster data and represents the desired state of the cluster.
     -   Backup and restore of the entire cluster state is made from etcd snapshots.
+    -   A consistent and highly-available distributed key-value store.
 -   **kube-scheduler (Scheduler):**
-    -   Assigns newly created Pods to available Nodes based on resource requirements, policies, and other constraints.
+    -   Assigns newly created Pods (which it discovers via the kube-apiserver) to available Nodes.
+    -   Considers various factors for scheduling decisions: resource requirements, affinity/anti-affinity rules, taints/tolerations, Pod priority, and other policies/constraints.
 -   **kube-controller-manager (Controller Manager):**
-    -   Runs controller processes that monitor the cluster state.
     -   Works to make the current cluster state match the desired state stored in etcd.
+    -   Runs controller processes that monitor the cluster state.
     -   Examples: Node controller, Replication controller.
 -   **cloud-controller-manager (Cloud Controller Manager):**
     -   Runs controllers that interact with the underlying cloud provider's API.
@@ -85,23 +89,22 @@ These components typically run on the master node(s) and manage the overall clus
 These components run on every node, maintaining running pods and providing the Kubernetes runtime environment.
 
 -   **kubelet:**
+    -   Reports node and pod health/status back to the control plane.
     -   An agent that runs on each node in the cluster.
     -   Communicates with the kube-apiserver to ensure containers described in PodSpecs are running and healthy.
-    -   Reports node and pod health/status back to the control plane.
 -   **Container Runtime:**
     -   The software responsible for running containers (e.g., downloading images, starting/stopping containers).
     -   Kubernetes supports various runtimes via the Container Runtime Interface (CRI).
     -   Examples: Docker, containerd, CRI-O.
 -   **kube-proxy:**
-    -   A network proxy that runs on each node.
-    -   Maintains network rules on nodes, enabling network communication to Pods from network sessions inside or outside of the cluster.
-
-### Pods
-
--   The **smallest deployable unit** in Kubernetes.
--   Represents a single instance of a running process in the cluster.
--   Contains **one or more containers** (like Docker containers).
--   Containers within a Pod share the same network namespace, IP address, and storage volumes.
+    -   A network proxy that runs on each node, responsible for implementing the Kubernetes Service concept.
+    -   Maintains network rules on nodes to route traffic to a Service's IP address and port to the correct backend Pods (load balancing).
+    -   Enables network communication to Pods from network sessions inside or outside of the cluster.
+-   **Pods:**
+    -   The **smallest deployable unit** in Kubernetes.
+    -   Represents a single instance of a running process in the cluster. 
+    -   Contains **one or more containers** (like Docker containers).
+    -   Containers within a Pod share the same network namespace, IP address, and storage volumes.
 
 ## Kubernetes Objects
 
