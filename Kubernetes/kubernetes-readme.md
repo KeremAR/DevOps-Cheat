@@ -472,6 +472,55 @@ kubectl scale statefulsets.apps nginx --replicas=1
 -   The `spec.selector` field of a DaemonSet is immutable; to change it, the DaemonSet must be deleted and recreated.
 -   Useful for cluster-level agents like log collectors, monitoring agents, or storage daemons.
 
+   ```yaml
+   apiVersion: apps/v1
+   kind: DaemonSet
+   metadata:
+     name: fluentd-elasticsearch
+     labels:
+       app: fluentd-elasticsearch
+   spec:
+     selector:
+       matchLabels:
+         app: fluentd-elasticsearch
+     template:
+       metadata:
+         labels:
+           app: fluentd-elasticsearch
+       spec:
+         tolerations:
+          # This toleration allows the Pod to run on the control-plane node
+          - key: "node-role.kubernetes.io/control-plane"
+            operator: "Exists"
+            effect: "NoSchedule"
+          # This toleration allows the Pod to run on the worker node
+          - key: "node-role.kubernetes.io/worker"
+            operator: "Exists"
+            effect: "NoSchedule"
+         containers:
+         - name: fluentd-elasticsearch
+           image: quay.io/fluentd_elasticsearch/fluentd:v4
+           resources:
+             limits:
+               memory: "200Mi"
+             requests:
+               cpu: "100m"
+               memory: "200Mi"
+           volumeMounts:
+           - name: varlog
+             mountPath: /var/log
+           - name: varlibdockercontainers
+             mountPath: /var/lib/docker/containers
+             readOnly: true
+         volumes:
+         - name: varlog
+           hostPath:
+             path: /var/log
+         - name: varlibdockercontainers
+           hostPath:
+             path: /var/lib/docker/containers
+   ```
+
 ### Taints and Tolerations
 
 Taints and tolerations are used to control which pods can be scheduled on which nodes.
@@ -588,35 +637,6 @@ kubectl [command] [type] [name] [flags]
 
 
 
-### Task 4: Implementing a DaemonSet
-
-1.  **Define DaemonSet (`daemonset.yaml`):**
-    ```yaml
-    apiVersion: apps/v1
-    kind: DaemonSet
-    metadata:
-      name: my-daemonset
-    spec:
-      selector:
-        matchLabels:
-          name: my-daemonset
-      template:
-        metadata:
-          labels:
-            name: my-daemonset
-        spec:
-          containers:
-          - name: my-daemonset
-            image: nginx # Use appropriate image
-    ```
-2.  **Apply DaemonSet:**
-    ```bash
-    kubectl apply -f daemonset.yaml
-    ```
-3.  **Verify DaemonSet:**
-    ```bash
-    kubectl get daemonsets
-    ```
 
 ## Filesystem-Hosted Static Pod Creation Steps
 
