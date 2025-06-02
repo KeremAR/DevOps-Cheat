@@ -388,8 +388,9 @@ kubectl scale deployments.apps my-dep --replicas=5
 ### StatefulSet
 
 -   Manages the deployment and scaling of a set of Pods, specifically designed for **stateful applications**.
--   Provides guarantees about the ordering and uniqueness of Pods (stable, persistent identifiers).
--   Provides stable, persistent storage volumes associated with each Pod replica.
+-   Stable identities(when pod get replaced with new pod it keeps that identity)
+-   Persistent storage (different volumes for each pod, continously synchronizing data, storage has the state of the pod)
+-   Ordered startup/shutdown (pod-0, pod-1, pod-2)
 -   If we changed volume claim template, we should delete statefulset then create again. Because volume claim templates are immutable.
 -   We create a headless service before a StatefulSet so each pod gets a stable DNS hostname. This is required because StatefulSet pods need to communicate with each other using fixed names (like pod-0, pod-1) for clustering and data consistency.
 
@@ -483,6 +484,8 @@ kubectl scale statefulsets.apps nginx --replicas=1
 
 -   Ensures that all (or some specified) Nodes run a copy of a specific Pod.
 -   Pods are automatically added to new nodes joining the cluster.
+-   But not all nodes are available to every Pod — some are tainted for specific workloads.
+-   That’s why we use tolerations in DaemonSet Pods, so they can still run on tainted nodes too.
 -   As nodes are removed from the cluster, the DaemonSet controller ensures that Pods running on those nodes are garbage collected (automatically deleted).
 -   Deleting a DaemonSet Will clean up the Pods it created
 -   The `spec.selector` field of a DaemonSet is immutable; to change it, the DaemonSet must be deleted and recreated.
