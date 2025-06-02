@@ -246,6 +246,7 @@ Manage Pods
 -   **Key Functions:** Automatically replaces failed Pods, scales up if instances are below the target, and scales down if there are too many.
 -   **Benefits:** Improves reliability, enables load balancing, and facilitates scaling.
 -   **When to Use:** Choose ReplicaSets when you don't need automatic Pod upgrades (use Deployments for that) or when implementing custom upgrade logic. For batch jobs, prefer the `Job` resource. For running a Pod on every node, use `DaemonSet`.
+-  ReplicaSet can be used on its own, but it’s rare. The most valid use case is blue-green deployment, or when you need manual control without auto-updates or rollback logic
 
 **Example ReplicaSet YAML:**
 ```yaml
