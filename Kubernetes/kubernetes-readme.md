@@ -363,6 +363,8 @@ kubectl scale deployments.apps my-dep --replicas=5
 -   Manages the deployment and scaling of a set of Pods, specifically designed for **stateful applications**.
 -   Provides guarantees about the ordering and uniqueness of Pods (stable, persistent identifiers).
 -   Provides stable, persistent storage volumes associated with each Pod replica.
+-   If we changed volume claim template, we should delete statefulset then create again. Because volume claim templates are immutable.
+-   We create a headless service before a StatefulSet so each pod gets a stable DNS hostname. This is required because StatefulSet pods need to communicate with each other using fixed names (like pod-0, pod-1) for clustering and data consistency.
 
 **Key Characteristics:**
 
@@ -387,13 +389,6 @@ kubectl scale deployments.apps my-dep --replicas=5
    - Applications that need to maintain state
    - Applications requiring ordered deployment/scaling
 
-**Important Notes:**
-- Stateful applications are more complex to manage than stateless ones
-- Kubernetes provides the framework, but you need to handle:
-  - Data synchronization
-  - Storage management
-  - Backup procedures
-- Not all stateful applications are ideal for containerization
 
 Deploying a StatefulSet
 
@@ -456,12 +451,6 @@ For example, to scale the StatefulSet named `nginx` to 1 replica:
 kubectl scale statefulsets.apps nginx --replicas=1
 ```
 
-### Ingress
-
--   An API object that manages external access to services within the cluster, typically HTTP/HTTPS.
--   Provides routing rules (based on host or path) to direct traffic to different services.
--   Requires an Ingress Controller to be running in the cluster to fulfill the Ingress rules.
--   Often used to expose multiple services under a single IP address, potentially with TLS termination.
 
 ### DaemonSet
 
@@ -568,6 +557,12 @@ kubectl taint nodes <node-name> node-role.kubernetes.io/worker:NoSchedule-
 # List node taints
 kubectl describe node <node-name> | grep Taints
 ```
+### Ingress
+
+-   An API object that manages external access to services within the cluster, typically HTTP/HTTPS.
+-   Provides routing rules (based on host or path) to direct traffic to different services.
+-   Requires an Ingress Controller to be running in the cluster to fulfill the Ingress rules.
+-   Often used to expose multiple services under a single IP address, potentially with TLS termination.
 
 ### Job
 
