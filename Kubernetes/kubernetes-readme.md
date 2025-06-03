@@ -97,7 +97,7 @@ These components run on every node, maintaining running pods and providing the K
     -   Kubernetes supports various runtimes via the Container Runtime Interface (CRI).
     -   Examples: Docker, containerd, CRI-O.
 -   **kube-proxy:**
-    -   A network proxy that runs on each node, responsible for implementing the Kubernetes Service concept.
+    -   Responsible for implementing the Kubernetes Service concept.
     -   Maintains network rules on nodes to route traffic to a Service's IP address and port to the correct backend Pods (load balancing).
     -   Enables network communication to Pods from network sessions inside or outside of the cluster.
 -   **Pods:**
@@ -243,7 +243,7 @@ Manage Pods
 
 -   Ensures that a specified number of identical Pod replicas are running at any given time.
 -   Maintains a constant number of Pod instances to prevent application downtime if a Pod fails.
--   Automatically replaces failed Pods, scales up if instances are below the target, and scales down if there are too many (load balancing).
+-   Automatically replaces failed Pods.
 -   Does not handle updates to pod templates automatically. If you change the pod spec (like the container image), you must manually delete and recreate the ReplicaSet or the pods.
 -   Uses a `selector` (with `matchLabels`) to identify the Pods it manages.
 -   Includes a `template` section defining the specification for the Pods it should create.
