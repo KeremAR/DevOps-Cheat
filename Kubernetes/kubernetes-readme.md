@@ -473,7 +473,7 @@ kubectl scale statefulsets.apps nginx --replicas=1
 -   Ensures that all (or some specified) Nodes run a copy of a specific Pod.
 -   Pods are automatically added to new nodes joining the cluster.
 -   But not all nodes are available to every Pod — some are tainted for specific workloads.
--   That’s why we use tolerations in DaemonSet Pods, so they can still run on tainted nodes too.
+-   That's why we use tolerations in DaemonSet Pods, so they can still run on tainted nodes too.
 -   As nodes are removed from the cluster, the DaemonSet controller ensures that Pods running on those nodes are garbage collected (automatically deleted).
 -   Deleting a DaemonSet Will clean up the Pods it created
 -   The `spec.selector` field of a DaemonSet is immutable; to change it, the DaemonSet must be deleted and recreated.
@@ -641,9 +641,297 @@ Pods are frequently created and destroyed, causing their IP addresses to change.
 -   Requires an Ingress Controller to be running in the cluster to fulfill the Ingress rules.
 -   Often used to expose multiple services under a single IP address, potentially with TLS termination.
 
+### Secrets
+
+Secrets are Kubernetes objects used to store and manage sensitive information, such as passwords, OAuth tokens, and SSH keys. Storing this information in a Secret is more secure than putting it verbatim in a Pod definition or in a container image.
+
+#### Overview of Secrets
+
+- Secrets allow you to control how sensitive information is used and reduce the risk of accidental exposure.
+- Data in Secrets is stored base64 encoded by default, but it's important to note that base64 is an encoding, not an encryption, scheme. For true protection, additional measures like etcd encryption at rest and RBAC policies are crucial.
+- Secrets can be mounted as data volumes or exposed as environment variables to be used by containers in a Pod.
+
+#### Creating Secrets
+
+Secrets can be created in a few ways:
+
+1.  **Using `kubectl` (Imperative Commands):**
+    -   **From literal values:**
+        ```bash
+        kubectl create secret generic my-secret --from-literal=username='admin' --from-literal=password='s3cr3t'
+        ```
+    -   **From files:**
+        Create files, e.g., `username.txt` containing `admin` and `password.txt` containing `s3cr3t`.
+        ```bash
+        kubectl create secret generic my-secret-from-file --from-file=./username.txt --from-file=./password.txt
+        ```
+    -   **For Docker registry credentials (image pull secrets):**
+        ```bash
+        kubectl create secret docker-registry my-docker-secret --docker-server=<your-registry-server> --docker-username=<your-username> --docker-password=<your-password> --docker-email=<your-email>
+        ```
+
+2.  **Manually (Declarative - YAML manifest):**
+    Create a YAML file (e.g., `my-secret.yaml`):
+    ```yaml
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: my-manual-secret
+    type: Opaque # Default type, can be other types like kubernetes.io/service-account-token, kubernetes.io/dockerconfigjson
+    data:
+      # Values must be base64 encoded
+      # echo -n 'admin' | base64  -> YWRtaW4=
+      # echo -n 's3cr3t' | base64 -> czNjcjN0
+      username: YWRtaW4=
+      password: czNjcjN0
+    # stringData can be used for non-binary data, Kubernetes will base64 encode it for you
+    # stringData:
+    #   username: admin
+    #   password: password123
+    ```
+    Then apply it:
+    ```bash
+    kubectl apply -f my-secret.yaml
+    ```
+
+#### Decoding Secrets
+
+To view the decoded data from a Secret:
+```bash
+# Get the secret in YAML format
+kubectl get secret my-secret -o yaml
+
+# To decode a specific data field (e.g., username):
+# Replace <base64-encoded-string> with the actual encoded value from the secret
+echo '<base64-encoded-string>' | base64 --decode
+```
+For example, if `username` in the secret is `YWRtaW4=`:
+```bash
+echo 'YWRtaW4=' | base64 --decode
+# Output: admin
+```
+
+#### Consuming Secrets
+
+Secrets can be consumed by Pods in two main ways:
+
+1.  **As Environment Variables:**
+    ```yaml
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: secret-env-pod
+    spec:
+      containers:
+      - name: mycontainer
+        image: redis
+        env:
+          - name: SECRET_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: my-secret # Name of the Secret
+                key: username  # Key within the Secret
+          - name: SECRET_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: my-secret
+                key: password
+      restartPolicy: Never
+    ```
+
+2.  **As Volumes (files mounted into the Pod):**
+    Each key in the Secret becomes a file in the mounted directory.
+    ```yaml
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: secret-volume-pod
+    spec:
+      containers:
+      - name: mycontainer
+        image: nginx
+        volumeMounts:
+        - name: secret-storage
+          mountPath: "/etc/mysecret" # Path where secret files will be mounted
+          readOnly: true
+      volumes:
+      - name: secret-storage
+        secret:
+          secretName: my-secret # Name of the Secret
+    # Files in /etc/mysecret would be 'username' and 'password'
+    # containing the decoded values.
+    ```
+
+#### When to Use Which Method (Secrets)
+
+In general, for single, discrete sensitive values, environment variables are often simpler. For sets of related sensitive data or file-based sensitive configurations, volumes are more powerful and flexible, especially when updates need to be reflected in running Pods (if the application supports reloading).
+
+---
+
+### ConfigMap
+
+ConfigMaps are Kubernetes objects used to store non-confidential configuration data in key-value pairs. Pods can consume ConfigMaps as environment variables, command-line arguments, or as configuration files in a volume.
+
+
+#### ConfigMaps Overview
+
+-   Store configuration data that Pods can use.
+-   Allow you to separate configuration from your application code.
+-   Data is stored as key-value pairs.
+-   Can be used to store entire configuration files or individual property values.
+-   Not designed for sensitive data (use Secrets for that).
+
+#### Creating ConfigMaps
+
+ConfigMaps can be created from directories, files, or literal values:
+
+1.  **From Files:**
+    Create a file, e.g., `app-config.properties`:
+    ```properties
+    app.color=blue
+    app.environment=dev
+    ```
+    Then create the ConfigMap:
+    ```bash
+    kubectl create configmap app-settings-from-file --from-file=app-config.properties
+    # This creates a ConfigMap with one key 'app-config.properties',
+    # and its value is the content of the file.
+    #
+    # To create a key for each file with file content as value:
+    kubectl create configmap app-settings-from-file-keys --from-file=path/to/config1.conf --from-file=path/to/config2.conf
+    # This creates keys like 'config1.conf' and 'config2.conf'
+    ```
+
+2.  **From Directories:**
+    If you have a directory with multiple configuration files:
+    ```bash
+    # Assume 'my-configs/' directory contains 'game.properties' and 'ui.properties'
+    kubectl create configmap app-settings-from-dir --from-file=./my-configs/
+    # This creates a ConfigMap where each file in 'my-configs/' becomes a key,
+    # and the file content is its value.
+    ```
+
+3.  **From Literal Values:**
+    ```bash
+    kubectl create configmap app-settings-literal \
+      --from-literal=app.mode=test \
+      --from-literal=app.retries=5
+    ```
+
+4.  **Declaratively (YAML manifest):**
+    Create a YAML file (e.g., `my-configmap.yaml`):
+    ```yaml
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: my-app-config
+    data:
+      # Key-value pairs
+      database.host: "mysql-server"
+      database.port: "3306"
+
+      # You can also embed file-like content
+      app.conf: |
+        property1=value1
+        property2=value2
+        complex.setting=true
+    ```
+    Then apply it:
+    ```bash
+    kubectl apply -f my-configmap.yaml
+    ```
+
+#### Accessing ConfigMaps in Pods
+
+ConfigMaps can be accessed by Pods in several ways:
+
+1.  **As Environment Variables:**
+    Each key-value pair in the ConfigMap can become an environment variable.
+    ```yaml
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: configmap-env-pod
+    spec:
+      containers:
+      - name: mycontainer
+        image: alpine
+        command: [ "sleep", "3600" ]
+        env:
+          - name: APP_MODE
+            valueFrom:
+              configMapKeyRef:
+                name: app-settings-literal # Name of the ConfigMap
+                key: app.mode            # Key within the ConfigMap
+          - name: APP_RETRIES
+            valueFrom:
+              configMapKeyRef:
+                name: app-settings-literal
+                key: app.retries
+        # Or expose all keys from a ConfigMap as environment variables
+        # envFrom:
+        # - configMapRef:
+        #     name: app-settings-literal
+    ```
+
+2.  **As Command-line Arguments:**
+    While not directly consumed as command-line args, values from ConfigMaps (usually via env vars) can be passed to container entrypoints/commands.
+    ```yaml
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: configmap-args-pod
+    spec:
+      containers:
+      - name: mycontainer
+        image: busybox
+        command: [ "sh", "-c", "echo Running in mode $APP_MODE with $APP_RETRIES retries && sleep 3600" ]
+        env:
+          - name: APP_MODE
+            valueFrom:
+              configMapKeyRef:
+                name: app-settings-literal
+                key: app.mode
+          - name: APP_RETRIES
+            valueFrom:
+              configMapKeyRef:
+                name: app-settings-literal
+                key: app.retries
+    ```
+
+3.  **As Volume Mounts (files in a directory):**
+    Each key in the `data` field of the ConfigMap becomes a file in the mounted directory.
+    ```yaml
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: configmap-volume-pod
+    spec:
+      containers:
+      - name: mycontainer
+        image: nginx
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/config # Path where config files will be mounted
+      volumes:
+      - name: config-volume
+        configMap:
+          name: my-app-config # Name of the ConfigMap
+          # items: # Optionally specify which keys to mount and their paths
+          #   - key: "app.conf"
+          #     path: "my_custom_app.conf"
+    # If my-app-config has keys 'database.host' and 'app.conf',
+    # then /etc/config/database.host and /etc/config/app.conf files will be created.
+    ```
+    If a ConfigMap used in a volume mount is updated, the mounted files are updated as well (eventually consistent). Pods consuming these files might need to be restarted or have a mechanism to reload their configuration.
+
+#### When to Use Which Method (ConfigMaps)
+
+In general, for single, simple configuration values, environment variables are often sufficient. For providing entire configuration files or for configurations that might need to be updated in running Pods (if the application supports reloading), volume mounts are generally preferred.
 
 
 ### Job
+
 -   Creates one or more Pods and ensures that a specified number of them successfully terminate (complete).
 -   Tracks the completion of tasks; Pods are usually deleted after the Job completes.
 -   Useful for batch processing, one-off tasks, or tasks that need to run to completion.
