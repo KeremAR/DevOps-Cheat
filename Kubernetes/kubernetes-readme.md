@@ -1158,7 +1158,87 @@ allowVolumeExpansion: true # If true, allows PVCs of this class to be resized la
 -   Creates one or more Pods and ensures that a specified number of them successfully terminate (complete).
 -   Tracks the completion of tasks; Pods are usually deleted after the Job completes.
 -   Useful for batch processing, one-off tasks, or tasks that need to run to completion.
+-   Can scale up using kubectl scale command
 -   **CronJob:** Creates Jobs on a repeating schedule (like cron).
+
+```bash
+# Command to generate the basic Job manifest YAML:
+kubectl create job countdown --image=centos:7 --dry-run=client -o yaml -- /bin/bash -c "for i in 987654321; do echo \$i; done" > countdown-job.yaml
+```
+```yaml
+# Job.yaml YAML file
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: countdown
+spec:
+  template:
+    metadata:
+      name: countdown
+    spec:
+      containers:
+      - name: counter
+        image: centos:7
+        command:
+        - "bin/bash"
+        - "for i in 987654321; do echo $i; done"
+      restartPolicy: Never
+```bash
+kubectl apply -f Job.yaml
+kubectl get jobs
+kubectl get pods
+kubectl logs <pod-name>
+kubectl describe job countdown
+kubectl delete job countdown
+```
+
+### CronJob
+
+-   Creates Jobs on a repeating schedule (like cron).
+-   Useful for scheduled tasks, backups, or any recurring work.
+-   Can scale up using kubectl scale command
+
+```
+# Cron Schedule Syntax:
+# ┌───────────── minute (0 - 59)
+# │ ┌───────────── hour (0 - 23)
+# │ │ ┌───────────── day of the month (1 - 31)
+# │ │ │ ┌───────────── month (1 - 12)
+# │ │ │ │ ┌───────────── day of the week (0 - 6) (Sunday to Saturday;
+# │ │ │ │ │                                   7 is also Sunday on some systems,
+# │ │ │ │ │                                   or use names like sun, mon, tue, wed, thu, fri, sat)
+# │ │ │ │ │
+# │ │ │ │ │
+# * * * * *
+```
+```bash
+# Command to generate the basic CronJob manifest YAML:
+kubectl create cronjob hello --image=busybox:1.28 --schedule="* * * * *" --dry-run=client -o yaml -- /bin/sh -c "date; echo Hello from the Kubernetes cluster" > hello-cronjob.yaml
+```
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hello
+spec:
+  schedule: "* * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: hello
+            image: busybox:1.28
+            imagePullPolicy: IfNotPresent
+            command: 
+            - /bin/sh
+            - -c
+            - date; echo Hello from the Kubernetes cluster
+          containers:
+      restartPolicy: OnFailure
+```
+
+
 
 ## Kubectl (Kubernetes CLI)
 
