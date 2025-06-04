@@ -2,6 +2,13 @@
 
 ![k8s cheatsheet](/Media/k8s_cheatsheet.png)
 
+### Creating a Kubernetes Cluster with `kubeadm`
+
+`kubeadm` is a Kubernetes tool for bootstrapping a cluster on existing machines, often used for learning and self-managed setups.
+*   **`kubeadm init`**: This command initializes the primary control-plane node by setting up its core components (API server, etcd, etc.).
+*   **`kubeadm join`**: Using a token from the `init` process, this command securely adds worker or additional control-plane nodes to the cluster.
+For local development, tools like Minikube, Kind, or k3s offer simpler single-command cluster creation. (e.g. `minikube start`)
+
 ## What is Kubernetes and Why is it Needed?
 
 Kubernetes is an open-source container orchestration tool used to manage and scale containers efficiently. As microservices became more common, managing containers became increasingly complex. Kubernetes solves this problem by automatically scaling applications based on load and ensuring service continuity.
@@ -1238,13 +1245,28 @@ spec:
       restartPolicy: OnFailure
 ```
 
+#### Manually Triggering a Job from a CronJob Template
 
+You can manually create a Job based on the template of an existing CronJob. This is useful for testing or running the job on demand outside its schedule.
+
+```bash
+kubectl create job <new-job-name> --from=cronjob/<your-cronjob-name> -n <namespace-of-cronjob>
+# Example:
+# kubectl create job manual-run-1 --from=cronjob/hello -n default
+```
 
 ## Kubectl (Kubernetes CLI)
 
 `kubectl` (kube control) is the primary command-line interface (CLI) tool for interacting with a Kubernetes cluster.
 
--   Used to deploy applications, inspect and manage cluster resources, view logs, etc.
+*   It uses a configuration file, commonly called `kubeconfig`, to find and authenticate to a cluster.
+*   **Default `kubeconfig` location**:
+    *   Linux/macOS: `~/.kube/config`
+    *   Windows: `%USERPROFILE%\.kube\config`
+*   You can specify a different `kubeconfig` file by:
+    *   Setting the `KUBECONFIG` environment variable.
+    *   Using the `--kubeconfig` flag with `kubectl` commands (e.g., `kubectl --kubeconfig=/path/to/custom/config get pods`).
+*   Used to deploy applications, inspect and manage cluster resources, view logs, etc.
 
 ### Kubectl Command Structure
 
@@ -1315,6 +1337,7 @@ Kubernetes RBAC is built around four main API objects:
 1.  **`Role`** (Namespaced)
     *   Defines permissions *within a specific namespace*. 
     *   A Role contains rules that represent a set of permissions. Permissions are purely additive (there are no "deny" rules).
+    *   Each rule specifies `apiGroups`, `resources`, and `verbs`. Common verbs include `get`, `list`, `watch`, `create`, `update`, `patch`, `delete`, and `deletecollection`.
     *   Example: Allow reading Pods in the "default" namespace.
 
     ```yaml
@@ -1326,15 +1349,15 @@ Kubernetes RBAC is built around four main API objects:
     rules:
     - apiGroups: [""] # "" indicates the core API group
       resources: ["pods"]
-      verbs: ["get", "watch", "list"]
+      verbs: ["get", "watch", "list", "create", "update", "patch", "delete", "deletecollection"]
     ```
     ```bash
     # Imperative command to create a similar Role:
-    kubectl create role pod-reader --verb=get,watch,list --resource=pods --namespace=default
+    kubectl create role pod-reader --verb=get,watch,list,create,update,patch,delete,deletecollection --resource=pods --namespace=default
     ```
 
 2.  **`ClusterRole`** (Cluster-wide)
-    *   Defines permissions *cluster-wide*. 
+    *   Defines permissions *cluster-wide* (rules are similar to `Role` and can use the same verbs).
     *   Can be used for:
         *   Cluster-scoped resources (e.g., nodes, persistent volumes).
         *   Namespaced resources, granting access across *all* namespaces (e.g., allow reading Pods in every namespace).
@@ -1348,11 +1371,11 @@ Kubernetes RBAC is built around four main API objects:
     rules:
     - apiGroups: [""]
       resources: ["secrets"]
-      verbs: ["get", "watch", "list"]
+      verbs: ["get", "watch", "list", "create", "update", "patch", "delete", "deletecollection"]
     ```
     ```bash
     # Imperative command to create a similar ClusterRole:
-    kubectl create clusterrole secret-reader --verb=get,watch,list --resource=secrets
+    kubectl create clusterrole secret-reader --verb=get,watch,list,create,update,patch,delete,deletecollection --resource=secrets
     ```
 
 3.  **`RoleBinding`** (Namespaced)
