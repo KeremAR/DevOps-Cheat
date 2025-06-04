@@ -1532,6 +1532,42 @@ sudo rm /etc/kubernetes/manifests/nginx-static.yaml
 sudo systemctl restart kubelet
 ```
 
+### Helm: Kubernetes Package Manager
+
+Helm is a tool for managing **Charts**, which are packages of pre-configured Kubernetes resources. It streamlines installing and managing Kubernetes applications, similar to package managers like `apt`, `yum`, or `homebrew`. Helm renders your templates and communicates with the Kubernetes API, running from your local machine, CI/CD, or other environments.
+
+**Core Helm Concepts:**
+
+*   **Charts**:
+    *   Helm's packaging format; a collection of files describing a related set of Kubernetes resources.
+    *   Can deploy simple or complex applications (e.g., a memcached pod or a full web stack).
+    *   Key files in a chart directory (e.g., `wordpress/`):
+        *   `Chart.yaml`: Required. Contains metadata like `apiVersion`, `name` (chart name), `version` (SemVer 2). May also include `kubeVersion`, `description`, `type`, `keywords`, `home`, `sources`, `dependencies`, `maintainers`, `icon`, `appVersion`, `deprecated`, `annotations`.
+        *   `values.yaml`: Default configuration values for the chart.
+        *   `templates/`: Directory of templates that generate Kubernetes manifest files when combined with values.
+        *   Optional: `LICENSE`, `README.md`, `values.schema.json`, `charts/` (dependencies/subcharts), `crds/` (Custom Resource Definitions), `templates/NOTES.txt`.
+    *   Charts can be stored on disk or fetched from remote **Chart Repositories**.
+
+*   **Repository**:
+    *   A location where Charts are stored and can be shared.
+
+*   **Release**:
+    *   An instance of a Chart running in your Kubernetes cluster. Created when you install a chart.
+
+**Key Helm Operations & Commands:**
+
+*   **Search Charts**:
+    *   `helm search hub <keyword>`: Search for charts on Artifact Hub (e.g., `helm search hub wordpress`).
+    *   `helm search repo <keyword>`: Search repositories added to your local Helm client (e.g., `helm search repo brigade`).
+*   **Manage Repositories**:
+    *   `helm repo add <repo-name> <repo-url>`: Add a chart repository to your local client (e.g., `helm repo add brigade https://brigadecore.github.io/charts`).
+*   **Inspect Charts**:
+    *   `helm pull <chart-repo>/<chart-name>`: Download chart files to inspect them without installing.
+*   **Manage Releases**:
+    *   `helm install <your-release-name> <chart-repo>/<chart-name>`: Install a chart (e.g., `helm install happy-panda bitnami/wordpress`).
+    *   `helm list`: List all releases in the current namespace.
+    *   `helm uninstall <your-release-name>`: Uninstall a release.
+
 ## Conclusion
 
 Kubernetes automates container management, making systems more resilient, scalable, and efficient. While Docker is used to build and package containers, Kubernetes is responsible for managing and orchestrating them.
