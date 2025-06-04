@@ -1039,6 +1039,119 @@ ConfigMaps can be accessed by Pods in several ways:
 
 In general, for single, simple configuration values, environment variables are often sufficient. For providing entire configuration files or for configurations that might need to be updated in running Pods (if the application supports reloading), volume mounts are generally preferred.
 
+### Storage in Kubernetes
+
+By default, any data written to a container's filesystem is **non-persistent** and is lost if the container or Pod restarts. This is suitable for stateless applications but not for those needing data to persist beyond a Pod's lifecycle.
+
+#### How to Persist Data
+
+Kubernetes uses PersistentVolumes (PV), PersistentVolumeClaims (PVC), and StorageClasses to manage durable storage. These abstractions allow data to exist independently of Pods.
+
+##### PersistentVolume (PV)
+
+-   A **PersistentVolume (PV)** is a cluster-wide piece of pre-provisioned storage, managed by an administrator or dynamically via StorageClasses. It's a resource in the cluster, like a node, with a lifecycle independent of any Pod.
+-   PVs define the actual storage details (NFS, iSCSI, cloud storage) and its capacity, access modes (e.g., RWO, RWX), and reclaim policy.
+
+**Example PersistentVolume YAML (NFS):**
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: my-nfs-pv
+spec:
+  capacity:
+    storage: 5Gi # Total storage capacity of this PV
+  volumeMode: Filesystem # Type of volume: Filesystem or Block
+  accessModes:
+    - ReadWriteMany # How the volume can be mounted: ReadWriteOnce, ReadOnlyMany, ReadWriteMany, ReadWriteOncePod
+  persistentVolumeReclaimPolicy: Retain # What happens to PV data when PVC is deleted: Retain, Recycle, Delete
+  storageClassName: manual # Links PV to a StorageClass; 'manual' for manually provisioned PVs
+  nfs: # Example for NFS storage type
+    path: /mnt/nfs_share # Path exported by the NFS server
+    server: nfs-server.example.com # Address of the NFS server
+```
+
+##### PersistentVolumeClaim (PVC)
+
+-   A **PersistentVolumeClaim (PVC)** is a request for storage by a user or Pod, similar to how a Pod requests CPU/memory. PVCs specify desired storage capacity, access modes, and optionally a StorageClass.
+-   Kubernetes binds a PVC to a suitable PV. If dynamic provisioning is enabled via a StorageClass, a PV can be automatically created to satisfy the PVC. PVCs must be in the same namespace as the Pod using them.
+
+**Example PersistentVolumeClaim YAML:**
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-app-pvc
+  namespace: my-app-namespace # PVC must be in the same namespace as the Pod
+spec:
+  accessModes:
+    - ReadWriteOnce # Requested access mode for the storage
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 2Gi # Amount of storage requested
+  storageClassName: slow # Optional: request a specific StorageClass for dynamic provisioning or matching
+  # selector: # Optional: to select a specific PV with matching labels
+  #   matchLabels:
+  #     release: "stable"
+```
+
+**Using PVC in a Pod:**
+Pods use PVCs to access persistent storage. The Pod definition references the PVC, and Kubernetes mounts the bound PV into the specified container path.
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-persistent-pod
+  namespace: my-app-namespace
+spec:
+  containers:
+  - name: my-frontend
+    image: nginx
+    volumeMounts:
+    - mountPath: "/var/www/html" # Path inside the container where storage will be mounted
+      name: my-storage # Must match the volume name below
+  volumes:
+  - name: my-storage
+    persistentVolumeClaim:
+      claimName: my-app-pvc # Name of the PVC to use for this volume
+```
+
+##### StorageClass
+
+-   A **StorageClass** allows administrators to define different "classes" or tiers of storage (e.g., fast SSD, standard HDD, backup storage) with associated provisioners and parameters. They enable **dynamic provisioning** of PVs, automatically creating storage when a PVC requests a particular class.
+-   Each StorageClass specifies a `provisioner` (e.g., AWS EBS, GCE PD), `parameters` for that provisioner, and a `reclaimPolicy` for dynamically created PVs.
+
+**Example StorageClass YAML (using AWS EBS provisioner):**
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: fast-ssd # Name of the storage class
+provisioner: kubernetes.io/aws-ebs # Identifies the underlying storage provisioner (e.g., for AWS EBS)
+parameters:
+  type: gp2 # Provisioner-specific parameters (e.g., EBS volume type 'gp2' for General Purpose SSD)
+  encrypted: "true" # Example parameter: enable encryption for the provisioned volume
+reclaimPolicy: Delete # Policy for dynamically provisioned PVs: Delete or Retain (default for dynamic is Delete)
+volumeBindingMode: Immediate # When to provision: Immediate (default) or WaitForFirstConsumer (delays until a Pod uses it)
+allowVolumeExpansion: true # If true, allows PVCs of this class to be resized later
+# mountOptions: # Optional mount options for volumes of this class
+#   - debug
+```
+
+*   **StorageClass**:
+    *   Defines a "class" of storage (e.g., SSD, HDD) and enables dynamic PV provisioning.
+    *   *Best Practice*: A default StorageClass is recommended so PVCs without a specified class can still trigger automatic PV creation. This lets users request storage types without needing to know backend details.
+*   **PersistentVolume (PV)**:
+    *   Represents an actual piece of storage in the cluster (e.g., a physical disk), managed by an admin or dynamically provisioned via a StorageClass.
+    *   *Best Practice*: Pods should *not* directly reference PVs in their configuration; this ensures application portability across different clusters.
+*   **PersistentVolumeClaim (PVC)**:
+    *   A user's request for storage, specifying desired size and access mode.
+    *   *Best Practice*: Pods should *always* use PVCs to consume storage. Users can optionally specify a StorageClass in their PVC to request a particular type of storage.
+*   **Interaction Flow**:
+    *   A PVC requests storage.
+    *   It attempts to bind to a suitable, available PV.
+    *   If no matching PV is found, and a StorageClass is defined (either in the PVC or as a cluster default), a new PV is dynamically provisioned according to that class and then bound to the PVC.
 
 ### Job
 
