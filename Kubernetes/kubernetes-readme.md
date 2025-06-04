@@ -1218,6 +1218,188 @@ kubectl [command] [type] [name] [flags]
 -   `kubectl rollout status deployment <deploy-name> -n <namespace-name>`: Check the status of a deployment rollout in a specific namespace.
 -   `kubectl edit deployment <deployment-name> -n <namespace-name>`: Edit a deployment in a specific namespace using the default editor.
 
+### Role-Based Access Control (RBAC)
+
+Role-Based Access Control (RBAC) is a method of regulating access to computer or network resources based on the roles of individual users within an organization. In Kubernetes, RBAC allows administrators to precisely define who can perform what actions on which resources, adhering to the principle of least privilege and enhancing cluster security.
+
+#### Why RBAC is Important
+
+-   **Security**: Restricts users and workloads to only the permissions they absolutely need, reducing the potential impact of a compromised account or application.
+-   **Organization**: Helps manage permissions declaratively for numerous users and applications across different namespaces.
+-   **Compliance**: Enables auditing and enforcement of access policies.
+
+#### Core RBAC Objects
+
+Kubernetes RBAC is built around four main API objects:
+
+1.  **`Role`** (Namespaced)
+    *   Defines permissions *within a specific namespace*. 
+    *   A Role contains rules that represent a set of permissions. Permissions are purely additive (there are no "deny" rules).
+    *   Example: Allow reading Pods in the "default" namespace.
+
+    ```yaml
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: Role
+    metadata:
+      namespace: default # Role is specific to this namespace
+      name: pod-reader
+    rules:
+    - apiGroups: [""] # "" indicates the core API group
+      resources: ["pods"]
+      verbs: ["get", "watch", "list"]
+    ```
+    ```bash
+    # Imperative command to create a similar Role:
+    kubectl create role pod-reader --verb=get,watch,list --resource=pods --namespace=default
+    ```
+
+2.  **`ClusterRole`** (Cluster-wide)
+    *   Defines permissions *cluster-wide*. 
+    *   Can be used for:
+        *   Cluster-scoped resources (e.g., nodes, persistent volumes).
+        *   Namespaced resources, granting access across *all* namespaces (e.g., allow reading Pods in every namespace).
+        *   Non-resource endpoints (e.g., `/healthz`).
+
+    ```yaml
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: secret-reader # Name is cluster-wide, no namespace
+    rules:
+    - apiGroups: [""]
+      resources: ["secrets"]
+      verbs: ["get", "watch", "list"]
+    ```
+    ```bash
+    # Imperative command to create a similar ClusterRole:
+    kubectl create clusterrole secret-reader --verb=get,watch,list --resource=secrets
+    ```
+
+3.  **`RoleBinding`** (Namespaced)
+    *   Grants the permissions defined in a `Role` to a user, group, or `ServiceAccount` *within a specific namespace*.
+    *   It links a `Role` to a subject (user, group, or ServiceAccount).
+
+    ```yaml
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      name: read-pods-in-default
+      namespace: default # RoleBinding is specific to this namespace
+    subjects:
+    - kind: User
+      name: "jane" # Name is case-sensitive
+      apiGroup: rbac.authorization.k8s.io
+    roleRef:
+      kind: Role # Can be Role or ClusterRole
+      name: pod-reader # Name of the Role being granted
+      apiGroup: rbac.authorization.k8s.io
+    ```
+    ```bash
+    # Imperative command to create a similar RoleBinding for a User:
+    kubectl create rolebinding read-pods-in-default --role=pod-reader --user=jane --namespace=default
+    # For a ServiceAccount: kubectl create rolebinding <binding-name> --role=<role-name> --serviceaccount=<namespace>:<sa-name> -n <namespace>
+    ```
+
+4.  **`ClusterRoleBinding`** (Cluster-wide)
+    *   Grants the permissions defined in a `ClusterRole` to a user, group, or `ServiceAccount` *cluster-wide*.
+    *   Used to authorize subjects for all namespaces in the cluster.
+
+    ```yaml
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: read-secrets-global
+    subjects:
+    - kind: Group
+      name: "developers"
+      apiGroup: rbac.authorization.k8s.io
+    roleRef:
+      kind: ClusterRole
+      name: secret-reader # Name of the ClusterRole being granted
+      apiGroup: rbac.authorization.k8s.io
+    ```
+    ```bash
+    # Imperative command to create a similar ClusterRoleBinding for a Group:
+    kubectl create clusterrolebinding read-secrets-global --clusterrole=secret-reader --group=developers
+    # For a User: kubectl create clusterrolebinding <binding-name> --clusterrole=<clusterrole-name> --user=<user-name>
+    ```
+
+#### Subjects
+
+Subjects are the entities that are being granted permissions. They can be:
+-   **User**: Individual human users. These are not managed by Kubernetes directly; they are assumed to be managed by an external identity provider (e.g., LDAP, SAML, X509 certificates).
+-   **Group**: A set of users. Like users, groups are not managed by Kubernetes but are provided by the authenticator.
+-   **ServiceAccount**: An identity for processes running inside Pods. ServiceAccounts are managed by Kubernetes.
+
+#### ServiceAccounts
+
+-   Provide an identity for processes that run in a Pod.
+-   When a Pod is created, if a ServiceAccount is not specified, it is automatically assigned the `default` ServiceAccount in that namespace.
+-   ServiceAccounts can be associated with Roles or ClusterRoles via RoleBindings or ClusterRoleBindings to grant specific permissions to the applications running in Pods.
+-   API credentials for the ServiceAccount are automatically mounted into Pods (typically at `/var/run/secrets/kubernetes.io/serviceaccount/token`), allowing applications to interact with the Kubernetes API server securely.
+
+**Example: Creating a ServiceAccount and binding it to a Role:**
+
+1.  **Create a ServiceAccount:**
+    ```yaml
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: my-app-sa
+      namespace: my-namespace
+    ```
+    ```bash
+    kubectl apply -f my-app-sa.yaml
+    # Or create imperatively:
+    # kubectl create serviceaccount my-app-sa -n my-namespace
+    ```
+
+2.  **Assume a Role exists (e.g., `configmap-reader` in `my-namespace` as defined previously).**
+
+3.  **Bind the ServiceAccount to the Role using a RoleBinding:**
+    This grants the `my-app-sa` ServiceAccount the permissions defined in the `configmap-reader` Role within `my-namespace`.
+    ```bash
+    # Imperative command to create the RoleBinding:
+    kubectl create rolebinding my-app-sa-reads-configmaps --role=configmap-reader --serviceaccount=my-namespace:my-app-sa --namespace=my-namespace
+    
+    # Alternatively, if you had a YAML for the RoleBinding (as shown in the RoleBinding definition section):
+    # kubectl apply -f my-app-sa-rolebinding.yaml 
+    ```
+
+Now, any Pod in `my-namespace` configured to use the `my-app-sa` ServiceAccount will have read-only access to ConfigMaps within that namespace.
+
+#### Common `kubectl` RBAC Commands
+
+-   **Check permissions (can I do something?):**
+    ```bash
+    kubectl auth can-i get pods --namespace=default
+    kubectl auth can-i list nodes --as=jane # Check as another user
+    kubectl auth can-i create deployments --namespace=myapp --as=system:serviceaccount:myapp:mysa
+    ```
+
+-   **List RBAC resources:**
+    ```bash
+    kubectl get roles --all-namespaces
+    kubectl get rolebindings -n <namespace>
+    kubectl get clusterroles
+    kubectl get clusterrolebindings
+    ```
+
+-   **Describe RBAC resources (to see rules and subjects):**
+    ```bash
+    kubectl describe role <role-name> -n <namespace>
+    kubectl describe clusterrole <clusterrole-name>
+    kubectl describe rolebinding <rolebinding-name> -n <namespace>
+    kubectl describe clusterrolebinding <clusterrolebinding-name>
+    ```
+
+-   **Create RBAC resources imperatively (useful for quick tests):**
+    ```bash
+    kubectl create role pod-reader --verb=get,list,watch --resource=pods -n my-namespace
+    kubectl create rolebinding pod-reader-binding --role=pod-reader --user=jane -n my-namespace
+    kubectl create clusterrole node-lister --verb=get,list --resource=nodes
+    kubectl create clusterrolebinding node-lister-binding --clusterrole=node-lister --group=system:serviceaccounts:my-namespace
+    ```
 
 
 
