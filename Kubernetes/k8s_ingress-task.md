@@ -537,11 +537,15 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: red-color
+  labels:
+    app: red-color
+    component: color-light
 spec:
   replicas: 3
   selector:
     matchLabels:
       app: red-color
+      component: color-light
   template:
     metadata:
       labels:
@@ -556,17 +560,22 @@ spec:
         env:
         - name: COLOR
           value: "red"
-
+        - name: PORT
+          value: "8080"
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: green-color
+  labels:
+    app: green-color
+    component: color-light
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: green-color
+      component: color-light
   template:
     metadata:
       labels:
@@ -581,17 +590,22 @@ spec:
         env:
         - name: COLOR
           value: "green"
-
+        - name: PORT
+          value: "8080"
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: yellow-color
+  labels:
+    app: yellow-color
+    component: color-light
 spec:
   replicas: 2
   selector:
     matchLabels:
       app: yellow-color
+      component: color-light
   template:
     metadata:
       labels:
@@ -606,7 +620,8 @@ spec:
         env:
         - name: COLOR
           value: "yellow"
-
+        - name: PORT
+          value: "8080"
 ```
 
 **`lights-services.yaml`**
@@ -753,7 +768,9 @@ kubectl delete svc red-svc green-svc yellow-svc switch
 kubectl delete deployment red-color green-color yellow-color
 
 # Or, if you used the YAML file:
-# kubectl delete -f lights-deployments.yaml -f lights-services.yaml -f lights-ingress.yaml
+# Because changing an immutable selector requires deleting the resource first, the correct cleanup/re-apply procedure is:
+kubectl delete deployment red-color green-color yellow-color --ignore-not-found=true
+kubectl delete -f lights-services.yaml -f lights-ingress.yaml
 # Or from a directory:
 # kubectl delete -f ./lights-manifests/
 ```
