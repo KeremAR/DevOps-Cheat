@@ -100,19 +100,19 @@ This method provides full control over the resource definitions, including `path
         apiVersion: v1
         kind: Service
         metadata:
-          creationTimestamp: null # This will be populated by kubectl
+          creationTimestamp: null 
           labels:
-            app: aqua-svc # Default label added by kubectl create
+            app: aqua-svc 
           name: aqua-svc
-          namespace: default # Ensure this is the correct namespace
+          namespace: default
         spec:
           ports:
           - port: 80
             protocol: TCP
             targetPort: 80
           selector:
-            color: aqua # <-- IMPORTANT: Changed from default
-          type: ClusterIP # Explicitly stated
+            color: aqua
+          type: ClusterIP
         status:
           loadBalancer: {}
         ```
@@ -132,9 +132,9 @@ This method provides full control over the resource definitions, including `path
         apiVersion: networking.k8s.io/v1
         kind: Ingress
         metadata:
-          creationTimestamp: null # This will be populated by kubectl
+          creationTimestamp: null
           name: aqua-ingress
-          namespace: default # Ensure this is the correct namespace
+          namespace: default
           # annotations:
           #   nginx.ingress.kubernetes.io/rewrite-target: /
         spec:
@@ -143,7 +143,7 @@ This method provides full control over the resource definitions, including `path
             http:
               paths:
               - path: /
-                pathType: Prefix # <-- IMPORTANT: Added
+                pathType: 
                 backend:
                   service:
                     name: aqua-svc
@@ -171,7 +171,7 @@ This method provides full control over the resource definitions, including `path
         metadata:
           creationTimestamp: null
           labels:
-            app: maroon-svc # Default label added by kubectl create
+            app: maroon-svc 
           name: maroon-svc
           namespace: default
         spec:
@@ -180,7 +180,7 @@ This method provides full control over the resource definitions, including `path
             protocol: TCP
             targetPort: 80
           selector:
-            color: maroon # <-- IMPORTANT: Changed for maroon
+            color: maroon 
           type: ClusterIP
         status:
           loadBalancer: {}
@@ -202,15 +202,13 @@ This method provides full control over the resource definitions, including `path
           creationTimestamp: null
           name: maroon-ingress
           namespace: default
-          # annotations:
-          #   nginx.ingress.kubernetes.io/rewrite-target: /
         spec:
           rules:
           - host: maroon.k8slab.net
             http:
               paths:
               - path: /
-                pathType: Prefix # <-- IMPORTANT: Added
+                pathType: Prefix 
                 backend:
                   service:
                     name: maroon-svc
@@ -325,5 +323,133 @@ This method provides full control over the resource definitions, including `path
     # kubectl delete -f aqua-svc.yaml
     # ... and so on for maroon and olive
     ```
+
+---
+
+## Task 2: Expose Multiple Services via a Single Ingress with Path-Based Routing
+
+**Objective:**
+Using the services created in Task 1 (`aqua-svc`, `maroon-svc`, `olive-svc`), create a single Ingress resource that routes traffic based on the URL path.
+
+*   **Ingress Name:** `colors-ingress`
+*   **Hostname:** `colors.k8slab.net`
+*   **Routing Rules:**
+    *   `http://colors.k8slab.net/aqua` -> `aqua-svc`
+    *   `http://colors.k8slab.net/maroon` -> `maroon-svc`
+    *   `http://colors.k8slab.net/*` (any other path) -> `olive-svc` (default backend)
+
+**Prerequisites:**
+
+*   The `aqua-svc`, `maroon-svc`, and `olive-svc` Services from Task 1 are running.
+*   Your `hosts` file is configured to resolve `colors.k8slab.net` to your Minikube IP.
+*   (Potentially) `minikube tunnel` is running in a separate terminal.
+
+---
+
+### Method 1: Imperative Command
+
+This method is quick but has the same limitations as in Task 1 regarding `pathType`. It relies on the `--default-backend` flag for the catch-all rule.
+
+1.  **Create Ingress with Multiple Rules:**
+    The `kubectl create ingress` command allows specifying multiple rules and a default backend.
+    ```bash
+    kubectl create ingress colors-ingress --class=nginx \
+      --rule="colors.k8slab.net/aqua=aqua-svc:80" \
+      --rule="colors.k8slab.net/maroon=maroon-svc:80" \
+      --default-backend=olive-svc:80 \
+      -n default
+    ```
+
+2.  **Limitations and Verification:**
+    *   **`pathType`:** As in Task 1, this command creates paths with `pathType: ImplementationSpecific`. For explicit control, you should edit the Ingress to set `pathType: Prefix`.
+      ```bash
+      kubectl edit ingress colors-ingress -n default
+      ```
+      (You would add `pathType: Prefix` under each path for `/aqua` and `/maroon`).
+    *   **Path Rewriting:** This setup forwards requests with the original path (e.g., a request to `.../aqua/page` is sent to the `aqua-svc` pod with the path `/aqua/page`). If your application expects to receive traffic at `/`, this will fail. See the note on path rewriting in Method 2 for details on how to solve this with annotations.
+
+3.  **Verify the Ingress:**
+    ```bash
+    kubectl get ingress colors-ingress -n default
+    kubectl describe ingress colors-ingress -n default
+    ```
+    The description should show two rules for `/aqua` and `/maroon`, and a default backend pointing to `olive-svc`.
+
+---
+
+### Method 2: Declarative YAML (Recommended)
+
+This method provides full control over the definition, including `pathType` and annotations for features like path rewriting.
+
+1.  **Create `colors-ingress.yaml`:**
+    Create a new file named `colors-ingress.yaml`. This YAML defines a single Ingress resource with one host and multiple path routing rules. The path ` / ` acts as the default or "catch-all" because the Ingress controller will always match the most specific path first (e.g., `/aqua` will be matched before `/`).
+
+    **`colors-ingress.yaml` content:**
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: colors-ingress
+      namespace: default
+    spec:
+      ingressClassName: nginx
+      rules:
+      - host: colors.k8slab.net
+        http:
+          paths:
+          - path: /aqua
+            pathType: Prefix
+            backend:
+              service:
+                name: aqua-svc
+                port:
+                  number: 80
+          - path: /maroon
+            pathType: Prefix
+            backend:
+              service:
+                name: maroon-svc
+                port:
+                  number: 80
+          - path: / 
+            pathType: Prefix
+            backend:
+              service:
+                name: olive-svc
+                port:
+                  number: 80
+    ```
+
+2.  **Apply the YAML:**
+    ```bash
+    kubectl apply -f colors-ingress.yaml
+    ```
+
+---
+
+### Verification and Testing (For Both Methods)
+
+1.  **Check Ingress Status:**
+    It may take a minute for the Ingress controller to assign an address.
+    ```bash
+    kubectl get ingress colors-ingress -n default
+    # NAME             CLASS   HOSTS                ADDRESS        PORTS   AGE
+    # colors-ingress   nginx   colors.k8slab.net    192.168.49.2   80      30s
+    ```
+
+2.  **Test in Browser:**
+    Ensure your `hosts` file maps `colors.k8slab.net` to the ADDRESS from the command above (or your Minikube IP) and that `minikube tunnel` is running (if needed).
+    *   Open `http://colors.k8slab.net/aqua` -> Should show the `aqua` application.
+    *   Open `http://colors.k8slab.net/maroon` -> Should show the `maroon` application.
+    *   Open `http://colors.k8slab.net/` -> Should show the `olive` application.
+    *   Open `http://colors.k8slab.net/anything-else` -> Should also show the `olive` application.
+
+### Cleanup (Optional)
+
+```bash
+kubectl delete ingress colors-ingress -n default
+# If you created the YAML file:
+# rm colors-ingress.yaml
+```
 
 ---
