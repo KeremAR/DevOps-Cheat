@@ -20,11 +20,11 @@
     kind: Service
     metadata:
       name: pod-info-svc
-      namespace: default # Ensure this matches the namespace of pod-info-app Deployment
+      namespace: default 
     spec:
       type: ClusterIP
       selector:
-        app: podInfoApp # Ensure this label matches the Pods of pod-info-app Deployment
+        app: podInfoApp 
       ports:
         - protocol: TCP
           port: 80
@@ -177,22 +177,22 @@ Understand the difference in DNS resolution between a headless and a non-headles
       name: myapp
       namespace: default
       labels:
-        app: myapp # Label for the Deployment itself
+        app: myapp 
     spec:
       replicas: 1
       selector:
         matchLabels:
-          app: myapp # Selector for Pods managed by this Deployment
+          app: myapp 
       template:
         metadata:
           labels:
-            app: myapp # Labels for the Pods
+            app: myapp
         spec:
           containers:
           - name: web-pod-info
             image: sbeliakou/web-pod-info:v1
             ports:
-            - containerPort: 80 # Assuming the app in the image listens on port 80
+            - containerPort: 80 
     ---
     apiVersion: v1
     kind: Service
@@ -200,13 +200,13 @@ Understand the difference in DNS resolution between a headless and a non-headles
       name: myapp-headless
       namespace: default
     spec:
-      clusterIP: None # This makes it a headless service
+      clusterIP: None 
       selector:
-        app: myapp # Must match the labels of the Pods from the 'myapp' Deployment
+        app: myapp 
       ports:
         - protocol: TCP
           port: 80
-          targetPort: 80 # Port on the Pods
+          targetPort: 80
     ---
     apiVersion: v1
     kind: Service
@@ -214,13 +214,13 @@ Understand the difference in DNS resolution between a headless and a non-headles
       name: myapp-clusterip
       namespace: default
     spec:
-      type: ClusterIP # Default, but can be explicit
+      type: ClusterIP 
       selector:
-        app: myapp # Must match the labels of the Pods from the 'myapp' Deployment
+        app: myapp 
       ports:
         - protocol: TCP
           port: 80
-          targetPort: 80 # Port on the Pods
+          targetPort: 80 
     ```
 
 2.  **Apply the manifest to create all resources:**
@@ -321,19 +321,19 @@ A Deployment named `hello-hello` is already running in your cluster (assume `def
     spec:
       selector:
         matchLabels:
-          app: hello-hello # <--- This is likely your selector key-value pair
+          app: hello-hello 
     # ...
       template:
         metadata:
           labels:
-            app: hello-hello # <--- Pods will have this label
+            app: hello-hello 
     # ...
         spec:
           containers:
-          - name: hello-hello-container # Or whatever the container is named
-            image: some-image # Image used by the deployment
+          - name: hello-hello-container 
+            image: some-image 
             ports:
-            - containerPort: 80 # <--- Confirms targetPort
+            - containerPort: 80 
               protocol: TCP
     # ...
     ```
@@ -347,16 +347,16 @@ A Deployment named `hello-hello` is already running in your cluster (assume `def
     kind: Service
     metadata:
       name: hello-hello-service
-      namespace: default # Assuming hello-hello deployment is in default
+      namespace: default
     spec:
       type: NodePort
       selector:
-        app: hello-hello # IMPORTANT: Replace with the actual label key-value from the deployment
+        app: hello-hello 
       ports:
         - protocol: TCP
-          port: 80 # Port the service is available on within the cluster
-          targetPort: 80 # Port on the Pods
-          nodePort: 30300 # Static port on the Node
+          port: 80 
+          targetPort: 80 
+          nodePort: 30300 
     ```
 
 3.  **Apply the manifest to create the Service:**
