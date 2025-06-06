@@ -381,7 +381,7 @@ This method is quick but has the same limitations as in Task 1 regarding `pathTy
 This method provides full control over the definition, including `pathType` and annotations for features like path rewriting.
 
 1.  **Create `colors-ingress.yaml`:**
-    Create a new file named `colors-ingress.yaml`. This YAML defines a single Ingress resource with one host and multiple path routing rules. The path ` / ` acts as the default or "catch-all" because the Ingress controller will always match the most specific path first (e.g., `/aqua` will be matched before `/`).
+    Create a new file named `colors-ingress.yaml`. This YAML defines a single Ingress resource with one host and multiple path routing rules. The `spec.defaultBackend` field acts as the "catch-all" for any requests that don't match the more specific paths.
 
     **`colors-ingress.yaml` content:**
     ```yaml
@@ -392,6 +392,11 @@ This method provides full control over the definition, including `pathType` and 
       namespace: default
     spec:
       ingressClassName: nginx
+      defaultBackend:
+        service:
+          name: olive-svc
+          port:
+            number: 80
       rules:
       - host: colors.k8slab.net
         http:
@@ -408,13 +413,6 @@ This method provides full control over the definition, including `pathType` and 
             backend:
               service:
                 name: maroon-svc
-                port:
-                  number: 80
-          - path: / 
-            pathType: Prefix
-            backend:
-              service:
-                name: olive-svc
                 port:
                   number: 80
     ```
