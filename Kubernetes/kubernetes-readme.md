@@ -641,6 +641,25 @@ Pods are frequently created and destroyed, causing their IP addresses to change.
           nodePort: 30300 # Static port on the Node
     ```
 
+#### Common Service Commands
+- **Expose a Deployment:** This is the quickest way to create a service for an existing deployment.
+  ```bash
+  # Expose deployment 'my-app' as a NodePort service on port 80, targeting pod port 8080
+  kubectl expose deployment my-app --name=my-app-svc --type=NodePort --port=80 --target-port=8080
+
+  # Expose deployment 'my-app' as a ClusterIP service
+  kubectl expose deployment my-app --name=my-app-svc --port=80 --target-port=8080 # type is ClusterIP by default
+  ```
+
+- **Create a Service with a specific selector:** Use this when you need more control than `expose` provides, for example, to create a headless service or target pods not managed by a single deployment.
+  ```bash
+  # Create a standard ClusterIP service with a specific TCP port mapping and selector
+  kubectl create service clusterip my-app-svc --tcp=80:8080 --selector="app=myapp"
+
+  # Create a Headless service by setting clusterIP to "None"
+  kubectl create service clusterip my-app-headless-svc --clusterIP="None" --tcp=80:8080 --selector="app=myapp"
+  ```
+
 ### Ingress
 
 Ingress is a Kubernetes API object that manages external access to services within a cluster, typically for HTTP and HTTPS traffic. It acts as a smart router or an entry point, allowing you to define rules for how incoming traffic should be directed to backend services based on hostnames or URL paths. This provides a way to consolidate routing rules into a single resource.
@@ -740,9 +759,22 @@ spec:
 #### Managing Ingress Resources
 
 -   **Create an Ingress:**
-    ```bash
-    kubectl apply -f my-ingress.yaml
-    ```
+    - Declaratively (recommended):
+      ```bash
+      kubectl apply -f my-ingress.yaml
+      ```
+    - Imperatively:
+      ```bash
+      # Create a simple Ingress for a single service
+      kubectl create ingress my-ingress --class=nginx --rule="myapp.com/=my-service:80"
+
+      # Create an Ingress with multiple path-based rules and a default backend
+      kubectl create ingress multi-rule-ingress --class=nginx \
+        --rule="colors.k8slab.net/aqua=aqua-svc:80" \
+        --rule="colors.k8slab.net/maroon=maroon-svc:80" \
+        --default-backend=olive-svc:80
+      ```
+
 -   **List Ingresses:**
     ```bash
     kubectl get ingress
