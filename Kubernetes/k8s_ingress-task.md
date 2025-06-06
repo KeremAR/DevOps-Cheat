@@ -135,8 +135,6 @@ This method provides full control over the resource definitions, including `path
           creationTimestamp: null
           name: aqua-ingress
           namespace: default
-          # annotations:
-          #   nginx.ingress.kubernetes.io/rewrite-target: /
         spec:
           rules:
           - host: aqua.k8slab.net
@@ -236,7 +234,7 @@ This method provides full control over the resource definitions, including `path
         metadata:
           creationTimestamp: null
           labels:
-            app: olive-svc # Default label added by kubectl create
+            app: olive-svc 
           name: olive-svc
           namespace: default
         spec:
@@ -245,7 +243,7 @@ This method provides full control over the resource definitions, including `path
             protocol: TCP
             targetPort: 80
           selector:
-            color: olive # <-- IMPORTANT: Changed for olive
+            color: olive 
           type: ClusterIP
         status:
           loadBalancer: {}
@@ -267,15 +265,13 @@ This method provides full control over the resource definitions, including `path
           creationTimestamp: null
           name: olive-ingress
           namespace: default
-          # annotations:
-          #   nginx.ingress.kubernetes.io/rewrite-target: /
         spec:
           rules:
           - host: olive.k8slab.net
             http:
               paths:
               - path: /
-                pathType: Prefix # <-- IMPORTANT: Added
+                pathType: Prefix 
                 backend:
                   service:
                     name: olive-svc
