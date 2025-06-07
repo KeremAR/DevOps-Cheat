@@ -776,131 +776,172 @@ kubectl delete -f lights-services.yaml -f lights-ingress.yaml
 ```
 ---
 
-## Task 4: Troubleshooting a Broken Ingress Setup
+## Task 4: Troubleshooting Service Selector and Port Configuration
 
 **Objective:**
-A pre-existing deployment in the `trouble-1` namespace is not working as expected. Two URLs, `http://trouble-1.k8slab.net/lime` and `http://trouble-1.k8slab.net/purple`, are failing. The goal is to investigate the cause of the failure, fix it, and restore functionality.
+In the `trouble-2` namespace, two applications (`teal` and `navy`) are not accessible through their respective URLs:
+- `http://trouble-2.k8slab.net/teal`
+- `http://trouble-2.k8slab.net/navy`
 
-**Symptoms:**
-*   Users accessing the specified URLs do not see the expected web pages.
-*   An automated checker fails, indicating a problem with the Ingress configuration.
+**Initial State:**
+- Pods are running correctly on port 80
+- Services exist but have incorrect selectors and port configurations
+- Ingress exists but has incorrect configuration
 
----
-
-### Investigation and Diagnosis
-
-The troubleshooting process involves methodically inspecting each component of the application delivery chain, from the Pods to the Ingress.
-
-**1. Initial Resource Check**
-
-First, get an overview of all resources in the `trouble-1` namespace.
-```bash
-kubectl get all -n trouble-1
-```
-**Initial Findings:**
-*   **Pods in `Error`/`CrashLoopBackOff` state:** The `lime-color` and `purple-color` pods were not running correctly. This is the first major problem.
-*   **No Ingress Resource:** The output showed no Ingress resource within the `trouble-1` namespace. This explains why the URLs wouldn't work, but doesn't explain why the pods are crashing.
-
-**2. Analyzing the Service Configuration**
-
-To understand why pods might be failing health checks, we inspect the service that targets them.
-```bash
-kubectl get svc lime-svc -n trouble-1 -o yaml
-```
-**Key Finding:**
-```yaml
-# ...
-spec:
-  ports:
-  - port: 8080       # The Service listens on port 8080
-    targetPort: 80   # It forwards traffic to port 80 on the pods
-# ...
-```
-This discovery is critical. The service is designed to send traffic to the pods on **port 80**.
-
-**3. Analyzing the Pods**
-
-The pod logs for the original (broken) deployment showed the application was trying to start on port 80. A previous, incorrect fix attempt had set an environment variable `PORT=8080` on the deployments. This created a mismatch:
-*   **Incorrect State:** Pods were listening on port `8080` (due to the env var).
-*   **Service Expectation:** The Service was trying to send traffic to `targetPort: 80`.
-This mismatch caused the service's health checks to fail, leading to the pods restarting continuously.
-
-**4. Discovering the Conflicting Ingress**
-
-While trying to create the correct Ingress, an error revealed another problem:
-`host "trouble-1.k8slab.net" ... is already defined in ingress default/trouble-1-ingress`
-
-A quick check confirms this:
-```bash
-kubectl get ingress -A
-```
-**Finding:** An Ingress named `trouble-1-ingress` existed in the `default` namespace. This resource was misconfigured (pointing to the wrong service ports) and in the wrong namespace, preventing the creation of the correct Ingress.
+**Problems Identified:**
+1. **Service Selector Issue**: The `navy-svc` service had an incorrect selector pointing to `teal-color` pods
+2. **Port Mismatch**: Services were configured to forward traffic to port 8080, but pods were running on port 80
+3. **Ingress Configuration**: `pathType` was set to `ImplementationSpecific` instead of `Prefix`
 
 ---
 
-### Solution
+### Method 1: Imperative Approach (Using kubectl commands)
 
-The solution requires fixing the problems in the correct order: fix the application, remove the conflict, and then create the correct routing rule.
+1. **Fix the Service Selector**
+   ```bash
+   # Patch the navy-svc to use the correct selector
+   kubectl patch service navy-svc -n trouble-2 -p '{"spec":{"selector":{"app":"navy-color"}}}'
+   ```
 
+2. **Fix the Service Port Configuration**
+   ```bash
+   # Update both services to use the correct targetPort (80)
+   kubectl patch service navy-svc -n trouble-2 -p '{"spec":{"ports":[{"port":80,"targetPort":80}]}}'
+   kubectl patch service teal-svc -n trouble-2 -p '{"spec":{"ports":[{"port":80,"targetPort":80}]}}'
+   ```
 
-**2. Delete the Conflicting Ingress**
+3. **Delete the Existing Ingress**
+   ```bash
+   kubectl delete ingress trouble-2-ingress -n trouble-2
+   ```
 
-Remove the old, incorrect Ingress from the `default` namespace to resolve the conflict.
+4. **Create New Ingress with Correct Configuration**
+   ```bash
+   kubectl create ingress trouble-2-ingress \
+     --class=nginx \
+     --rule="trouble-2.k8slab.net/teal=teal-svc:80" \
+     --rule="trouble-2.k8slab.net/navy=navy-svc:80" \
+     -n trouble-2
+   ```
 
-```bash
-kubectl delete ingress trouble-1-ingress -n default
-```
+5. **Update pathType to Prefix**
+   ```bash
+   kubectl patch ingress trouble-2-ingress -n trouble-2 -p '{"spec":{"rules":[{"host":"trouble-2.k8slab.net","http":{"paths":[{"path":"/teal","pathType":"Prefix","backend":{"service":{"name":"teal-svc","port":{"number":80}}}},{"path":"/navy","pathType":"Prefix","backend":{"service":{"name":"navy-svc","port":{"number":80}}}}]}}]}'
+   ```
 
-**3. Create the Correct Ingress**
+---
 
-Finally, create a new YAML file named `task4-ingress.yaml` with the correct configuration. This Ingress will reside in the `trouble-1` namespace and point to the correct service port (`8080`).
+### Method 2: Declarative Approach (Using YAML files)
 
-**`task4-ingress.yaml`**
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: trouble-1-ingress
-  namespace: trouble-1
-spec:
-  ingressClassName: nginx
-  rules:
-  - host: trouble-1.k8slab.net
-    http:
-      paths:
-      - path: /lime
-        pathType: Prefix
-        backend:
-          service:
-            name: lime-svc
-            port:
-              number: 8080
-      - path: /purple
-        pathType: Prefix
-        backend:
-          service:
-            name: purple-svc
-            port:
-              number: 8080
-```
+1. **Create Service Patch YAML**
+   Create a file named `navy-svc-patch.yaml`:
+   ```yaml
+   apiVersion: v1
+   kind: Service
+   metadata:
+     name: navy-svc
+     namespace: trouble-2
+   spec:
+     selector:
+       app: navy-color
+     ports:
+     - port: 80
+       targetPort: 80
+     type: ClusterIP
+   ```
 
-Apply the new Ingress manifest:
-```bash
-kubectl apply -f task4-ingress.yaml
-```
+2. **Create Teal Service Patch YAML**
+   Create a file named `teal-svc-patch.yaml`:
+   ```yaml
+   apiVersion: v1
+   kind: Service
+   metadata:
+     name: teal-svc
+     namespace: trouble-2
+   spec:
+     selector:
+       app: teal-color
+     ports:
+     - port: 80
+       targetPort: 80
+     type: ClusterIP
+   ```
+
+3. **Create Ingress YAML**
+   Create a file named `trouble-2-ingress.yaml`:
+   ```yaml
+   apiVersion: networking.k8s.io/v1
+   kind: Ingress
+   metadata:
+     name: trouble-2-ingress
+     namespace: trouble-2
+   spec:
+     ingressClassName: nginx
+     rules:
+     - host: trouble-2.k8slab.net
+       http:
+         paths:
+         - path: /teal
+           pathType: Prefix
+           backend:
+             service:
+               name: teal-svc
+               port:
+                 number: 80
+         - path: /navy
+           pathType: Prefix
+           backend:
+             service:
+               name: navy-svc
+               port:
+                 number: 80
+   ```
+
+4. **Apply the Changes**
+   ```bash
+   # Delete existing ingress
+   kubectl delete ingress trouble-2-ingress -n trouble-2
+
+   # Apply the service patches
+   kubectl apply -f navy-svc-patch.yaml
+   kubectl apply -f teal-svc-patch.yaml
+
+   # Apply the new ingress
+   kubectl apply -f trouble-2-ingress.yaml
+   ```
+
+---
 
 ### Verification
 
-After applying all fixes, you can test the URLs in your browser or with `curl`:
-```bash
-# Should return the "lime" page
-curl http://trouble-1.k8slab.net/lime
+After applying either method, verify the configuration:
 
-# Should return the "purple" page
-curl http://trouble-1.k8slab.net/purple
+```bash
+# Check service selectors and ports
+kubectl get svc -n trouble-2 -o wide
+
+# Check ingress configuration
+kubectl get ingress trouble-2-ingress -n trouble-2 -o yaml
+
+# Test the endpoints
+curl http://trouble-2.k8slab.net/teal
+curl http://trouble-2.k8slab.net/navy
 ```
 
-The system is now correctly configured:
-*   **Ingress** (in `trouble-1`) -> **Service** (in `trouble-1`) on port `8080`.
-*   **Service** (in `trouble-1`) listening on `8080` -> **Pod** (in `trouble-1`) on `targetPort` `80`.
-*   **Pod** (in `trouble-1`) application is running on its default port `80`.
+### Key Points Fixed:
+
+1. **Service Selector**: Corrected the `navy-svc` selector to target `navy-color` pods
+2. **Port Configuration**: 
+   - Updated service `targetPort` to match pod's listening port (80)
+   - Ensured consistent port configuration across all components
+3. **Ingress Configuration**:
+   - Updated `pathType` to `Prefix`
+   - Corrected service port numbers to `80`
+   - Ensured proper path routing
+4. **Namespace**: Confirmed all resources are in the correct `trouble-2` namespace
+
+Both methods achieve the same result, but the declarative approach (Method 2) is generally preferred as it:
+- Provides better version control
+- Makes the configuration more maintainable
+- Allows for easier rollback if needed
+- Documents the desired state clearly
