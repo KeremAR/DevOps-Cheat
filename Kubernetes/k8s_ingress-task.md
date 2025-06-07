@@ -713,7 +713,7 @@ spec:
           service:
             name: yellow-svc
             port:
-              number: 8080
+              number: 8080 
 ```
 
 **3. Apply the Manifests**
@@ -774,69 +774,4 @@ kubectl delete -f lights-services.yaml -f lights-ingress.yaml
 # Or from a directory:
 # kubectl delete -f ./lights-manifests/
 ```
-
----
-
-### Troubleshooting Common Issues
-
-#### 502 Bad Gateway on Ingress
-
-A `502 Bad Gateway` error from the Ingress controller (like NGINX) means it accepted the request but couldn't get a valid response from the backend service it tried to forward the request to. This is a very common issue when setting up Ingress.
-
-Here's a step-by-step guide to diagnose the problem, using the `lights.k8slab.net/red` endpoint from Task 3 as an example.
-
-**1. Check if the Service has Endpoints**
-
-First, verify that the service is correctly connected to the pods. A service connects to pods using labels. If the labels don't match or the pods aren't ready, the service will have no "endpoints".
-
-```bash
-# Describe the service
-kubectl describe svc red-svc
-```
-
-**What to look for:**
-Look at the `Endpoints` line in the output.
-*   **Good:** `Endpoints: 10.244.0.10:8080,10.244.0.9:8080,10.244.1.8:8080` (You will see a list of IP addresses and ports).
-*   **Bad:** `Endpoints: <none>` (This is the most common cause of 502 errors. It means the service's selector did not find any running and ready pods).
-
-If you see `<none>`, proceed to the next step.
-
-**2. Check Backend Pod Status**
-
-If there are no endpoints, the problem is with the pods that the service is trying to select. Check their status. The service `red-svc` looks for pods with the label `app: red-color`.
-
-```bash
-# Get pods using the service's selector
-kubectl get pods -l app=red-color
-
-# Check the deployment's status as well
-kubectl describe deployment red-color
-```
-
-**What to look for:**
-*   Are the pods in the `Running` state? If they are in `Pending`, `CrashLoopBackOff`, or `Error`, they won't be registered as endpoints.
-*   If pods are in `CrashLoopBackOff`, use `kubectl logs <pod-name>` to see why they are failing.
-*   In the deployment description, check the `Replicas` status. You should see something like `3 desired | 3 updated | 3 total | 3 available | 0 unavailable`. If `available` is 0, the pods are not considered "ready".
-
-**3. Check Pod Logs**
-
-Even if pods are `Running`, the application inside might be failing. Check the logs.
-
-```bash
-# Get logs from all pods matching the label
-kubectl logs -l app=red-color --tail=50
-```
-
-**What to look for:**
-Look for any application-level errors, stack traces, or configuration problems. For example, the `COLOR` environment variable might be misspelled, causing the app to crash.
-
-**4. Check Service and Ingress Port Mismatch**
-
-This is another common mistake. Let's trace the port numbers from Ingress to Pod.
-*   **Ingress -> Service:** The Ingress rule for `/red` points to `red-svc` on port `8080`.
-*   **Service:** The `red-svc` definition listens on `port: 8080` and forwards traffic to the `targetPort: 8080` on the pods.
-*   **Deployment/Pod:** The `red-color` deployment defines a `containerPort: 8080` for the pods.
-
-A mismatch in any of these places (e.g., Ingress pointing to port `80` while the service listens on `8080`) will cause a 502 error. Double-check the `lights-ingress.yaml` and `lights-services.yaml` files.
-
 ---
