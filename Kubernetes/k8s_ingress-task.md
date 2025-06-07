@@ -775,3 +775,132 @@ kubectl delete -f lights-services.yaml -f lights-ingress.yaml
 # kubectl delete -f ./lights-manifests/
 ```
 ---
+
+## Task 4: Troubleshooting a Broken Ingress Setup
+
+**Objective:**
+A pre-existing deployment in the `trouble-1` namespace is not working as expected. Two URLs, `http://trouble-1.k8slab.net/lime` and `http://trouble-1.k8slab.net/purple`, are failing. The goal is to investigate the cause of the failure, fix it, and restore functionality.
+
+**Symptoms:**
+*   Users accessing the specified URLs do not see the expected web pages.
+*   An automated checker fails, indicating a problem with the Ingress configuration.
+
+---
+
+### Investigation and Diagnosis
+
+The troubleshooting process involves methodically inspecting each component of the application delivery chain, from the Pods to the Ingress.
+
+**1. Initial Resource Check**
+
+First, get an overview of all resources in the `trouble-1` namespace.
+```bash
+kubectl get all -n trouble-1
+```
+**Initial Findings:**
+*   **Pods in `Error`/`CrashLoopBackOff` state:** The `lime-color` and `purple-color` pods were not running correctly. This is the first major problem.
+*   **No Ingress Resource:** The output showed no Ingress resource within the `trouble-1` namespace. This explains why the URLs wouldn't work, but doesn't explain why the pods are crashing.
+
+**2. Analyzing the Service Configuration**
+
+To understand why pods might be failing health checks, we inspect the service that targets them.
+```bash
+kubectl get svc lime-svc -n trouble-1 -o yaml
+```
+**Key Finding:**
+```yaml
+# ...
+spec:
+  ports:
+  - port: 8080       # The Service listens on port 8080
+    targetPort: 80   # It forwards traffic to port 80 on the pods
+# ...
+```
+This discovery is critical. The service is designed to send traffic to the pods on **port 80**.
+
+**3. Analyzing the Pods**
+
+The pod logs for the original (broken) deployment showed the application was trying to start on port 80. A previous, incorrect fix attempt had set an environment variable `PORT=8080` on the deployments. This created a mismatch:
+*   **Incorrect State:** Pods were listening on port `8080` (due to the env var).
+*   **Service Expectation:** The Service was trying to send traffic to `targetPort: 80`.
+This mismatch caused the service's health checks to fail, leading to the pods restarting continuously.
+
+**4. Discovering the Conflicting Ingress**
+
+While trying to create the correct Ingress, an error revealed another problem:
+`host "trouble-1.k8slab.net" ... is already defined in ingress default/trouble-1-ingress`
+
+A quick check confirms this:
+```bash
+kubectl get ingress -A
+```
+**Finding:** An Ingress named `trouble-1-ingress` existed in the `default` namespace. This resource was misconfigured (pointing to the wrong service ports) and in the wrong namespace, preventing the creation of the correct Ingress.
+
+---
+
+### Solution
+
+The solution requires fixing the problems in the correct order: fix the application, remove the conflict, and then create the correct routing rule.
+
+
+**2. Delete the Conflicting Ingress**
+
+Remove the old, incorrect Ingress from the `default` namespace to resolve the conflict.
+
+```bash
+kubectl delete ingress trouble-1-ingress -n default
+```
+
+**3. Create the Correct Ingress**
+
+Finally, create a new YAML file named `task4-ingress.yaml` with the correct configuration. This Ingress will reside in the `trouble-1` namespace and point to the correct service port (`8080`).
+
+**`task4-ingress.yaml`**
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: trouble-1-ingress
+  namespace: trouble-1
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: trouble-1.k8slab.net
+    http:
+      paths:
+      - path: /lime
+        pathType: Prefix
+        backend:
+          service:
+            name: lime-svc
+            port:
+              number: 8080
+      - path: /purple
+        pathType: Prefix
+        backend:
+          service:
+            name: purple-svc
+            port:
+              number: 8080
+```
+
+Apply the new Ingress manifest:
+```bash
+kubectl apply -f task4-ingress.yaml
+```
+
+### Verification
+
+After applying all fixes, you can test the URLs in your browser or with `curl`:
+```bash
+# Should return the "lime" page
+curl http://trouble-1.k8slab.net/lime
+
+# Should return the "purple" page
+curl http://trouble-1.k8slab.net/purple
+```
+
+The system is now correctly configured:
+*   **Ingress** (in `trouble-1`) -> **Service** (in `trouble-1`) on port `8080`.
+*   **Service** (in `trouble-1`) listening on `8080` -> **Pod** (in `trouble-1`) on `targetPort` `80`.
+*   **Pod** (in `trouble-1`) application is running on its default port `80`.
