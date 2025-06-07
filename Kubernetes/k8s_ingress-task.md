@@ -928,20 +928,216 @@ curl http://trouble-2.k8slab.net/teal
 curl http://trouble-2.k8slab.net/navy
 ```
 
-### Key Points Fixed:
+---
 
-1. **Service Selector**: Corrected the `navy-svc` selector to target `navy-color` pods
-2. **Port Configuration**: 
-   - Updated service `targetPort` to match pod's listening port (80)
-   - Ensured consistent port configuration across all components
-3. **Ingress Configuration**:
-   - Updated `pathType` to `Prefix`
-   - Corrected service port numbers to `80`
-   - Ensured proper path routing
-4. **Namespace**: Confirmed all resources are in the correct `trouble-2` namespace
+## Task 6: Troubleshooting Deployment and Service Configuration
 
-Both methods achieve the same result, but the declarative approach (Method 2) is generally preferred as it:
-- Provides better version control
-- Makes the configuration more maintainable
-- Allows for easier rollback if needed
-- Documents the desired state clearly
+**Objective:**
+In the `trouble-3` namespace, two applications (`maroon` and `fuchsia`) are not accessible through their respective URLs:
+- `http://trouble-3.k8slab.net/maroon` - should show "maroon" page
+- `http://trouble-3.k8slab.net/fuchsia` - should show "fuchsia" page
+
+**Initial State:**
+- Maroon deployment has 0 replicas
+- Fuchsia pods are running but service selector doesn't match pod labels
+- Services and Ingress exist but have incorrect configurations
+
+**Problems Identified:**
+1. **Maroon Deployment Issue**: 
+   - Replica count is set to 0
+   - Missing PORT environment variable
+2. **Label Selector Mismatch**:
+   - Fuchsia pods have `app=fuchsia` label
+   - Service has `app=fuchsia-color` selector
+3. **Port Configuration**:
+   - Services are configured for port 8080
+   - Pods are running on port 80
+
+---
+
+### Method 1: Imperative Approach (Using kubectl commands)
+
+1. **Fix Maroon Deployment**
+   ```bash
+   # Scale up the deployment to 2 replicas
+   kubectl scale deployment maroon-color --replicas=2 -n trouble-3
+   
+   # Set the PORT environment variable
+   kubectl set env deployment/maroon-color PORT=80 -n trouble-3
+   ```
+
+2. **Fix Service Selectors**
+   ```bash
+   # Update fuchsia service selector to match pod labels
+   kubectl patch service fuchsia-svc -n trouble-3 -p '{"spec":{"selector":{"app":"fuchsia"}}}'
+   
+   # Update maroon service selector to match pod labels
+   kubectl patch service maroon-svc -n trouble-3 -p '{"spec":{"selector":{"app":"maroon"}}}'
+   ```
+
+3. **Fix Service Port Configuration**
+   ```bash
+   # Update both services to use port 80
+   kubectl patch service fuchsia-svc -n trouble-3 -p '{"spec":{"ports":[{"port":80,"targetPort":80}]}}'
+   kubectl patch service maroon-svc -n trouble-3 -p '{"spec":{"ports":[{"port":80,"targetPort":80}]}}'
+   ```
+
+4. **Update Ingress Configuration**
+   ```bash
+   # Delete existing ingress
+   kubectl delete ingress trouble-3-ingress -n trouble-3
+   
+   # Create new ingress with correct configuration
+   kubectl create ingress trouble-3-ingress \
+     --class=nginx \
+     --rule="trouble-3.k8slab.net/maroon=maroon-svc:80" \
+     --rule="trouble-3.k8slab.net/fuchsia=fuchsia-svc:80" \
+     -n trouble-3
+   ```
+
+---
+
+### Method 2: Declarative Approach (Using YAML files from kubectl get)
+
+1. **Get Current YAML Configurations**
+   ```bash
+   # Get deployment YAML
+   kubectl get deployment maroon-color -n trouble-3 -o yaml > maroon-deployment.yaml
+   
+   # Get service YAMLs
+   kubectl get service fuchsia-svc -n trouble-3 -o yaml > fuchsia-service.yaml
+   kubectl get service maroon-svc -n trouble-3 -o yaml > maroon-service.yaml
+   
+   # Get ingress YAML
+   kubectl get ingress trouble-3-ingress -n trouble-3 -o yaml > trouble-3-ingress.yaml
+   ```
+
+2. **Edit Maroon Deployment YAML**
+   ```yaml
+   # maroon-deployment.yaml
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+     name: maroon-color
+     namespace: trouble-3
+   spec:
+     replicas: 2  # Changed from 0 to 2
+     selector:
+       matchLabels:
+         app: maroon  # Changed from maroon-color to maroon
+     template:
+       metadata:
+         labels:
+           app: maroon  # Changed from maroon-color to maroon
+       spec:
+         containers:
+         - name: webapp-color
+           image: sbeliakou/color:v1
+           env:
+           - name: COLOR
+             value: "maroon"
+           - name: PORT  # Added PORT environment variable
+             value: "80"
+   ```
+
+3. **Edit Service YAMLs**
+   ```yaml
+   # fuchsia-service.yaml
+   apiVersion: v1
+   kind: Service
+   metadata:
+     name: fuchsia-svc
+     namespace: trouble-3
+   spec:
+     selector:
+       app: fuchsia  # Changed from fuchsia-color to fuchsia
+     ports:
+     - port: 80  # Changed from 8080 to 80
+       targetPort: 80  # Changed from 8080 to 80
+     type: ClusterIP
+   ```
+
+   ```yaml
+   # maroon-service.yaml
+   apiVersion: v1
+   kind: Service
+   metadata:
+     name: maroon-svc
+     namespace: trouble-3
+   spec:
+     selector:
+       app: maroon  # Changed from maroon-color to maroon
+     ports:
+     - port: 80  # Changed from 8080 to 80
+       targetPort: 80  # Changed from 8080 to 80
+     type: ClusterIP
+   ```
+
+4. **Edit Ingress YAML**
+   ```yaml
+   # trouble-3-ingress.yaml
+   apiVersion: networking.k8s.io/v1
+   kind: Ingress
+   metadata:
+     name: trouble-3-ingress
+     namespace: trouble-3
+   spec:
+     ingressClassName: nginx
+     rules:
+     - host: trouble-3.k8slab.net
+       http:
+         paths:
+         - path: /maroon
+           pathType: Prefix  # Added pathType
+           backend:
+             service:
+               name: maroon-svc
+               port:
+                 number: 80  # Changed from 8080 to 80
+         - path: /fuchsia
+           pathType: Prefix  # Added pathType
+           backend:
+             service:
+               name: fuchsia-svc
+               port:
+                 number: 80  # Changed from 8080 to 80
+   ```
+
+5. **Apply the Changes**
+   ```bash
+   # Delete existing resources
+   kubectl delete deployment maroon-color -n trouble-3
+   kubectl delete service fuchsia-svc maroon-svc -n trouble-3
+   kubectl delete ingress trouble-3-ingress -n trouble-3
+   
+   # Apply new configurations
+   kubectl apply -f maroon-deployment.yaml
+   kubectl apply -f fuchsia-service.yaml
+   kubectl apply -f maroon-service.yaml
+   kubectl apply -f trouble-3-ingress.yaml
+   ```
+
+---
+
+### Verification
+
+After applying either method, verify the configuration:
+
+```bash
+# Check deployment status
+kubectl get deployment -n trouble-3
+
+# Check pod status and labels
+kubectl get pods -n trouble-3 --show-labels
+
+# Check service configuration
+kubectl get svc -n trouble-3 -o wide
+
+# Check ingress configuration
+kubectl get ingress trouble-3-ingress -n trouble-3 -o yaml
+
+# Test the endpoints
+curl http://trouble-3.k8slab.net/maroon
+curl http://trouble-3.k8slab.net/fuchsia
+```
+
