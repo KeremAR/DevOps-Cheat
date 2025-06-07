@@ -1141,3 +1141,165 @@ curl http://trouble-3.k8slab.net/maroon
 curl http://trouble-3.k8slab.net/fuchsia
 ```
 
+
+## Task 7: Customizing Default Error Page
+
+**Objective:**
+Create a custom default backend for the ingress-nginx-controller to show a custom error page when a requested page is not found.
+
+**Requirements:**
+1. Create a custom default backend deployment and service
+2. Configure ingress-nginx-controller to use this custom backend
+3. Test the configuration by accessing a non-existent page
+
+### Method 1: Imperative Approach
+
+1. **Create Namespace**
+   ```bash
+   kubectl create namespace ingress-default-backend
+   ```
+
+2. **Create Deployment**
+   ```bash
+   kubectl create deployment sorry-page \
+     --image=sbeliakou/http-sorry-page \
+     -n ingress-default-backend
+   ```
+
+3. **Create Service**
+   ```bash
+   kubectl create service clusterip sorry-page-service \
+     --tcp=80:80 \
+     -n ingress-default-backend
+   ```
+
+4. **Configure Ingress Controller**
+   ```bash
+   # Get the current ingress-nginx-controller deployment
+   kubectl get deployment ingress-nginx-controller -n ingress-nginx -o yaml > ingress-controller.yaml
+
+   # Edit the deployment to add default backend service
+   kubectl patch deployment ingress-nginx-controller -n ingress-nginx \
+     --patch '{"spec":{"template":{"spec":{"containers":[{"name":"controller","args":["--default-backend-service=ingress-default-backend/sorry-page-service"]}]}}}}'
+   ```
+
+### Method 2: Declarative Approach (Using YAML files from kubectl get)
+
+1. **Get Current YAML Configurations**
+   ```bash
+   # Get namespace YAML
+   kubectl get namespace ingress-default-backend -o yaml > namespace.yaml
+
+   # Create deployment YAML using --dry-run=client
+   kubectl create deployment sorry-page \
+     --image=sbeliakou/http-sorry-page \
+     -n ingress-default-backend \
+     --dry-run=client -o yaml > sorry-page-deployment.yaml
+
+   # Create service YAML using --dry-run=client
+   kubectl create service clusterip sorry-page-service \
+     --tcp=80:80 \
+     -n ingress-default-backend \
+     --dry-run=client -o yaml > sorry-page-service.yaml
+
+   # Get ingress controller YAML
+   kubectl get deployment ingress-nginx-controller -n ingress-nginx -o yaml > ingress-controller.yaml
+   ```
+
+2. **Edit Deployment YAML**
+   ```yaml
+   # sorry-page-deployment.yaml
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+     name: sorry-page
+     namespace: ingress-default-backend
+   spec:
+     replicas: 1
+     selector:
+       matchLabels:
+         app: sorry-page
+     template:
+       metadata:
+         labels:
+           app: sorry-page
+       spec:
+         containers:
+         - name: sorry-page
+           image: sbeliakou/http-sorry-page
+           ports:
+           - containerPort: 80
+   ```
+
+3. **Edit Service YAML**
+   ```yaml
+   # sorry-page-service.yaml
+   apiVersion: v1
+   kind: Service
+   metadata:
+     name: sorry-page-service
+     namespace: ingress-default-backend
+   spec:
+     selector:
+       app: sorry-page
+     ports:
+     - port: 80
+       targetPort: 80
+     type: ClusterIP
+   ```
+
+4. **Edit Ingress Controller YAML**
+   ```yaml
+   # ingress-controller.yaml
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+     name: ingress-nginx-controller
+     namespace: ingress-nginx
+   spec:
+     template:
+       spec:
+         containers:
+         - name: controller
+           args:
+           - --default-backend-service=ingress-default-backend/sorry-page-service
+   ```
+
+5. **Apply the Configurations**
+   ```bash
+   # Create namespace
+   kubectl apply -f namespace.yaml
+
+   # Create deployment and service
+   kubectl apply -f sorry-page-deployment.yaml
+   kubectl apply -f sorry-page-service.yaml
+
+   # Update ingress controller
+   kubectl apply -f ingress-controller.yaml
+   ```
+
+### Verification
+
+1. **Check Resources**
+   ```bash
+   # Check namespace
+   kubectl get ns ingress-default-backend
+
+   # Check deployment
+   kubectl get deployment -n ingress-default-backend
+
+   # Check service
+   kubectl get svc -n ingress-default-backend
+
+   # Check ingress controller configuration
+   kubectl get deployment ingress-nginx-controller -n ingress-nginx -o yaml | grep default-backend-service
+   ```
+
+2. **Test the Configuration**
+   ```bash
+   # Try to access a non-existent page
+   curl -v http://trouble-3.k8slab.net/non-existent-page
+   ```
+
+
+
