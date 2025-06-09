@@ -438,8 +438,33 @@ spec:
             name: application
             port:
               number: 80
-```
 
+### Key Interview Notes
+
+These notes explain the "why" behind key technical decisions, which are common interview questions.
+
+#### Why Use the 'Recreate' Deployment Strategy?
+- **Answer:** The `Recreate` strategy terminates all old pods before creating any new ones. This causes a short downtime. We used it because it was a requirement of the task. In real-world production environments, `RollingUpdate` is the preferred strategy for achieving zero-downtime deployments.
+
+#### Difference Between `requests` and `limits`
+- **`requests`:** This is the **guaranteed minimum** amount of resources (CPU/Memory) that Kubernetes reserves for a container. The scheduler uses this value to decide which node to place the pod on.
+- **`limits`:** This is the **maximum** amount of resources a container is allowed to use.
+  - If a container exceeds its **memory limit**, it gets terminated (OOMKilled).
+  - If a container exceeds its **CPU limit**, its performance is throttled (slowed down).
+
+#### Role of the Init Container and `netcat`
+- **Role:** An `initContainer` is a setup container that runs and must complete successfully before the main application container starts. In this project, it prevents the application from starting until the `mongo` database is ready to accept connections. This avoids application crashes from database connection errors at startup.
+- **The `until nc -z ...` Command:** This command loops until it can successfully establish a connection to port `27017` on the `mongo` service.
+- **Why `netcat (nc)` instead of `nslookup`?**
+  - `nslookup` only checks if the service name (`mongo`) resolves to an IP address (a DNS check). This does not guarantee the database process is ready.
+  - `netcat (nc)` checks if the port (`27017`) is actually open and listening. This is a much more reliable way to confirm that the database is ready to accept connections.
+
+#### Difference Between Liveness and Readiness Probes
+- **`livenessProbe` (`/healthz`):** Asks the question, "Is the application still running?" If this probe fails, Kubernetes assumes the application is stuck in a deadlock and **restarts the container**.
+- **`readinessProbe` (`/healthx`):** Asks, "Is the application ready to accept new traffic?" If this probe fails, Kubernetes **stops sending traffic to the pod** (by removing it from the service's endpoints). This is useful when an application needs time to warm up or is temporarily busy.
+
+---
+`
 This manifest includes:
 - **ConfigMap:** Decouples application configuration (like database host and port) from the code.
 - **Secret:** Securely stores sensitive data, such as MongoDB credentials.
@@ -477,33 +502,93 @@ The application is now accessible at:
 - CPU: limit-0.5, request-0.2
 - Memory: limit-256Mi, request-128Mi
 
-## 6. Troubleshooting Commands
+## 6. Live Troubleshooting Commands (For Interview Demo)
 
-Below are basic `kubectl` commands that can be used to diagnose issues that may arise during or after deployment.
+Here are useful commands to demonstrate your debugging skills during an interview. They cover common failure scenarios.
 
-### Check Pod Status
-```bash
-kubectl get pods
-```
+### Scenario 1: "My application pod is not running or is crashing."
 
-### Check Services
-```bash
-kubectl get services
-```
+1.  **Get an overview of everything in your namespace.** This is the best first step.
+    ```bash
+    # See the status of all resources: Pods, Services, Deployments, etc.
+    kubectl get all
+    ```
+    *Look for pods with status `CrashLoopBackOff`, `Error`, or `Pending`.*
 
-### Check Ingress
-```bash
-kubectl get ingress
-```
+2.  **Describe the failing pod to find the root cause.** This is your most powerful command.
+    ```bash
+    # Replace <pod-name> with the actual pod name, e.g., application-xxxx-yyyy
+    kubectl describe pod <pod-name>
+    ```
+    *Check the `Events` section at the bottom. It will show you errors like: `ImagePullBackOff` (image name is wrong or secret is missing), probe failures (`Liveness probe failed`), or scheduling failures.*
 
-### View Pod Logs
-```bash
-kubectl logs <pod-name>
-```
+3.  **Check the logs.**
+    ```bash
+    # Get logs from the main container
+    kubectl logs <pod-name>
 
-### Describe Resources
-```bash
-kubectl describe pod <pod-name>
-kubectl describe service <service-name>
-kubectl describe ingress <ingress-name>
-```
+    # If the pod is crashing, check the logs of the *previous* container instance
+    kubectl logs --previous <pod-name>
+
+    # If the Init Container is failing, check its specific logs
+    kubectl logs <pod-name> -c init-mongo
+    ```
+
+### Scenario 2: "I can't access my application from the browser."
+
+1.  **Check that the Ingress is configured correctly.**
+    ```bash
+    # Check if the Ingress resource exists and has the correct host and service
+    kubectl get ingress
+
+    # Describe the ingress to see detailed rules and backend health
+    kubectl describe ingress nginx
+    ```
+    *Look at the `Rules` and `Backend` sections. Also, check the `Events` for any errors reported by the Ingress controller.*
+
+2.  **Check that the Service is pointing to the right pods.**
+    ```bash
+    # See if the application Service exists and has a ClusterIP
+    kubectl get service application
+
+    # Check if the Service has found any pods. The "ENDPOINTS" should not be <none>.
+    kubectl describe service application
+    ```
+    *If `ENDPOINTS` is `<none>`, it means the service's `selector` doesn't match your pod's `labels`, or the pod's `readinessProbe` is failing.*
+
+3.  **Check the Ingress Controller logs for traffic issues.**
+    ```bash
+    # First, find the name of the ingress controller pod
+    kubectl get pods -n ingress-nginx
+
+    # Then, view its logs for any errors related to your ingress host
+    kubectl logs <ingress-controller-pod-name> -n ingress-nginx
+    ```
+
+### Scenario 3: "My application can't connect to the database."
+
+1.  **Verify the database (StatefulSet) is running.**
+    ```bash
+    kubectl get statefulset mongo
+    kubectl get pod mongo-0
+    ```
+    *Ensure the pod `mongo-0` is in the `Running` state.*
+
+2.  **Verify the database service is correct.** It should be a headless service (`CLUSTER-IP` should be `None`).
+    ```bash
+    kubectl get service mongo
+    ```
+
+3.  **Exec into the application pod to test connectivity directly.**
+    ```bash
+    # Get a shell inside the running application pod
+    kubectl exec -it <application-pod-name> -- /bin/sh
+
+    # Inside the pod, check that environment variables are set correctly
+    printenv | grep MONGO
+
+    # Use netcat to test the connection to the mongo service on its port
+    # This is the same command used by the init container.
+    nc -zv mongo 27017
+    # Expected output: Connection to mongo 27017 port [tcp/*] succeeded!
+    ```
