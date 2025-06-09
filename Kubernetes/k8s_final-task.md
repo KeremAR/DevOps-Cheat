@@ -51,10 +51,10 @@ CMD ["python3", "-m", "flask", "run", "--host=0.0.0.0"]
 In this step, the application's Docker image was built using the optimized Dockerfile and pushed to Docker Hub to be accessible by the Kubernetes cluster.
 
 ### Building the Image
-This command builds a Docker image named `keremar/keremar_application:latest` using the Dockerfile.
+This command builds a Docker image named `keremar/kar_application` using the Dockerfile.
 
 ```bash
-docker build -t keremar/keremar_application:latest .
+docker build -t keremar/kar_application .
 ```
 
 ### Publishing to Docker Hub
@@ -62,7 +62,7 @@ The built image was pushed to a private repository on Docker Hub using the `dock
 
 ```bash
 docker login
-docker push keremar/keremar_application:latest
+docker push keremar/kar_application
 ```
 
 ## 3. Docker Compose Setup
@@ -82,7 +82,7 @@ services:
       - "27017:27017"
 
   application:
-    image: keremar/keremar_application:latest
+    image: keremar/kar_application
     ports:
       - "5000:5000"
     environment:
@@ -153,13 +153,13 @@ kubectl create configmap application --from-literal=MONGO_HOST=mongo --from-lite
 kubectl create secret generic mongo --from-literal=MONGO_INITDB_ROOT_USERNAME=root --from-literal=MONGO_INITDB_ROOT_PASSWORD=example --dry-run=client -o yaml >> manifest.yaml
 
 # Deployment
-kubectl create deployment application --image=keremar/keremar_application:latest --dry-run=client -o yaml >> manifest.yaml
+kubectl create deployment application --image=keremar/kar_application --dry-run=client -o yaml >> manifest.yaml
 
 # Service
 kubectl create service clusterip application --tcp=80:5000 --dry-run=client -o yaml >> manifest.yaml
 
 # Ingress
-kubectl create ingress nginx --class=nginx --rule="keremar.application.com/=application:80" --dry-run=client -o yaml >> manifest.yaml
+kubectl create ingress nginx --class=nginx --rule="kar.application.com/=application:80" --dry-run=client -o yaml >> manifest.yaml
 ```
 
 2. **Manual YAML for StatefulSet (no dry-run command available):**
@@ -222,9 +222,9 @@ kubectl apply -f manifest.yml
 ```
 
 2. **Local DNS Entry:**
-To access the application from a browser using the name `keremar.application.com`, the local machine's `hosts` file was updated to map this address to the Minikube IP.
+To access the application from a browser using the name `kar.application.com`, the local machine's `hosts` file was updated to map this address to the Minikube IP.
 ```
-<minikube-ip> keremar.application.com
+<minikube-ip> kar.application.com
 ```
 
 ### Complete Manifest Example
@@ -333,9 +333,6 @@ spec:
   replicas: 1
   strategy:
     type: Recreate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
   selector:
     matchLabels:
       app: application
@@ -349,10 +346,10 @@ spec:
       initContainers:
       - name: init-mongo
         image: busybox:latest
-        command: ['sh', '-c', 'until nslookup mongo.kar.svc.cluster.local; do echo waiting for mongo; sleep 2; done;']
+        command: ['sh', '-c', 'until nc -z -v mongo 27017; do echo "waiting for mongo..."; sleep 2; done;']
       containers:
       - name: application
-        image: keremar/keremar_application:latest
+        image: keremar/kar_application
         ports:
         - containerPort: 5000
         resources:
@@ -398,8 +395,9 @@ spec:
           httpGet:
             path: /healthx
             port: 5000
-          initialDelaySeconds: 5
-          periodSeconds: 5
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 10
 
 ---
 # Application Service
@@ -420,7 +418,7 @@ spec:
 ---
 # Ingress
 # Finally, the Ingress resource exposes the application to the outside world.
-# It routes external HTTP traffic from the host `keremar.application.com` to the application Service, fulfilling the requirement for the presentation layer.
+# It routes external HTTP traffic from the host `kar.application.com` to the application Service, fulfilling the requirement for the presentation layer.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -430,7 +428,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-  - host: keremar.application.com
+  - host: kar.application.com
     http:
       paths:
       - path: /
@@ -449,7 +447,7 @@ This manifest includes:
 - **Headless Service (mongo):** Used to provide direct access to each pod in the StatefulSet (`clusterIP: None`).
 - **Deployment:** Manages the stateless pods of the application. The `Recreate` strategy ensures that old pods are completely removed before the new version is deployed.
 - **Service (application):** Provides a single point of access (ClusterIP) to the application pods within the cluster.
-- **Ingress:** Makes the application accessible from outside the cluster and routes traffic from `keremar.application.com` to the application service.
+- **Ingress:** Makes the application accessible from outside the cluster and routes traffic from `kar.application.com` to the application service.
 
 ### Key features:
 - Resource limits and requests are defined for both containers (application and MongoDB).
@@ -464,7 +462,7 @@ This manifest includes:
 The following checks are performed to verify that the application has been deployed successfully and is running with the correct configurations.
 
 The application is now accessible at:
-- http://keremar.application.com
+- http://kar.application.com
 
 ### Health Checks
 - **Liveness probe:** `/healthz` - Checks if the container is running. If it fails, the container is restarted.
