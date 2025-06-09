@@ -439,6 +439,7 @@ spec:
             port:
               number: 80
 
+```
 ### Key Interview Notes
 
 These notes explain the "why" behind key technical decisions, which are common interview questions.
