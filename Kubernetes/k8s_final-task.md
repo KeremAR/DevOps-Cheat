@@ -1,9 +1,14 @@
 # Kubernetes Final Task Documentation
 
+This document provides a comprehensive walkthrough of the process for containerizing a web application with Docker and deploying it on a Kubernetes cluster. The project follows a three-tier architecture, consisting of an NGINX Ingress for the presentation layer, a Flask application for the application layer, and a MongoDB database for the data layer. Each step, from Dockerfile optimization to the final Kubernetes deployment, is detailed with explanations to clarify the technical decisions and best practices applied.
+
 ## 1. Dockerfile Creation and Optimization
 
+This section describes the process of creating and optimizing the Dockerfile, which defines the environment where the application will run.
+
 ### Initial Dockerfile Creation
-Created a Dockerfile in the application directory with the following content:
+A basic Dockerfile was created to containerize the application. This initial version includes the fundamental commands to install dependencies and run the application.
+
 ```dockerfile
 FROM python:3.9.7
 
@@ -19,9 +24,10 @@ CMD ["python3", "-m", "flask", "run", "--host=8.8.8.8"]
 ```
 
 ### Dockerfile Optimization
-After Hadolint analysis, the Dockerfile was optimized to:
+Based on analysis with the `Hadolint` linter, the Dockerfile was optimized to be more efficient and secure.
+
 ```dockerfile
-FROM python:3.9.7-slim
+FROM python:3.9.7
 
 WORKDIR /app
 
@@ -31,27 +37,29 @@ RUN pip3 install --no-cache-dir --requirement requirements.txt
 
 COPY . .
 
-EXPOSE 5000
-
 CMD ["python3", "-m", "flask", "run", "--host=0.0.0.0"]
 ```
 
-Key improvements:
-- Used slim base image for smaller size
-- Added WORKDIR instruction
-- Fixed COPY command syntax
-- Added EXPOSE instruction
-- Changed host to 0.0.0.0 for proper container networking
-- Removed unnecessary ENTRYPOINT
+**Key improvements:**
+- **WORKDIR:** The `WORKDIR` instruction was used to set the working directory inside the container, leading to cleaner and more manageable commands.
+- **COPY Command:** The usage of `COPY` commands was standardized.
+- **Host Binding:** The host was updated to `0.0.0.0` to make the container accessible from outside.
+- **ENTRYPOINT Removed:** The redundant `ENTRYPOINT` command was removed, providing a standard execution command with `CMD`.
 
 ## 2. Docker Image Building and Publishing
 
+In this step, the application's Docker image was built using the optimized Dockerfile and pushed to Docker Hub to be accessible by the Kubernetes cluster.
+
 ### Building the Image
+This command builds a Docker image named `keremar/keremar_application:latest` using the Dockerfile.
+
 ```bash
 docker build -t keremar/keremar_application:latest .
 ```
 
 ### Publishing to Docker Hub
+The built image was pushed to a private repository on Docker Hub using the `docker push` command. Storing the image in a private repository is important for security.
+
 ```bash
 docker login
 docker push keremar/keremar_application:latest
@@ -59,7 +67,8 @@ docker push keremar/keremar_application:latest
 
 ## 3. Docker Compose Setup
 
-Created docker-compose.yaml for local testing:
+Before deploying to Kubernetes, a `docker-compose.yaml` file was created to test how the application and database run together locally. This speeds up the development process and helps identify potential integration issues early.
+
 ```yaml
 version: '3'
 services:
@@ -85,55 +94,63 @@ services:
 ```
 
 ### Testing with Docker Compose
+The application and database services were started and tested together in the local environment using the `docker-compose up` command.
+
 ```bash
 docker-compose up
 ```
 
 ## 4. Kubernetes Deployment
 
+This section explains the steps and manifest files required to deploy the application in a Kubernetes environment.
+
 ### Environment Setup
-1. Started Minikube with ingress enabled:
+The working environment was prepared before deploying on Kubernetes.
+
+1. **Starting Minikube:**
+Minikube was started to create a local Kubernetes cluster, and the Ingress addon was enabled for external access.
 ```bash
 minikube start
 minikube addons enable ingress
 ```
 
-2. Created namespace and context:
+2. **Creating Namespace and Context:**
+A dedicated namespace (`kar`) and context were created using the `local_minikube_preparation.sh` script to isolate the project from other applications and manage resources more effectively.
 ```bash
 ./utils/local_minikube_preparation.sh "Kerem Ar"
 ```
 
-3. Created Docker registry secret:
+3. **Creating Docker Registry Secret:**
+A secret named `docker-secret` was created to allow Kubernetes to pull the application image from the private repository on Docker Hub. This secret securely stores the Docker Hub credentials.
 ```bash
 # Create secret for Docker Hub authentication
 kubectl create secret docker-registry docker-secret \
     --docker-server=https://index.docker.io/v1/ \
     --docker-username=keremar \
-    --docker-password=glpat-JionjSLgFf3jZmdizsP6 \
-    --docker-email=keremar0000@gmail.com
+    --docker-password=<access-token> \
+    --docker-email=keremar0000@gmail.com \
+    --dry-run=client -o yaml > docker-secret.yaml
 
-# Save the secret to a YAML file for reference
-kubectl get secret docker-secret -o yaml > docker-secret.yaml
 ```
 
 ### Best Practices and Tips
 
 #### YAML vs YML
-- `.yaml` and `.yml` extensions mean the same thing
-- `.yaml` is more commonly used
-- Both extensions are valid and supported by Kubernetes
-- `.yaml` is generally preferred for consistency
+- `.yaml` and `.yml` extensions mean the same thing.
+- `.yaml` is more commonly used.
+- Both extensions are valid and supported by Kubernetes.
+- `.yaml` is generally preferred for consistency.
 
 #### Manifest Creation Approach
-A systematic approach to creating Kubernetes manifests using dry-run:
+Drafts of the Kubernetes manifests were generated using the `kubectl create --dry-run=client -o yaml` command. This approach minimizes syntax errors that can occur when writing manifests manually and speeds up the process.
 
-1. Generate templates for each resource type using dry-run:
+1. **Generate templates for each resource type using dry-run:**
 ```bash
 # ConfigMap
-kubectl create configmap application --from-literal=MONGO_HOST=mongo --from-literal=MONGO_PORT=27017 --from-literal=BG_COLOR=teal --dry-run=client -o yaml > manifest.yaml
+kubectl create configmap application --from-literal=MONGO_HOST=mongo --from-literal=MONGO_PORT=27017 --from-literal=BG_COLOR=teal --from-literal=FAIL_FLAG=false --dry-run=client -o yaml > manifest.yaml
 
 # Secret
-kubectl create secret generic mongo --from-literal=username=root --from-literal=password=example --dry-run=client -o yaml >> manifest.yaml
+kubectl create secret generic mongo --from-literal=MONGO_INITDB_ROOT_USERNAME=root --from-literal=MONGO_INITDB_ROOT_PASSWORD=example --dry-run=client -o yaml >> manifest.yaml
 
 # Deployment
 kubectl create deployment application --image=keremar/keremar_application:latest --dry-run=client -o yaml >> manifest.yaml
@@ -145,7 +162,8 @@ kubectl create service clusterip application --tcp=80:5000 --dry-run=client -o y
 kubectl create ingress nginx --class=nginx --rule="keremar.application.com/=application:80" --dry-run=client -o yaml >> manifest.yaml
 ```
 
-2. Manual YAML for StatefulSet (no dry-run command available):
+2. **Manual YAML for StatefulSet (no dry-run command available):**
+Since a dry-run command is not available for some resources like `StatefulSet`, these resources are created manually or by referencing examples from the official Kubernetes documentation.
 ```yaml
 apiVersion: apps/v1
 kind: StatefulSet
@@ -179,65 +197,43 @@ spec:
           valueFrom:
             secretKeyRef:
               name: mongo
-              key: username
+              key: MONGO_INITDB_ROOT_USERNAME
         - name: MONGO_INITDB_ROOT_PASSWORD
           valueFrom:
             secretKeyRef:
               name: mongo
-              key: password
+              key: MONGO_INITDB_ROOT_PASSWORD
 ```
 
-3. Edit the generated templates to add:
-   - Resource limits
-   - Environment variables
-   - Health checks
-   - Volumes
-   - etc.
+3. **Edit the generated templates:**
+The generated draft manifests are enriched with additional configurations such as resource limits, environment variables, and health checks.
 
-4. Apply the final manifest:
+4. **Apply the final manifest:**
+The finalized manifest file is applied to the cluster using the `kubectl apply` command.
 ```bash
 kubectl apply -f manifest.yaml
 ```
 
-Benefits of this approach:
-- Automatically generates correct syntax for each resource type
-- Reduces the risk of errors
-- Provides a systematic development process
-- Follows Kubernetes best practices
-
-Note: Some resource types (like StatefulSet) don't have dry-run commands available. For these, manual YAML creation or examples from Kubernetes documentation can be used.
-
 ### Deployment Steps
-1. Applied the Kubernetes manifest:
+1. **Applying the Manifest:**
+The prepared `manifest.yml` file was applied to the cluster with the `kubectl apply` command, creating all the necessary resources (Deployment, Service, Ingress, etc.).
 ```bash
 kubectl apply -f manifest.yml
 ```
 
-2. Added local DNS entry:
+2. **Local DNS Entry:**
+To access the application from a browser using the name `keremar.application.com`, the local machine's `hosts` file was updated to map this address to the Minikube IP.
 ```
-127.0.0.1 keremar.application.com
-```
-
-3. Updated hosts file with Minikube IP:
-```bash
-minikube ip
+<minikube-ip> keremar.application.com
 ```
 
 ### Complete Manifest Example
-Here's the complete manifest that combines all resources:
+Below is the final manifest file that includes all Kubernetes resources and meets the task requirements. This file defines all layers of the application (data, application, and presentation).
 
 ```yaml
-# Docker Registry Secret
-apiVersion: v1
-kind: Secret
-metadata:
-  name: docker-secret
-type: kubernetes.io/dockerconfigjson
-data:
-  .dockerconfigjson: <base64-encoded-docker-config>
-
----
-# ConfigMap for application configuration
+# ConfigMap
+# This ConfigMap stores non-sensitive application configurations like the MongoDB host and port.
+# As required by the task, it decouples the configuration from the application container, allowing for easier updates without rebuilding the image.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -246,24 +242,31 @@ data:
   MONGO_HOST: mongo
   MONGO_PORT: "27017"
   BG_COLOR: teal
+  FAIL_FLAG: "false"
 
 ---
-# Secret for MongoDB credentials
+# Secret
+# This Secret holds sensitive data for the MongoDB database, specifically the root username and password.
+# This approach securely manages credentials, fulfilling the requirement to obtain them from a Kubernetes Secret.
 apiVersion: v1
 kind: Secret
 metadata:
   name: mongo
 type: Opaque
 data:
-  username: cm9vdA==  # root
-  password: ZXhhbXBsZQ==  # example
+  MONGO_INITDB_ROOT_USERNAME: cm9vdA==  # root
+  MONGO_INITDB_ROOT_PASSWORD: ZXhhbXBsZQ==  # example
 
 ---
-# StatefulSet for MongoDB
+# StatefulSet
+# A StatefulSet is used for the MongoDB database to provide a stable network identity and ordered deployment, which is crucial for stateful applications.
+# It is configured with one replica, resource limits, and environment variables sourced from the `mongo` secret, as specified in the requirements.
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: mongo
+  labels:
+    app: mongo
 spec:
   serviceName: mongo
   replicas: 1
@@ -292,26 +295,17 @@ spec:
           valueFrom:
             secretKeyRef:
               name: mongo
-              key: username
+              key: MONGO_INITDB_ROOT_USERNAME
         - name: MONGO_INITDB_ROOT_PASSWORD
           valueFrom:
             secretKeyRef:
               name: mongo
-              key: password
-        volumeMounts:
-        - name: mongo-data
-          mountPath: /data/db
-  volumeClaimTemplates:
-  - metadata:
-      name: mongo-data
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      resources:
-        requests:
-          storage: 1Gi
+              key: MONGO_INITDB_ROOT_PASSWORD
 
 ---
-# Service for MongoDB
+# MongoDB Service
+# This is a Headless Service (`clusterIP: None`) that works with the StatefulSet.
+# It provides a unique DNS entry for the MongoDB pod, allowing the application to connect to it directly via a stable network address.
 apiVersion: v1
 kind: Service
 metadata:
@@ -325,13 +319,23 @@ spec:
   clusterIP: None
 
 ---
-# Deployment for the application
+# Application Deployment
+# The application itself is deployed using a Deployment, which is ideal for stateless services.
+# It's configured with one replica, a 'Recreate' strategy, and resource limits.
+# It pulls the private Docker image using `docker-secret` and includes an initContainer to ensure it only starts after the database is ready, meeting all task requirements.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: application
+  labels:
+    app: application
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: application
@@ -342,6 +346,10 @@ spec:
     spec:
       imagePullSecrets:
       - name: docker-secret
+      initContainers:
+      - name: init-mongo
+        image: busybox:latest
+        command: ['sh', '-c', 'until nslookup mongo.kar.svc.cluster.local; do echo waiting for mongo; sleep 2; done;']
       containers:
       - name: application
         image: keremar/keremar_application:latest
@@ -350,10 +358,10 @@ spec:
         resources:
           limits:
             cpu: "0.5"
-            memory: "256Mi"
+            memory: "128Mi"
           requests:
             cpu: "0.2"
-            memory: "128Mi"
+            memory: "64Mi"
         env:
         - name: MONGO_HOST
           valueFrom:
@@ -374,27 +382,29 @@ spec:
           valueFrom:
             secretKeyRef:
               name: mongo
-              key: username
+              key: MONGO_INITDB_ROOT_USERNAME
         - name: MONGO_PASSWORD
           valueFrom:
             secretKeyRef:
               name: mongo
-              key: password
+              key: MONGO_INITDB_ROOT_PASSWORD
         livenessProbe:
           httpGet:
-            path: /
+            path: /healthz
             port: 5000
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
-            path: /
+            path: /healthx
             port: 5000
           initialDelaySeconds: 5
           periodSeconds: 5
 
 ---
-# Service for the application
+# Application Service
+# This ClusterIP Service exposes the application pods on a stable internal IP address within the cluster.
+# It maps port 80 to the container's port 5000, allowing other components, like the Ingress, to communicate with the application.
 apiVersion: v1
 kind: Service
 metadata:
@@ -408,7 +418,9 @@ spec:
   type: ClusterIP
 
 ---
-# Ingress for the application
+# Ingress
+# Finally, the Ingress resource exposes the application to the outside world.
+# It routes external HTTP traffic from the host `keremar.application.com` to the application Service, fulfilling the requirement for the presentation layer.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -431,43 +443,45 @@ spec:
 ```
 
 This manifest includes:
-- Docker registry secret for private repository access
-- ConfigMap for application configuration
-- Secret for MongoDB credentials
-- StatefulSet for MongoDB with persistent storage
-- Service for MongoDB
-- Deployment for the application with resource limits and health checks
-- Service for the application
-- Ingress for external access
+- **ConfigMap:** Decouples application configuration (like database host and port) from the code.
+- **Secret:** Securely stores sensitive data, such as MongoDB credentials.
+- **StatefulSet:** Used for stateful applications like MongoDB. It provides stable network identities and ordered deployment/scaling.
+- **Headless Service (mongo):** Used to provide direct access to each pod in the StatefulSet (`clusterIP: None`).
+- **Deployment:** Manages the stateless pods of the application. The `Recreate` strategy ensures that old pods are completely removed before the new version is deployed.
+- **Service (application):** Provides a single point of access (ClusterIP) to the application pods within the cluster.
+- **Ingress:** Makes the application accessible from outside the cluster and routes traffic from `keremar.application.com` to the application service.
 
-Key features:
-- Resource limits and requests for both containers
-- Health checks (liveness and readiness probes)
-- Persistent storage for MongoDB
-- Environment variables from ConfigMap and Secret
-- Proper service discovery setup
-- Ingress configuration for external access
-- Private repository access using docker-secret
+### Key features:
+- Resource limits and requests are defined for both containers (application and MongoDB).
+- Liveness and readiness probes are added to check the health of the application.
+- A flexible configuration is achieved by sourcing environment variables from ConfigMaps and Secrets.
+- Proper service discovery mechanisms are set up for services to find each other.
+- External access is configured with Ingress.
+- Image pulling from a private repository is secured using a `docker-secret`.
 
 ## 5. Verification
+
+The following checks are performed to verify that the application has been deployed successfully and is running with the correct configurations.
 
 The application is now accessible at:
 - http://keremar.application.com
 
 ### Health Checks
-- Liveness probe: /healthz
-- Readiness probe: /healthx
+- **Liveness probe:** `/healthz` - Checks if the container is running. If it fails, the container is restarted.
+- **Readiness probe:** `/healthx` - Checks if the container is ready to accept incoming traffic. If not ready, it's removed from the service endpoints.
 
 ### Resource Limits
-Application:
+**Application:**
 - CPU: limit-0.5, request-0.2
 - Memory: limit-128Mi, request-64Mi
 
-MongoDB:
+**MongoDB:**
 - CPU: limit-0.5, request-0.2
 - Memory: limit-256Mi, request-128Mi
 
 ## 6. Troubleshooting Commands
+
+Below are basic `kubectl` commands that can be used to diagnose issues that may arise during or after deployment.
 
 ### Check Pod Status
 ```bash
