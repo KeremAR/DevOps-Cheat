@@ -120,6 +120,18 @@ A dedicated namespace (`kar`) and context were created using the `local_minikube
 ./utils/local_minikube_preparation.sh "Kerem Ar"
 ```
 
+After the script runs, you can list all available contexts to see the new one that was created, and switch to it if needed.
+
+To list all available contexts:
+```bash
+kubectl config get-contexts
+```
+
+To switch to the desired context:
+```bash
+kubectl config use-context <context-name>
+```
+
 3. **Creating Docker Registry Secret:**
 A secret named `docker-secret` was created to allow Kubernetes to pull the application image from the private repository on Docker Hub. This secret securely stores the Docker Hub credentials.
 ```bash
