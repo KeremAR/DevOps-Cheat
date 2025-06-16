@@ -1,5 +1,11 @@
 # Continuous Integration and Deployment Learning Notes
-- ![CICD](/Media/ci-cd.png)
+![CICD](/Media/ci-cd.png)
+
+
+## What is CI/CD?
+The CI/CD method helps solve any problems that the integration of new code may bring to development and operations teams. It offers continuous automation and monitoring throughout the lifecycle of an application—from integration and testing to delivery and deployment.
+
+
 
 ## What is Continuous Integration?**
 Continuous Integration (CI) is the practice of regularly merging all developer working copies to a shared mainline. It involves continuously building, testing, and integrating every developer change into the master branch after tests have passed. This results in potentially deployable code.
@@ -29,6 +35,7 @@ A CI/CD pipeline is a series of steps from code commit to deployment, automating
 ### Advantages of CI/CD Pipeline
 - Provides quick feedback after each change
 - Reduces the risk of integration issues by working in small batches
+- Enables fault isolation by making it easier to identify which code change caused a failure
 - Ensures that code is reviewed by multiple developers through pull requests
 - Improves overall code quality and stability
 - Reduces deployment risks by automating the testing process
@@ -55,13 +62,81 @@ Continuous deployment (CD) is a software release process that uses automated tes
 ### Jenkins Extensibility
 Jenkins extensibility is implemented via Jenkins plugins.
 
+### Jenkins Plugin Management
+Jenkins plugins can be managed through the web interface or using the Jenkins CLI. Here are the common plugin management commands using jenkins-cli.jar:
+
+```bash
+# List all installed plugins
+java -jar jenkins-cli.jar -s http://localhost:8080/ list-plugins
+
+# Enable plugin(s)
+java -jar jenkins-cli.jar -s http://localhost:8080/ enable-plugin PLUGIN_NAME [PLUGIN_NAME2 ...] [-restart]
+
+# Disable plugin(s)
+java -jar jenkins-cli.jar -s http://localhost:8080/ disable-plugin PLUGIN_NAME [PLUGIN_NAME2 ...] [-restart]
+
+# Install plugin(s)
+java -jar jenkins-cli.jar -s http://localhost:8080/ install-plugin PLUGIN_NAME [PLUGIN_NAME2 ...] [-restart]
+```
+
+**Notes:**
+- Replace `http://localhost:8080/` with your Jenkins server URL if different
+- The `-restart` flag is optional and will restart Jenkins after the operation
+- You can specify multiple plugin names in a single command
+- These commands require the jenkins-cli.jar file and Java to be installed
+
+### Manual Plugin Removal
+Jenkins CLI does not support direct plugin removal. To manually remove a plugin:
+
+1. Navigate to the plugins directory on your Jenkins server:
+```bash
+$JENKINS_HOME/plugins/
+```
+
+2. Delete the following files for the plugin you want to remove:
+   - The plugin's `.jpi` or `.hpi` file
+   - The `.jpi.pinned` file (if it exists)
+
+3. Restart Jenkins
+
+**Note:** Make sure to backup your Jenkins configuration before manually removing plugins.
+
 ### Jenkins Backup
 How to create a full backup in Jenkins?
 - Copy Jenkins home directory and create database backup
 
+### Jenkins Master-Slave Architecture
+Jenkins supports distributed builds through a master-slave (controller-agent) architecture, which allows you to distribute workload across multiple machines.(Running builds on different OS/environments)
+- **Master (Controller)**: Central server that manages build configuration, distributes builds to agents and handles UI
+- **Slave (Agent)**: Worker machines that execute build jobs
+- **Benefits**: Scalability, load balancing, environment isolation
 
+### Jenkins Pipeline
+Jenkins Pipeline is a set of plugins that supports implementing and integrating Continuous Delivery pipelines into Jenkins.
 
+Key Points:
+- Pipeline is defined in a `Jenkinsfile` (Pipeline as Code)
+- Two syntax types: Declarative (newer, easier) and Scripted (traditional, Groovy-based)
+- Blue Ocean provides visual pipeline editor and monitoring
 
+## Build Automation Tools
+Build automation tools automate the process of compiling source code, running tests, and packaging applications.
+
+### Popular Build Tools
+- **Maven**: Java-based, uses POM (Project Object Model)
+  - Key features: Dependency management, standardized builds, multiple project support
+  - Common phases: validate, compile, test, package, install, deploy
+
+- **Gradle**: Modern build tool using Groovy DSL
+  - Features: Flexible build configuration, multi-project builds
+  - Uses build.gradle file for configuration
+  - Task-based build system
+
+### Benefits
+- Reduces manual errors
+- Ensures consistent builds
+- Saves development time
+- Integrates with CI/CD pipelines
 
 ## Code Quality Analysis
 
