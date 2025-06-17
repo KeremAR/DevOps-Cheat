@@ -333,6 +333,48 @@ The recreate strategy is a simple deployment approach where version A is complet
 ### Key Differences: A/B vs Canary
 * **Canary Deployment**: Focuses on safe rollout of a new version to detect issues early
 * **A/B Deployment**: Aims to compare performance metrics between two different versions
+
+## Versioning, Branching, and Metrics
+
+### Versioning and Semantic Versioning (SemVer)
+Versioning is the process of assigning unique version numbers to unique states of computer software. **Semantic Versioning (SemVer)** is the most widely adopted standard for this. It provides a clear, formal set of rules for how version numbers are assigned and incremented.
+
+A SemVer number follows a `MAJOR.MINOR.PATCH` format:
+- **MAJOR (e.g., 2.0.0)**: Incremented for incompatible, breaking API changes.
+- **MINOR (e.g., 1.2.0)**: Incremented for new, backward-compatible functionality.
+- **PATCH (e.g., 1.1.2)**: Incremented for backward-compatible bug fixes.
+- **Pre-release labels** (e.g., `1.0.0-alpha.1`, `2.1.0-rc.1`) can be used for development versions.
+
+### Branching Strategies
+A branching strategy is a set of rules for how a team uses Git branches. A good strategy keeps the repository organized and the development process smooth.
+
+*   **GitFlow**: A classic, structured strategy with long-running branches:
+    *   `main`: Always reflects the latest production-ready state. Tagged with version numbers (e.g., `v1.0.1`).
+    *   `develop`: The primary integration branch for new features. This is where active development happens.
+    *   `feature/*`: Branched from `develop` for new work. Merged back to `develop`.
+    *   `release/*`: Branched from `develop` to prepare for a release (final testing, bug fixes). Merged into both `main` and `develop`.
+    *   `hotfix/*`: Branched from `main` to fix urgent production issues. Merged into both `main` and `develop`.
+
+*   **GitHub Flow**: A simpler, lightweight model ideal for projects with Continuous Delivery.
+    *   `main` is the only long-running branch, and it is always deployable.
+    *   To work on something new, you create a descriptive branch from `main`.
+    *   When ready, you open a pull request to merge it back into `main`. After review and passing CI, it's merged and often deployed immediately.
+
+### Applying Versioning with Branching (GitFlow Example)
+- Code on a `feature` branch doesn't usually need a specific version.
+- When a feature is merged into the `develop` branch, it might carry a pre-release version, like `1.3.0-alpha`.
+- When a `release/1.3.0` branch is created from `develop`, it's prepared for release. The version is bumped to `1.3.0-rc.1` (release candidate).
+- Once the release is ready, the `release` branch is merged into `main` and tagged with the final version, `v1.3.0`.
+- The `develop` branch is then updated for the next cycle, for example, to `1.4.0-alpha`.
+
+### DORA Metrics
+DORA (DevOps Research and Assessment) metrics are four key indicators used to measure the performance and health of a software delivery process.
+
+1.  **Deployment Frequency**: How often you release to production. (Elite teams deploy on-demand, multiple times a day).
+2.  **Lead Time for Changes**: How long it takes for a commit to get into production. (Elite: Less than one hour).
+3.  **Change Failure Rate**: The percentage of deployments that cause a failure in production. (Elite: < 15%).
+4.  **Time to Restore Service**: How long it takes to recover from a production failure. (Elite: Less than one hour).
+
 ## GitHub Actions: CI/CD Automation
 
 GitHub Actions allows you to automate your software development workflows directly within your GitHub repository. It's commonly used for Continuous Integration (CI) and Continuous Delivery (CD).
