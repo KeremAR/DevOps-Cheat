@@ -354,18 +354,32 @@ A branching strategy is a set of rules for how a team uses Git branches. A good 
     *   `feature/*`: Branched from `develop` for new work. Merged back to `develop`.
     *   `release/*`: Branched from `develop` to prepare for a release (final testing, bug fixes). Merged into both `main` and `develop`.
     *   `hotfix/*`: Branched from `main` to fix urgent production issues. Merged into both `main` and `develop`.
+    *   **Note on Pull Requests**: In modern development, all merges into long-running branches (`develop`, `main`) are managed through **Pull Requests (PRs)**. This allows for code reviews, discussions, and automated CI checks before integration.
 
 *   **GitHub Flow**: A simpler, lightweight model ideal for projects with Continuous Delivery.
     *   `main` is the only long-running branch, and it is always deployable.
-    *   To work on something new, you create a descriptive branch from `main`.
-    *   When ready, you open a pull request to merge it back into `main`. After review and passing CI, it's merged and often deployed immediately.
+    *   To work on something new, you create a new branch from `main` with a descriptive name (e.g., `fix-login-bug` or `add-user-profile`). All work for that feature happens on this branch.
+    *   When the work is ready, you open a **Pull Request** to merge the feature branch back into `main`.
+    *   After discussion, code review, and passing all automated checks in CI, the PR is merged into `main` and often deployed to production immediately.
 
-### Applying Versioning with Branching (GitFlow Example)
-- Code on a `feature` branch doesn't usually need a specific version.
-- When a feature is merged into the `develop` branch, it might carry a pre-release version, like `1.3.0-alpha`.
-- When a `release/1.3.0` branch is created from `develop`, it's prepared for release. The version is bumped to `1.3.0-rc.1` (release candidate).
-- Once the release is ready, the `release` branch is merged into `main` and tagged with the final version, `v1.3.0`.
-- The `develop` branch is then updated for the next cycle, for example, to `1.4.0-alpha`.
+### How is Versioning Applied in Practice?
+
+Versioning isn't just a number; it's a practice made real with **Git Tags** and often automated in the CI/CD pipeline. A Git Tag is a permanent marker on a specific commit, identifying it as a release point (e.g., `v1.2.0`).
+
+There are two common approaches to applying versions:
+
+*   **Manual Versioning**:
+    1.  **Update Version File**: A developer manually edits a file containing the version number (e.g., `package.json`, `pom.xml`).
+    2.  **Commit Change**: The change is committed with a message like `"Bump version to 1.2.0"`.
+    3.  **Create Tag**: The developer creates a Git tag on that commit: `git tag -a v1.2.0 -m "Release version 1.2.0"`.
+    4.  **Push Tag**: The tag is pushed to the remote repository: `git push origin v1.2.0`.
+
+*   **Automated Versioning (via CI/CD)**:
+    1.  **Code is Merged**: A Pull Request is merged into the `main` branch.
+    2.  **CI Pipeline Triggers**: The merge triggers the deployment pipeline.
+    3.  **Automated Tool Runs**: A tool like `semantic-release` analyzes commit messages since the last tag.
+    4.  **Version is Determined**: Based on commit messages (e.g., `feat:` triggers a minor bump, `fix:` triggers a patch bump), the tool determines the next version number.
+    5.  **Tag and Release**: The tool automatically creates the new Git tag, builds the release artifacts, and publishes them. This is a "hands-off" process.
 
 ### DORA Metrics
 DORA (DevOps Research and Assessment) metrics are four key indicators used to measure the performance and health of a software delivery process.
