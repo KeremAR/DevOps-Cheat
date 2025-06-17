@@ -25,6 +25,11 @@ Continuous Integration (CI) is a core development practice where developers merg
 - Reduce merge conflicts by working in short-lived feature branches
 - Delete branches after merging to keep the repository clean
 
+### When Does the CI Process End?
+The Continuous Integration (CI) process concludes when a clean, successful build produces a versioned, tested, and packaged **artifact**. At this point, the team has a high degree of confidence that the new code integrates correctly with the existing codebase and is ready for the next stage.
+
+This final artifact is the handover point from CI to the Continuous Delivery (CD) process. The end of CI is the beginning of deployment readiness.
+
 ### How often do you need to run a Continuous Integration pipeline?
 - Every commit
 - At least once per feature build
@@ -243,7 +248,13 @@ A **Quality Gate** is a core feature of SonarQube that acts as a set of pass/fai
 Artifacts ensure that software outputs are reproducible, shareable, traceable, and secure. They are essential for CI/CD processes, versioning, test/deploy separation, and performance.
 
 ### What is an Artifact?
-An artifact is any file generated during the build process (e.g., JAR, WAR, Docker image, test reports).
+In the context of CI/CD, an artifact is the output of a build process. It's more than just a file; it's a versioned, packaged unit of your application that is ready for deployment or testing. The key is that it's an immutable, reusable output created from a specific commit.
+
+Examples include:
+- A `.jar` or `.war` file for a Java application
+- A Docker image
+- A `.zip` file containing compiled code and assets
+- Test reports and code coverage data
 
 ### What is a Pipeline Artifact?
 A pipeline artifact is a temporary file used within a CI/CD pipeline, typically for passing build outputs between pipeline stages.
