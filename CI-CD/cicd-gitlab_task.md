@@ -42,13 +42,29 @@ After the tests passed successfully, we faced two different issues in the final 
 
 A standard `.gitignore` file was created to prevent the Python virtual environment (`.venv` folder), which is generated locally, from being accidentally committed to the Git repository.
 
+### Step 7: Advanced Pipeline Optimization
+
+After establishing a working pipeline, a series of advanced optimizations were implemented to significantly improve its speed and efficiency, reflecting professional CI/CD practices.
+
+1.  **Parallel Verification Jobs:** The initial sequential jobs were restructured. The `lint` and `run_tests` jobs were placed in a single `test` stage and configured with `needs: []`. This allows them to start simultaneously, creating a Directed Acyclic Graph (DAG) and dramatically cutting down the total execution time for the verification steps.
+
+2.  **Python Dependency Caching:** To speed up the setup of `lint` and `run_tests` jobs, a global cache was implemented for the Python virtual environment (`.venv`). This cache is shared between jobs, ensuring that once dependencies are downloaded and installed, they are quickly restored from the cache in subsequent pipeline runs, avoiding repeated installations.
+
+3.  **DRY (Don't Repeat Yourself) Principle:** The identical Python setup steps for both `lint` and `run_tests` were abstracted using a YAML anchor (`&python_setup`). This removes code duplication, making the pipeline configuration cleaner and much easier to maintain.
+
+4.  **Advanced Docker Layer Caching:** This is the most significant optimization. The `build` process was enhanced to reuse Docker layers from previous builds.
+    *   The pipeline first attempts to pull the `latest` version of the image from the registry.
+    *   The `docker build` command then uses the `--cache-from` flag to treat the layers of this pulled image as a cache.
+    *   When code changes are minimal, Docker can reuse most of the existing layers, resulting in a much faster build process.
+    *   After a successful build, the new image is tagged with both its specific version (`v1.0.0`) and the `latest` tag. Both tags are then pushed to the registry, ensuring the `latest` tag is always available as a cache source for the next pipeline run.
+
 ### Final Configuration Files
 
 Below are the final versions of the key configuration files created or modified during this process.
 
 #### `.gitlab-ci.yml`
 
-This file defines the entire CI/CD pipeline, including stages, jobs, and rules.
+This file defines the final CI/CD pipeline, incorporating parallel jobs, shared caching, and advanced Docker layer caching for maximum speed and efficiency.
 
 ```yaml
 image: docker:20.10.16
@@ -59,46 +75,66 @@ services:
 variables:
   IMAGE_TAG: "v1.0.0"
   IMAGE_NAME: "$CI_REGISTRY_IMAGE:$IMAGE_TAG"
-  DOCKER_HOST: "tcp://docker:2375"      # Ensures the job connects to the dind service on the correct default port.
-  DOCKER_DRIVER: overlay2             # Enforces the use of the modern and efficient overlay2 storage driver for performance.
-  DOCKER_TLS_CERTDIR: ""                # Disables TLS for the internal, trusted network communication, preventing connection errors.
+  DOCKER_HOST: "tcp://docker:2375"
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  VENV_PATH: ".venv"
 
 stages:
-  - lint
   - test
   - build
   - push
 
-lint:
-  stage: lint
-  image: python:3.9-slim
-  script:
-    - |
-      echo "Running linting..."
-      pip install -r src/requirements.txt
-      flake8 src/app/ src/run.py
-      black --check src/
+cache:
+  key:
+  paths:
+    - ${VENV_PATH}/
 
-test:
+.python_setup: &python_setup
+  - echo "Setting up Python virtual environment..."
+  - python3 -m venv ${VENV_PATH}
+  - . ${VENV_PATH}/bin/activate
+  - echo "Installing dependencies from src/requirements.txt "
+  - pip install -r src/requirements.txt
+
+lint:
   stage: test
   image: python:3.9-slim
+  needs: []
   script:
-    - |
-      echo "Running tests..."
-      pip install -r src/requirements.txt
-      pytest src/app/tests/
+    - *python_setup
+    - echo "Running linting..."
+    - flake8 src/app/ src/run.py
+    - black --check src/
+
+run_tests:
+  stage: test
+  image: python:3.9-slim
+  needs: []
+  script:
+    - *python_setup
+    - echo "Running tests..."
+    - pytest src/app/tests/
 
 build:
   stage: build
+  needs: [lint, run_tests]
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
     - |
-      echo "Building Docker image..."
-      docker build -f build/Dockerfile -t "$IMAGE_NAME" .
+      echo "Building Docker image with layer caching..."
+      # Pull the latest image to use its layers as a cache
+      docker pull "$CI_REGISTRY_IMAGE:latest" || true
+      # Build the new image using the pulled image as a cache
+      docker build \
+        --cache-from "$CI_REGISTRY_IMAGE:latest" \
+        --tag "$IMAGE_NAME" \
+        --tag "$CI_REGISTRY_IMAGE:latest" \
+        -f build/Dockerfile .
       echo "Image built: $IMAGE_NAME"
       echo "Saving Docker image as an artifact..."
-      docker save -o image.tar "$IMAGE_NAME"
+      docker save -o image.tar "$IMAGE_NAME" "$CI_REGISTRY_IMAGE:latest"
   artifacts:
     paths:
       - image.tar
@@ -106,8 +142,7 @@ build:
 
 push:
   stage: push
-  needs:
-    - build
+  needs: [build]
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
@@ -115,7 +150,10 @@ push:
       echo "Loading Docker image from artifact..."
       docker load -i image.tar
       echo "Pushing Docker image..."
+      # Push the specific version tag
       docker push "$IMAGE_NAME"
+      # Also push the 'latest' tag to be used as cache for the next run
+      docker push "$CI_REGISTRY_IMAGE:latest"
       echo "Image pushed to GitLab Container Registry."
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
@@ -157,7 +195,6 @@ This file was created to prevent local development folders and temporary files f
 
 ```
 # Python virtual environment
-src/.venv/
 .venv/
 venv/
 
