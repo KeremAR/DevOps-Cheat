@@ -31,8 +31,16 @@ After establishing a stable pipeline, a series of optimizations and security mea
 2.  **Security Scanning with Trivy:** A new stage was added to scan the created Docker images for vulnerabilities with `Trivy` before pushing them to Docker Hub.
     - **First Error (`DB Download Failed`):** Trivy failed because it couldn't find a cache directory to download its vulnerability database. The problem was solved by manually creating the `/var/lib/jenkins/.cache/trivy` directory and giving the `jenkins` user ownership.
     - **Second Error (`Context Deadline Exceeded`):** The scan timed out due to the virtual machine's slow disk performance. This was permanently fixed by adding the `--timeout 15m`, `--skip-dirs /app/node_modules` (to prevent unnecessary scanning), and `--scanners vuln` (to only scan for vulnerabilities) parameters to the `trivy` command.
+    - **Third Error (`DB Corrupted`):** Even after optimizations, the Trivy scan failed intermittently with a `db corrupted` error, indicating a problem with its vulnerability database. This was definitively resolved by having Trivy use a build-specific cache inside the temporary Jenkins workspace (`--cache-dir .trivy-cache`) instead of a shared system-wide cache, ensuring a clean start for every build.
 
-### Step 5: Decoupling Deployment and Resolving Jenkins Deadlock
+### Step 5: Resolving Jenkinsfile Groovy/Environment Errors
+
+During final refactoring, a series of Groovy parsing errors were encountered, which highlighted best practices for defining variables in a Declarative Pipeline.
+1.  **Initial Error (`BlockStatement`):** An attempt to use a standard `if/else` block inside an `environment` directive to dynamically set variable values resulted in a `org.codehaus.groovy.control.MultipleCompilationErrorsException`. This error occurs because the `environment` directive expects simple values or expressions, not complex script blocks.
+2.  **Second Error (`IllegalArgumentException`):** While a `ternary operator` was a valid Groovy expression, it still led to an `IllegalArgumentException` in this specific Jenkins environment, indicating that even this simpler logic was not being correctly processed within the `environment` directive.
+3.  **Final Solution (Dedicated `script` Stage):** The most stable and recommended solution was to remove all dynamic logic from the `environment` block. A new stage named `Prepare Environment` was added at the beginning of the pipeline. Inside this stage, a `script` step is used to set the dynamic environment variables (`env.DOCKER_IMAGE_NAME`, etc.). This approach isolates the programmatic logic into a proper execution step, ensuring the pipeline remains robust, readable, and compliant with Declarative syntax best practices.
+
+### Step 6: Decoupling Deployment and Resolving Jenkins Deadlock
 
 To separate CI and CD concerns, the deployment logic was moved to separate pipelines.
 1.  **Separate Deployment Pipelines:** Two new pipelines, `Deploy_to_main` and `Deploy_to_dev`, were created solely for pulling images from Docker Hub and deploying them.
@@ -48,21 +56,28 @@ Below are the final versions of the key configuration files created or modified 
 pipeline {
     agent any
     environment {
-        DOCKER_CREDS = credentials('dockerhub-credentials') 
+        DOCKERHUB_USER = "keremar"
+        DOCKERHUB_REPO = "epam-jenkins-lab"
+        DOCKER_CREDS   = credentials('dockerhub-credentials')
     }
+
     stages {
         stage('Prepare Environment') {
             steps {
                 script {
-                    def dockerhubUser = "keremar" 
-                    def dockerhubRepo = "epam-jenkins-lab"
+                    def dockerImageName = ''
+                    def logoFilePath = ''
+
                     if (env.BRANCH_NAME == 'main') {
-                        env.DOCKER_IMAGE_NAME = "${dockerhubUser}/${dockerhubRepo}:main-v1.0"
-                        env.LOGO_FILE_PATH = 'src/logo-main.svg'
+                        dockerImageName = "${env.DOCKERHUB_USER}/${env.DOCKERHUB_REPO}:main-v1.0"
+                        logoFilePath    = 'src/logo-main.svg'
                     } else if (env.BRANCH_NAME == 'dev') {
-                        env.DOCKER_IMAGE_NAME = "${dockerhubUser}/${dockerhubRepo}:dev-v1.0"
-                        env.LOGO_FILE_PATH = 'src/logo-dev.svg'
+                        dockerImageName = "${env.DOCKERHUB_USER}/${env.DOCKERHUB_REPO}:dev-v1.0"
+                        logoFilePath    = 'src/logo-dev.svg'
                     }
+
+                    env.DOCKER_IMAGE_NAME = dockerImageName
+                    env.LOGO_FILE_PATH    = logoFilePath
                 }
             }
         }
@@ -90,14 +105,19 @@ pipeline {
             }
         }
     }
+
     post {
         success {
             script {
                 echo "Build successful. Triggering deployment..."
                 if (env.BRANCH_NAME == 'main') {
-                    build job: 'Deploy_to_main', wait: false, parameters: [string(name: 'IMAGE_TO_DEPLOY', value: env.DOCKER_IMAGE_NAME)]
+                    build job: 'Deploy_to_main', wait: false, parameters: [
+                        string(name: 'IMAGE_TO_DEPLOY', value: env.DOCKER_IMAGE_NAME)
+                    ]
                 } else if (env.BRANCH_NAME == 'dev') {
-                    build job: 'Deploy_to_dev', wait: false, parameters: [string(name: 'IMAGE_TO_DEPLOY', value: env.DOCKER_IMAGE_NAME)]
+                    build job: 'Deploy_to_dev', wait: false, parameters: [
+                        string(name: 'IMAGE_TO_DEPLOY', value: env.DOCKER_IMAGE_NAME)
+                    ]
                 }
             }
         }
@@ -111,65 +131,4 @@ pipeline {
 ```
 
 #### `CD_deploy_manual` Pipeline Script
-```groovy
-pipeline {
-    agent any
-
-    parameters {
-        choice(name: 'TARGET_ENV', choices: ['main', 'dev'], description: 'Select the environment to deploy (main or dev).')
-        string(name: 'IMAGE_TO_DEPLOY', defaultValue: 'keremar/epam-jenkins-lab:main-v1.0', description: 'Enter the full Docker image tag to deploy.')
-    }
-
-    stages {
-        stage('Deployment Configuration') {
-            steps {
-                script {
-                    echo "Deploying image '${params.IMAGE_TO_DEPLOY}' to '${params.TARGET_ENV}' environment."
-                    if (params.TARGET_ENV == 'main') {
-                        env.APP_PORT = '3000'
-                    } else {
-                        env.APP_PORT = '3001'
-                    }
-                }
-            }
-        }
-
-        stage('Deploy Application') {
-            steps {
-                script {
-                    def containerName = "app-${params.TARGET_ENV}"
-                    sh """
-                        if [ \$(docker ps -a -q -f name=${containerName}) ]; then
-                            docker stop ${containerName}
-                            docker rm ${containerName}
-                        fi
-                    """
-                    sh "docker run -d --name ${containerName} -p ${env.APP_PORT}:3000 ${params.IMAGE_TO_DEPLOY}"
-                }
-            }
-        }
-    }
-}
-```
-
-#### `Dockerfile`
-```dockerfile
-FROM node:7.8.0
-
-WORKDIR /app
-
-COPY package.json ./
-
-RUN npm install
-
-COPY . .
-
-EXPOSE 3000
-
-ENTRYPOINT ["npm", "start"]
-```
-
-#### `.dockerignore`
-```
-node_modules
 ```
