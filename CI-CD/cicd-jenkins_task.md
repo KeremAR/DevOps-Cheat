@@ -47,84 +47,103 @@ To separate CI and CD concerns, the deployment logic was moved to separate pipel
 2.  **Pipeline Triggering:** The `CICD` pipeline was updated to trigger the appropriate deployment pipeline from within a `post` block after a successful build.
 3.  **Deadlock Issue:** This triggering mechanism caused a deadlock, as Jenkins's two available "executors" were both occupied. The `CICD` pipeline was waiting for the `Deploy_*` pipeline to finish, while the `Deploy_*` pipeline was waiting for a free executor. This deadlock was resolved by adding the `wait: false` parameter to the `build job` command, allowing the main pipeline to complete its task without waiting for the downstream job.
 
+### Step 7: Refactoring to a Jenkins Shared Library for Modularity
+
+To align with best practices and create a more modular, reusable, and maintainable workflow, the entire pipeline logic was refactored out of the `Jenkinsfile` and into a dedicated Jenkins Shared Library.
+
+1.  **Separate Library Repository:** A new, standalone Git repository was created specifically to host the shared library code. This decouples the pipeline's logic from the application's source code.
+2.  **Required Directory Structure:** Jenkins requires a specific folder structure to recognize a repository as a valid library. The core logic was placed inside a `cicdPipeline.groovy` file, which itself was placed within a `vars/` directory at the root of the new repository. The entire pipeline script was wrapped in a `def call() { ... }` function, making it directly callable by its filename.
+3.  **Global Library Configuration:** The new library repository was registered in Jenkins via `Manage Jenkins` -> `Configure System` -> `Global Trusted Pipeline Libraries`. This step involved giving the library a name (`jenkins-shared-lib`), specifying its Git repository URL, and setting the default branch (`main`). This makes the library's functions available to any pipeline on the Jenkins instance.
+4.  **Troubleshooting the Structure:** The initial setup failed with an `ERROR: Library ... expected to contain at least one of src or vars directories`. This was due to the library's Git repository not having the required `vars/` folder in its root. The issue was resolved by creating the `vars/` directory and moving the Groovy script into it, then pushing the corrected structure to the library's Git repository.
+5.  **Simplified `Jenkinsfile`:** After the refactoring, the `Jenkinsfile` in the main application repository was reduced to just two lines: one to import the globally-defined library and one to execute the pipeline logic.
+
 ### Final Configuration Files
 
 Below are the final versions of the key configuration files created or modified during this process.
 
 #### `Jenkinsfile` (`CICD` Pipeline)
 ```groovy
-pipeline {
-    agent any
-    environment {
-        DOCKERHUB_USER = "keremar"
-        DOCKERHUB_REPO = "epam-jenkins-lab"
-        DOCKER_CREDS   = credentials('dockerhub-credentials')
-    }
+@Library('jenkins-shared-lib@main') _
 
-    stages {
-        stage('Prepare Environment') {
-            steps {
-                script {
-                    def dockerImageName = ''
-                    def logoFilePath = ''
+cicdPipeline()
+```
 
-                    if (env.BRANCH_NAME == 'main') {
-                        dockerImageName = "${env.DOCKERHUB_USER}/${env.DOCKERHUB_REPO}:main-v1.0"
-                        logoFilePath    = 'src/logo-main.svg'
-                    } else if (env.BRANCH_NAME == 'dev') {
-                        dockerImageName = "${env.DOCKERHUB_USER}/${env.DOCKERHUB_REPO}:dev-v1.0"
-                        logoFilePath    = 'src/logo-dev.svg'
+#### Shared Library (`vars/cicdPipeline.groovy`)
+```groovy
+def call() {
+    pipeline {
+        agent any
+        environment {
+            DOCKERHUB_USER = "keremar"
+            DOCKERHUB_REPO = "epam-jenkins-lab"
+            DOCKER_CREDS   = credentials('dockerhub-credentials')
+        }
+
+        stages {
+            stage('Prepare Environment') {
+                steps {
+                    script {
+                        def dockerImageName = ''
+                        def logoFilePath = ''
+
+                        if (env.BRANCH_NAME == 'main') {
+                            dockerImageName = "${env.DOCKERHUB_USER}/${env.DOCKERHUB_REPO}:main-v1.0"
+                            logoFilePath    = 'src/logo-main.svg'
+                        } else if (env.BRANCH_NAME == 'dev') {
+                            dockerImageName = "${env.DOCKERHUB_USER}/${env.DOCKERHUB_REPO}:dev-v1.0"
+                            logoFilePath    = 'src/logo-dev.svg'
+                        }
+
+                        env.DOCKER_IMAGE_NAME = dockerImageName
+                        env.LOGO_FILE_PATH    = logoFilePath
                     }
-
-                    env.DOCKER_IMAGE_NAME = dockerImageName
-                    env.LOGO_FILE_PATH    = logoFilePath
+                }
+            }
+            stage('Change Logo') {
+                steps {
+                    sh "cp -f ${env.LOGO_FILE_PATH} src/logo.svg"
+                }
+            }
+            stage('Build Docker Image') {
+                steps {
+                    sh "docker build -t ${env.DOCKER_IMAGE_NAME} ."
+                }
+            }
+            stage('Scan Docker Image for Vulnerabilities') {
+                steps {
+                    sh "trivy image --timeout 15m --skip-dirs /app/node_modules --scanners vuln --exit-code 0 --severity HIGH,CRITICAL ${env.DOCKER_IMAGE_NAME}"
+                }
+            }
+            stage('Push to Docker Hub') {
+                steps {
+                    script {
+                        sh 'echo $DOCKER_CREDS_PSW | docker login -u $DOCKER_CREDS_USR --password-stdin'
+                        sh "docker push ${env.DOCKER_IMAGE_NAME}"
+                    }
                 }
             }
         }
-        stage('Change Logo') {
-            steps {
-                sh "cp -f ${env.LOGO_FILE_PATH} src/logo.svg"
-            }
-        }
-        stage('Build Docker Image') {
-            steps {
-                sh "docker build -t ${env.DOCKER_IMAGE_NAME} ."
-            }
-        }
-        stage('Scan Docker Image for Vulnerabilities') {
-            steps {
-                sh "trivy image --timeout 15m --skip-dirs /app/node_modules --scanners vuln --exit-code 0 --severity HIGH,CRITICAL ${env.DOCKER_IMAGE_NAME}"
-            }
-        }
-        stage('Push to Docker Hub') {
-            steps {
+
+        post {
+            success {
                 script {
-                    sh 'echo $DOCKER_CREDS_PSW | docker login -u $DOCKER_CREDS_USR --password-stdin'
-                    sh "docker push ${env.DOCKER_IMAGE_NAME}"
+                    echo "Build successful. Triggering deployment..."
+                    if (env.BRANCH_NAME == 'main') {
+                        build job: 'Deploy_to_main', wait: false, parameters: [
+                            string(name: 'IMAGE_TO_DEPLOY', value: env.DOCKER_IMAGE_NAME)
+                        ]
+                    } else if (env.BRANCH_NAME == 'dev') {
+                        build job: 'Deploy_to_dev', wait: false, parameters: [
+                            string(name: 'IMAGE_TO_DEPLOY', value: env.DOCKER_IMAGE_NAME)
+                        ]
+                    }
                 }
             }
-        }
-    }
-
-    post {
-        success {
-            script {
-                echo "Build successful. Triggering deployment..."
-                if (env.BRANCH_NAME == 'main') {
-                    build job: 'Deploy_to_main', wait: false, parameters: [
-                        string(name: 'IMAGE_TO_DEPLOY', value: env.DOCKER_IMAGE_NAME)
-                    ]
-                } else if (env.BRANCH_NAME == 'dev') {
-                    build job: 'Deploy_to_dev', wait: false, parameters: [
-                        string(name: 'IMAGE_TO_DEPLOY', value: env.DOCKER_IMAGE_NAME)
-                    ]
-                }
+            always {
+                echo "Logging out from Docker Hub..."
+                sh 'docker logout'
+                cleanWs()
             }
-        }
-        always {
-            echo "Logging out from Docker Hub..."
-            sh 'docker logout'
-            cleanWs()
         }
     }
 }
