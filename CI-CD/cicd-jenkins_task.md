@@ -47,35 +47,41 @@ To separate CI and CD concerns, the deployment logic was moved to separate pipel
 2.  **Pipeline Triggering:** The `CICD` pipeline was updated to trigger the appropriate deployment pipeline from within a `post` block after a successful build.
 3.  **Deadlock Issue:** This triggering mechanism caused a deadlock, as Jenkins's two available "executors" were both occupied. The `CICD` pipeline was waiting for the `Deploy_*` pipeline to finish, while the `Deploy_*` pipeline was waiting for a free executor. This deadlock was resolved by adding the `wait: false` parameter to the `build job` command, allowing the main pipeline to complete its task without waiting for the downstream job.
 
-### Step 7: Refactoring to a Jenkins Shared Library for Modularity
+### Step 8: Major Refactoring Based on Mentor Feedback
 
-To align with best practices and create a more modular, reusable, and maintainable workflow, the entire pipeline logic was refactored out of the `Jenkinsfile` and into a dedicated Jenkins Shared Library.
+Following a review, a major refactoring effort was undertaken to elevate the pipeline to professional standards, address code duplication, and improve efficiency, based on a mentor's feedback.
 
-1.  **Separate Library Repository:** A new, standalone Git repository was created specifically to host the shared library code. This decouples the pipeline's logic from the application's source code.
-2.  **Required Directory Structure:** Jenkins requires a specific folder structure to recognize a repository as a valid library. The core logic was placed inside a `cicdPipeline.groovy` file, which itself was placed within a `vars/` directory at the root of the new repository. The entire pipeline script was wrapped in a `def call() { ... }` function, making it directly callable by its filename.
-3.  **Global Library Configuration:** The new library repository was registered in Jenkins via `Manage Jenkins` -> `Configure System` -> `Global Trusted Pipeline Libraries`. This step involved giving the library a name (`jenkins-shared-lib`), specifying its Git repository URL, and setting the default branch (`main`). This makes the library's functions available to any pipeline on the Jenkins instance.
-4.  **Troubleshooting the Structure:** The initial setup failed with an `ERROR: Library ... expected to contain at least one of src or vars directories`. This was due to the library's Git repository not having the required `vars/` folder in its root. The issue was resolved by creating the `vars/` directory and moving the Groovy script into it, then pushing the corrected structure to the library's Git repository.
-5.  **Simplified `Jenkinsfile`:** After the refactoring, the `Jenkinsfile` in the main application repository was reduced to just two lines: one to import the globally-defined library and one to execute the pipeline logic.
+1.  **Centralized and Reusable Deployment:** The separate `Deploy_to_main` and `Deploy_to_dev` jobs, which caused executor deadlocks and duplicated logic, were **completely eliminated**. They were replaced by a single, reusable shared library function: `deployApplication.groovy`. This function accepts parameters (`targetEnv`, `imageToDeploy`), making it flexible and the single source of truth for all deployments. The main pipeline now calls this function in the `post` block, ensuring a clean and efficient CI/CD flow.
+
+2.  **Dedicated Agents and Modern Staging:** The pipeline structure was overhauled to use the right tool for each job.
+    - A dedicated **`Test` stage** was introduced, running in a `node:16-alpine` Docker agent to handle `npm` commands.
+    - The build-related steps were grouped under a **`Build and Push` stage**, running within a single, efficient `docker:20.10.12` agent. This stage includes sub-stages for **linting the Dockerfile with Hadolint**, building the image, and scanning it with Trivy. This structure is faster and more logical than the previous flat design.
+
+3.  **Advanced `Dockerfile` Techniques:**
+    - The `Dockerfile` was converted to a **multi-stage build**. This drastically reduces the final image size and improves security by separating the build environment (with Node.js and `node_modules`) from the final production environment (with only Nginx and static files).
+    - The branch-specific logo change, previously handled by modifying workspace files, was improved. The logo path is now passed as a `--build-arg` during the `docker build` command, making the build process cleaner and more portable.
+
+4.  **Port Configuration:** Based on feedback, the deployment ports were updated to the required standard: **port `3000` for the `main` branch** and **port `3001` for the `dev` branch**. This change was made in the centralized `deployApplication.groovy` function.
 
 ### Final Configuration Files
 
-Below are the final versions of the key configuration files created or modified during this process.
+Below are the final versions of the key configuration files after the complete refactoring process.
 
-#### `Jenkinsfile` (`CICD` Pipeline)
+#### `Jenkinsfile` (Main Application Repository)
 ```groovy
 @Library('jenkins-shared-lib@main') _
 
 cicdPipeline()
 ```
 
-#### Shared Library (`vars/cicdPipeline.groovy`)
+#### Shared Library: `vars/cicdPipeline.groovy`
 ```groovy
 def call() {
     pipeline {
         agent any
+
         environment {
             DOCKERHUB_USER = "keremar"
-            DOCKERHUB_REPO = "epam-jenkins-lab"
             DOCKER_CREDS   = credentials('dockerhub-credentials')
         }
 
@@ -83,42 +89,68 @@ def call() {
             stage('Prepare Environment') {
                 steps {
                     script {
-                        def dockerImageName = ''
                         def logoFilePath = ''
-
+                        def dockerImageName = ''
                         if (env.BRANCH_NAME == 'main') {
-                            dockerImageName = "${env.DOCKERHUB_USER}/${env.DOCKERHUB_REPO}:main-v1.0"
-                            logoFilePath    = 'src/logo-main.svg'
+                            dockerImageName = "${env.DOCKERHUB_USER}/nodemain:latest"
+                            logoFilePath = 'src/logo-main.svg'
                         } else if (env.BRANCH_NAME == 'dev') {
-                            dockerImageName = "${env.DOCKERHUB_USER}/${env.DOCKERHUB_REPO}:dev-v1.0"
-                            logoFilePath    = 'src/logo-dev.svg'
+                            dockerImageName = "${env.DOCKERHUB_USER}/nodedev:latest"
+                            logoFilePath = 'src/logo-dev.svg'
                         }
-
                         env.DOCKER_IMAGE_NAME = dockerImageName
-                        env.LOGO_FILE_PATH    = logoFilePath
+                        env.LOGO_FILE_PATH = logoFilePath
+                        echo "Image name set to: ${env.DOCKER_IMAGE_NAME}"
+                        echo "Logo file path set to: ${env.LOGO_FILE_PATH}"
                     }
                 }
             }
-            stage('Change Logo') {
+
+            stage('Test') {
+                agent {
+                    docker {
+                        image 'node:16-alpine'
+                        args '-u root'
+                    }
+                }
                 steps {
-                    sh "cp -f ${env.LOGO_FILE_PATH} src/logo.svg"
+                    sh 'npm install --cache .npm-cache'
+                    sh 'npm test -- --watchAll=false'
                 }
             }
-            stage('Build Docker Image') {
-                steps {
-                    sh "docker build -t ${env.DOCKER_IMAGE_NAME} ."
+            
+            stage('Build and Push') {
+                agent {
+                    docker {
+                        image 'docker:20.10.12'
+                        args '-u root -v /var/run/docker.sock:/var/run/docker.sock'
+                    }
                 }
-            }
-            stage('Scan Docker Image for Vulnerabilities') {
-                steps {
-                    sh "trivy image --timeout 15m --skip-dirs /app/node_modules --scanners vuln --exit-code 0 --severity HIGH,CRITICAL ${env.DOCKER_IMAGE_NAME}"
-                }
-            }
-            stage('Push to Docker Hub') {
-                steps {
-                    script {
-                        sh 'echo $DOCKER_CREDS_PSW | docker login -u $DOCKER_CREDS_USR --password-stdin'
-                        sh "docker push ${env.DOCKER_IMAGE_NAME}"
+                stages {
+                    stage('Lint Dockerfile') {
+                        steps {
+                            sh 'docker run --rm -i hadolint/hadolint < Dockerfile'
+                        }
+                    }
+                    stage('Build Docker Image') {
+                        steps {
+                            sh "docker build --build-arg LOGO_FILE=${env.LOGO_FILE_PATH} -t ${env.DOCKER_IMAGE_NAME} ."
+                        }
+                    }
+                    stage('Scan and Push if Not a PR') {
+                        when {
+                            anyOf {
+                                branch 'main'
+                                branch 'dev'
+                            }
+                        }
+                        steps {
+                            script {
+                                sh "docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v ${pwd()}:/app -w /app aquasec/trivy:latest image --cache-dir .trivy-cache --exit-code 0 --severity HIGH,CRITICAL ${env.DOCKER_IMAGE_NAME}"
+                                sh 'echo $DOCKER_CREDS_PSW | docker login -u $DOCKER_CREDS_USR --password-stdin'
+                                sh "docker push ${env.DOCKER_IMAGE_NAME}"
+                            }
+                        }
                     }
                 }
             }
@@ -127,21 +159,23 @@ def call() {
         post {
             success {
                 script {
-                    echo "Build successful. Triggering deployment..."
-                    if (env.BRANCH_NAME == 'main') {
-                        build job: 'Deploy_to_main', wait: false, parameters: [
-                            string(name: 'IMAGE_TO_DEPLOY', value: env.DOCKER_IMAGE_NAME)
-                        ]
-                    } else if (env.BRANCH_NAME == 'dev') {
-                        build job: 'Deploy_to_dev', wait: false, parameters: [
-                            string(name: 'IMAGE_TO_DEPLOY', value: env.DOCKER_IMAGE_NAME)
-                        ]
+                    if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'dev') {
+                        echo "Build successful. Triggering deployment for branch ${env.BRANCH_NAME}..."
+                        deployApplication(
+                            targetEnv: env.BRANCH_NAME,
+                            imageToDeploy: env.DOCKER_IMAGE_NAME
+                        )
                     }
                 }
             }
             always {
-                echo "Logging out from Docker Hub..."
-                sh 'docker logout'
+                echo "Cleaning up..."
+                script {
+                    if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'dev') {
+                        echo "Logging out from Docker Hub..."
+                        sh 'docker logout'
+                    }
+                }
                 cleanWs()
             }
         }
@@ -149,5 +183,82 @@ def call() {
 }
 ```
 
-#### `CD_deploy_manual` Pipeline Script
+#### Shared Library: `vars/deployApplication.groovy`
+```groovy
+#!/usr/bin/env groovy
+
+def call(Map args) {
+    def targetEnv = args.get('targetEnv', '').toLowerCase()
+    def imageToDeploy = args.get('imageToDeploy', '')
+    def appPort = ''
+
+    if (targetEnv == 'main') {
+        appPort = '3000'
+    } else if (targetEnv == 'dev') {
+        appPort = '3001'
+    } else {
+        error "Invalid target environment specified: ${targetEnv}. Must be 'main' or 'dev'."
+    }
+
+    if (imageToDeploy.isEmpty()) {
+        error "Docker image to deploy was not specified."
+    }
+
+    def containerName = "app-${targetEnv}"
+
+    echo "Deploying image '${imageToDeploy}' to '${targetEnv}' environment on port ${appPort}."
+
+    sh """
+        if [ \$(docker ps -a -q -f name=${containerName}) ]; then
+            echo "Stopping and removing existing container: ${containerName}"
+            docker stop ${containerName}
+            docker rm ${containerName}
+        fi
+    """
+    sh "docker run -d --name ${containerName} -p ${appPort}:80 ${imageToDeploy}"
+    echo "Successfully deployed container '${containerName}'."
+}
+```
+
+#### `Dockerfile` (Final Multi-stage Version)
+```dockerfile
+# Stage 1: Build the React application
+FROM node:16-alpine as builder
+
+WORKDIR /app
+
+# Define the build argument for the logo file
+ARG LOGO_FILE=src/logo.svg
+
+# Copy package.json and package-lock.json (if available)
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy the rest of the application source code
+COPY . .
+
+# Copy the correct logo file, overwriting the default one
+COPY ${LOGO_FILE} src/logo.svg
+
+# Build the application for production
+RUN npm run build
+
+# Stage 2: Serve the built application using a lightweight web server
+FROM nginx:1.21-alpine
+
+# Copy the build output from the builder stage
+COPY --from=builder /app/build /usr/share/nginx/html
+
+# Expose port 80 for Nginx
+EXPOSE 80
+
+# Start Nginx when the container launches
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+#### `.dockerignore`
+```
+node_modules
 ```
