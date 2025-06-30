@@ -158,3 +158,102 @@ A quick visual check was performed using the AWS Management Console to ensure th
 3.  Selected the `cmtr-zdv1y551-iam-mp-iam_role-administrator` role and confirmed that the `AdministratorAccess` policy was attached.
 
 This visual confirmation ensured the CLI commands were successful.
+
+---
+
+### Task: Configuring IAM Policies with Conditions (CLI Method)
+
+*This task focuses on using the `Condition` element in IAM policies to create fine-grained, context-aware permissions. This is a critical skill for implementing robust security controls based on factors like source IP or requested region.*
+
+This report details the steps to attach two conditional, inline policies to an IAM role using the AWS CLI.
+
+#### Step 1: Task Analysis & Strategy
+
+The objective is to add two specific `Deny` policies to the `cmtr-zdv1y551-iam-c-iam_role` role. Since these policies are unique to this role, creating them as **inline policies** using the `aws iam put-role-policy` command is the correct approach.
+
+1.  **Deny S3 Access by IP:** Create an inline policy named `deny-s3-policy` that denies `s3:Get*` and `s3:List*` actions when the request's source IP matches the EC2 instance's public IP.
+    ```json
+    {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Deny",
+                "Action": [
+                    "s3:Get*",
+                    "s3:List*"
+                ],
+                "Resource": "*",
+                "Condition": {
+                    "IpAddress": {
+                        "aws:SourceIp": "<EC2_PUBLIC_IP>/32"
+                    }
+                }
+            }
+        ]
+    }
+    ```
+
+2.  **Deny EC2 Access by Region:** Create a second inline policy named `deny-ec2-policy` that denies `ec2:Describe*` actions when the request is made to the `eu-west-1` region.
+    ```json
+    {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Deny",
+                "Action": "ec2:Describe*",
+                "Resource": "*",
+                "Condition": {
+                    "StringEquals": {
+                        "aws:RequestedRegion": "eu-west-1"
+                    }
+                }
+            }
+        ]
+    }
+    ```
+
+The EC2 instance's public IP address must be retrieved from the AWS Console first and inserted into the corresponding JSON policy file.
+
+#### Step 2: Execution via AWS CLI
+
+First, the CLI was configured with the new task credentials. The policy JSON content shown above was saved into local files (`deny-s3-policy.json` and `deny-ec2-policy.json` in the `CLOUD/AWS/iam-conditions-task` directory). Finally, the following commands were executed.
+
+1.  **Attach S3 Deny Policy:**
+    ```bash
+    aws iam put-role-policy \
+      --role-name cmtr-zdv1y551-iam-c-iam_role \
+      --policy-name deny-s3-policy \
+      --policy-document file://CLOUD/AWS/iam-conditions-task/deny-s3-policy.json
+    ```
+
+2.  **Attach EC2 Deny Policy:**
+    ```bash
+    aws iam put-role-policy \
+      --role-name cmtr-zdv1y551-iam-c-iam_role \
+      --policy-name deny-ec2-policy \
+      --policy-document file://CLOUD/AWS/iam-conditions-task/deny-ec2-policy.json
+    ```
+
+#### Step 3: Verification
+
+Verification is performed by connecting to the EC2 instance and running commands to test the policy conditions.
+
+1.  **Connect to the EC2 instance** using Session Manager or EC2 Instance Connect.
+2.  **Test S3 Deny Policy (Should Fail):** Run a command to list S3 buckets. This request originates from the instance's IP, so the deny policy should block it.
+    ```bash
+    # Inside the EC2 instance
+    aws s3 ls
+    # Expected Output: An "Access Denied" error.
+    ```
+3.  **Test EC2 Allow Policy (Should Succeed):** Run a describe command targeting the instance's own region (`us-east-1`). This should not be affected by the deny policy.
+    ```bash
+    # Inside the EC2 instance
+    aws ec2 describe-instances --region us-east-1
+    # Expected Output: A JSON description of instances.
+    ```
+4.  **Test EC2 Deny Policy (Should Fail):** Run the same command, but target the `eu-west-1` region. The condition in the policy should deny this request.
+    ```bash
+    # Inside the EC2 instance
+    aws ec2 describe-instances --region eu-west-1
+    # Expected Output: An "Access Denied" error.
+    ```
