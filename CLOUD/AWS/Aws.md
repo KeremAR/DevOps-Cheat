@@ -85,10 +85,22 @@ This is a fundamental distinction in how policies are applied:
 
 ### Policy Evaluation Logic
 
-**Crucial Point:** An explicit **`Deny`** in any applicable policy **always overrides** any **`Allow`**. This rule applies regardless of where the policies are attached (user, group, resource, etc.).
--   If there is no `Allow`, access is denied by default.
--   If there is an `Allow` but also a `Deny`, access is **denied**.
--   If there is only an `Allow` and no `Deny`, access is allowed.
+**Crucial Point:** An explicit **`Deny`** in any applicable policy **always overrides** any **`Allow`**. This is the single most important rule in IAM.
+
+The complete evaluation logic follows a specific order:
+1.  **Organization SCPs:** First, AWS checks for any Service Control Policies. If an SCP explicitly denies the action, the request is **denied**, and evaluation stops.
+2.  **Identity-Based Policies:** All policies attached to the user/role are evaluated.
+3.  **Resource-Based Policies:** Any policy attached to the resource being accessed (e.g., an S3 bucket policy) is evaluated.
+4.  **Permissions Boundary:** If a permissions boundary is applied to the user/role, it's checked.
+5.  **Final Decision:** A request is only **allowed** if there is an `Allow` statement in the relevant policies (identity, resource, etc.) AND there is no `Deny` statement in any policy (SCP, identity, resource, etc.).
+
+### What are Service Control Policies (SCPs)?
+
+SCPs are a feature of **AWS Organizations** that offer central control over permissions for all accounts in an organization.
+-   **Function:** They act as a **guardrail**, defining the *maximum* permissions available for an account.
+-   **How they work:** An SCP can restrict which AWS services, resources, and actions the users and roles in an account can access.
+-   **Impact on IAM:** Even if an administrator grants `Allow *:*` (full admin access) to a user via an IAM policy, if an SCP at the organizational level denies access to a service (e.g., `Deny ec2:*`), that user will **not** be able to use EC2. The SCP `Deny` always takes precedence.
+-   **Use Case:** Enforcing compliance rules across an entire organization, such as disabling services in certain regions or preventing users from deactivating security logging services.
 
 ---
 

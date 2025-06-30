@@ -413,3 +413,98 @@ The task requires using the IAM Policy Simulator, which is the perfect tool for 
 3.  In **"Policy Simulation Settings"**, for **"Select service"** choose **S3**.
 4.  For **"Select actions"**, choose **`GetObject`**. Click **"Run simulation"**. The result should be **`Allowed`**.
 5.  Now, for **"Select actions"**, choose **`DeleteObject`**. Click **"Run simulation"**. The result should be **`Denied`**. Clicking on the result will show the breakdown: one `Allow` from the `AmazonS3FullAccess` identity policy and one `Deny` from the S3 bucket's resource policy, which ultimately causes the denial.
+
+---
+
+### Task: Policy Evaluation Logic (Allow) (CLI Method)
+
+*This task demonstrates how IAM permissions are combined. It shows that for an action to be permitted, the `Allow` can come from either the identity-based policy OR the resource-based policy.*
+
+This report details the steps to configure distinct permissions on an IAM role and an S3 bucket and then verify their combined effect.
+
+#### Step 1: Task Analysis & Strategy
+
+The objective is to configure permissions in two separate places and observe how they grant access.
+1.  **Identity-Based Policy:** Create an inline policy for the `cmtr-zdv1y551-iam-pela-iam_role` role. This policy will only grant permission to list all S3 buckets (`s3:ListAllMyBuckets`).
+2.  **Resource-Based Policy:** Create a bucket policy for `cmtr-zdv1y551-iam-pela-bucket-1-5240637`. This policy will grant the same role permission to get, put, and list objects, but *only* for this specific bucket.
+
+This setup means the role can list all buckets because of its own policy, but can only interact with `bucket-1` because of that bucket's own policy.
+
+#### Step 2: Policy Definitions
+
+*   **`list-all-buckets-policy.json` (For the Role's Inline Policy):**
+    ```json
+    {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": "s3:ListAllMyBuckets",
+                "Resource": "*"
+            }
+        ]
+    }
+    ```
+
+*   **`bucket-allow-policy.json` (For the S3 Bucket's Resource Policy):**
+    ```json
+    {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "AllowGetPutListForSpecificRole",
+                "Effect": "Allow",
+                "Principal": {
+                    "AWS": "arn:aws:iam::762233768299:role/cmtr-zdv1y551-iam-pela-iam_role"
+                },
+                "Action": [
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:ListBucket"
+                ],
+                "Resource": [
+                    "arn:aws:s3:::cmtr-zdv1y551-iam-pela-bucket-1-5240637",
+                    "arn:aws:s3:::cmtr-zdv1y551-iam-pela-bucket-1-5240637/*"
+                ]
+            }
+        ]
+    }
+    ```
+
+#### Step 3: Execution via AWS CLI
+
+First, the CLI was configured with the new task credentials. Then, the following two commands were executed.
+
+1.  **Attach Inline Policy to the Role:**
+    ```bash
+    aws iam put-role-policy \
+      --role-name cmtr-zdv1y551-iam-pela-iam_role \
+      --policy-name ListAllBuckets-Inline \
+      --policy-document file://CLOUD/AWS/iam-policy-evaluation-allow-task/list-all-buckets-policy.json
+    ```
+
+2.  **Apply the Allow Policy to the Bucket:**
+    ```bash
+    aws s3api put-bucket-policy \
+      --bucket cmtr-zdv1y551-iam-pela-bucket-1-5240637 \
+      --policy file://CLOUD/AWS/iam-policy-evaluation-allow-task/bucket-allow-policy.json
+    ```
+
+#### Step 4: Verification
+
+The IAM Policy Simulator is used to verify the precise permissions.
+
+> **Note on SCPs:** In some lab environments, an AWS Organizations Service Control Policy (SCP) might be in place that denies certain actions, like `s3:ListAllMyBuckets`, at the account level. As seen in the simulation, the result can be **`Denied by AWS Organizations`**. This is a perfect illustration of the IAM evaluation hierarchy: an explicit deny from an SCP will always override an `Allow` from an IAM policy. For the purpose of the lab, this is an expected outcome and demonstrates a more advanced permissioning concept.
+
+1.  Navigate to **IAM -> Policy simulator** and select the `cmtr-zdv1y551-iam-pela-iam_role` role.
+2.  **Test 1 (List All Buckets - Should Succeed):**
+    -   Service: **S3**, Actions: **`ListAllMyBuckets`**.
+    -   Result: **`Allowed`**. This permission comes directly from the role's inline policy.
+3.  **Test 2 (Interact with Bucket 1 - Should Succeed):**
+    -   Service: **S3**, Actions: **`ListBucket`**, **`GetObject`**, **`PutObject`**.
+    -   For each action, set the **"ARN"** field to `arn:aws:s3:::cmtr-zdv1y551-iam-pela-bucket-1-5240637`.
+    -   Result: **`Allowed`** for all three actions. These permissions come from the S3 bucket's own resource-based policy.
+4.  **Test 3 (Interact with Bucket 2 - Should Fail):**
+    -   Service: **S3**, Actions: **`ListBucket`**, **`GetObject`**, **`PutObject`**.
+    -   For each action, set the **"ARN"** field to `arn:aws:s3:::cmtr-zdv1y551-iam-pela-bucket-2-5240637`.
+    -   Result: **`Denied`** for all three actions. The role does not have these permissions itself, and `bucket-2` does not have a resource policy granting them.
