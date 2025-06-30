@@ -347,3 +347,69 @@ A quick visual check was performed using the AWS Management Console:
 2.  **User Attachment:** Navigated to **IAM -> Users**, selected the `cmtr-zdv1y551-iam-iamp-user`, and confirmed in its "Permissions" tab that the managed policy was attached.
 3.  **Role Attachment:** Navigated to **IAM -> Roles**, selected the `cmtr-zdv1y551-iam-iamp-iam_role-managed`, and confirmed the same managed policy was attached.
 4.  **Inline Policy:** Navigated to **IAM -> Roles**, selected the `cmtr-zdv1y551-iam-iamp-iam_role-inline`, and confirmed in its "Permissions" tab that an inline policy named `S3ListAccess-Inline` existed with the correct S3 permissions.
+
+---
+
+### Task: Policy Evaluation Logic (Deny) (CLI Method)
+
+*This task demonstrates a critical IAM principle: how an explicit `Deny` in a resource-based policy (like an S3 bucket policy) overrides an `Allow` in an identity-based policy (attached to a role).*
+
+This report details the steps to configure conflicting policies and verify the outcome.
+
+#### Step 1: Task Analysis & Strategy
+
+The objective is to create a scenario where a role has broad permissions but is specifically restricted on a single resource.
+1.  **Grant Broad `Allow`:** Attach the `AmazonS3FullAccess` AWS-managed policy to the `cmtr-zdv1y551-iam-peld-iam_role`. This gives the role permission to do anything in S3, including deleting objects.
+2.  **Add Specific `Deny`:** Update the S3 bucket's resource policy to add a statement that explicitly denies the `s3:DeleteObject` action for the same role.
+
+This will test the rule that "Deny always wins".
+
+#### Step 2: Policy Definition
+
+The following JSON was created to define the resource-based `Deny` policy for the S3 bucket.
+
+*   **`bucket-policy.json`:**
+    ```json
+    {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "DenyDeleteObjectForSpecificRole",
+                "Effect": "Deny",
+                "Principal": {
+                    "AWS": "arn:aws:iam::248189902646:role/cmtr-zdv1y551-iam-peld-iam_role"
+                },
+                "Action": "s3:DeleteObject",
+                "Resource": "arn:aws:s3:::cmtr-zdv1y551-iam-peld-bucket-82115/*"
+            }
+        ]
+    }
+    ```
+
+#### Step 3: Execution via AWS CLI
+
+First, the CLI was configured with the new task credentials. Then, the following two commands were executed.
+
+1.  **Attach Full S3 Access to the Role (Identity-Based `Allow`):**
+    ```bash
+    aws iam attach-role-policy \
+      --role-name cmtr-zdv1y551-iam-peld-iam_role \
+      --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
+    ```
+
+2.  **Apply the Deny Policy to the Bucket (Resource-Based `Deny`):**
+    ```bash
+    aws s3api put-bucket-policy \
+      --bucket cmtr-zdv1y551-iam-peld-bucket-82115 \
+      --policy file://CLOUD/AWS/iam-policy-evaluation-task/bucket-policy.json
+    ```
+
+#### Step 4: Verification
+
+The task requires using the IAM Policy Simulator, which is the perfect tool for this scenario.
+
+1.  Navigate to **IAM -> Policy simulator** in the AWS Console.
+2.  In the **"User, Group, or Role"** section, select **Role** and choose the `cmtr-zdv1y551-iam-peld-iam_role`.
+3.  In **"Policy Simulation Settings"**, for **"Select service"** choose **S3**.
+4.  For **"Select actions"**, choose **`GetObject`**. Click **"Run simulation"**. The result should be **`Allowed`**.
+5.  Now, for **"Select actions"**, choose **`DeleteObject`**. Click **"Run simulation"**. The result should be **`Denied`**. Clicking on the result will show the breakdown: one `Allow` from the `AmazonS3FullAccess` identity policy and one `Deny` from the S3 bucket's resource policy, which ultimately causes the denial.
