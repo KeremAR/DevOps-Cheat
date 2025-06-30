@@ -257,3 +257,93 @@ Verification is performed by connecting to the EC2 instance and running commands
     aws ec2 describe-instances --region eu-west-1
     # Expected Output: An "Access Denied" error.
     ```
+
+---
+
+### Task: IAM Inline and Managed Policies (CLI Method)
+
+*This task highlights the practical difference between a reusable, Customer-Managed Policy and a one-time, single-use Inline Policy. It demonstrates how to create/update both and attach them to different IAM identities.*
+
+This report details the steps to configure and attach both a customer-managed policy and an inline policy using the AWS CLI.
+
+#### Step 1: Task Analysis & Strategy
+
+The objective is to perform four distinct actions:
+1.  **Configure Managed Policy:** Update the existing but empty customer-managed policy `cmtr-zdv1y551-iam-iamp-iam_policy-managed` with the required permissions (`s3:List*`, `iam:List*`). This is done by creating a new policy version.
+2.  **Attach to User:** Attach this managed policy to the IAM user `cmtr-zdv1y551-iam-iamp-user`.
+3.  **Attach to Role:** Attach the same managed policy to the IAM role `cmtr-zdv1y551-iam-iamp-iam_role-managed`.
+4.  **Create Inline Policy:** Create a new inline policy with S3 list permissions directly on the IAM role `cmtr-zdv1y551-iam-iamp-iam_role-inline`.
+
+The CLI commands `aws iam create-policy-version`, `aws iam attach-user-policy`, `aws iam attach-role-policy`, and `aws iam put-role-policy` will be used.
+
+#### Step 2: Policy Definitions
+
+The following JSON structures were saved into local files to be used by the CLI commands.
+
+*   **`managed-policy.json` (For the Customer Managed Policy):**
+    ```json
+    {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "s3:ListAllMyBuckets",
+                    "s3:ListBucket",
+                    "iam:ListRoles",
+                    "iam:ListUsers"
+                ],
+                "Resource": "*"
+            }
+        ]
+    }
+    ```
+
+*   **`inline-policy.json` (For the Inline Policy):**
+    ```json
+    {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "s3:ListAllMyBuckets",
+                    "s3:ListBucket"
+                ],
+                "Resource": "*"
+            }
+        ]
+    }
+    ```
+
+#### Step 3: Execution via AWS CLI
+
+First, the CLI was configured with the task-specific credentials. Then, the following four commands were executed in sequence.
+
+1.  **Configure the Managed Policy:**
+    ```bash
+    aws iam create-policy-version --policy-arn arn:aws:iam::682033508402:policy/cmtr-zdv1y551-iam-iamp-iam_policy-managed --policy-document file://CLOUD/AWS/iam-managed-vs-inline-task/managed-policy.json --set-as-default
+    ```
+
+2.  **Attach Managed Policy to User:**
+    ```bash
+    aws iam attach-user-policy --user-name cmtr-zdv1y551-iam-iamp-user --policy-arn arn:aws:iam::682033508402:policy/cmtr-zdv1y551-iam-iamp-iam_policy-managed
+    ```
+
+3.  **Attach Managed Policy to Role:**
+    ```bash
+    aws iam attach-role-policy --role-name cmtr-zdv1y551-iam-iamp-iam_role-managed --policy-arn arn:aws:iam::682033508402:policy/cmtr-zdv1y551-iam-iamp-iam_policy-managed
+    ```
+
+4.  **Create Inline Policy for Role:**
+    ```bash
+    aws iam put-role-policy --role-name cmtr-zdv1y551-iam-iamp-iam_role-inline --policy-name S3ListAccess-Inline --policy-document file://CLOUD/AWS/iam-managed-vs-inline-task/inline-policy.json
+    ```
+
+#### Step 4: Verification
+
+A quick visual check was performed using the AWS Management Console:
+1.  **Managed Policy:** Navigated to **IAM -> Policies**, selected the `cmtr-zdv1y551-iam-iamp-iam_policy-managed` policy, and verified under the "Permissions" tab that it contained the four specified `s3` and `iam` list actions.
+2.  **User Attachment:** Navigated to **IAM -> Users**, selected the `cmtr-zdv1y551-iam-iamp-user`, and confirmed in its "Permissions" tab that the managed policy was attached.
+3.  **Role Attachment:** Navigated to **IAM -> Roles**, selected the `cmtr-zdv1y551-iam-iamp-iam_role-managed`, and confirmed the same managed policy was attached.
+4.  **Inline Policy:** Navigated to **IAM -> Roles**, selected the `cmtr-zdv1y551-iam-iamp-iam_role-inline`, and confirmed in its "Permissions" tab that an inline policy named `S3ListAccess-Inline` existed with the correct S3 permissions.
