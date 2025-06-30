@@ -1,5 +1,7 @@
 ### Task: Configuring IAM Group Permissions (CLI Method)
 
+*This task demonstrates how to attach an AWS-managed policy to an IAM Group, which is the standard way to grant permissions to multiple users at once and simplify access management.*
+
 This report details the process of attaching the `AmazonEC2FullAccess` policy to the `cmtr-zdv1y551-iam-g-group-developers` IAM group using the AWS Command Line Interface (CLI) to achieve the maximum possible score.
 
 #### Step 1: Task Analysis & Strategy
@@ -28,6 +30,8 @@ Although the action was performed via the CLI, verification was completed throug
 ---
 
 ### Task: Configuration of Role Chaining in AWS (CLI Method)
+
+*This task teaches a core security pattern: configuring one IAM role to assume another. This "role chaining" is fundamental for delegating permissions securely without sharing long-term credentials.*
 
 This report outlines the CLI-based solution for configuring a role chain, where one role (`AssumeRole`) is used to assume another (`ReadOnlyRole`), adhering to the principle of least privilege.
 
@@ -111,3 +115,46 @@ Verification was performed using the CLI to simulate the full user experience:
 2.  Using these credentials, a second assumption was made to the `cmtr-zdv1y551-iam-ar-iam_role-readonly`.
 3.  With the final set of credentials, a read-only command (e.g., `aws iam list-users`) was executed and succeeded.
 4.  A write command (e.g., `aws iam create-user --user-name test`) was attempted and failed with a "permission denied" error, confirming the read-only restriction was effective.
+
+---
+
+### Task: Using AWS Managed Policies for IAM Resources (CLI Method)
+
+*This task covers the essential skill of attaching AWS's own pre-configured managed policies to an IAM role, which is the quickest way to grant standard permission sets like "read-only" or "administrator."*
+
+This report documents the process of attaching predefined, AWS-managed policies to two separate IAM roles to grant them specific levels of access.
+
+#### Step 1: Task Analysis & Strategy
+
+The objective is to configure two roles using AWS-managed policies in two distinct "moves":
+1.  Grant read-only access to the `cmtr-zdv1y551-iam-mp-iam_role-readonly` role. The appropriate AWS-managed policy is `ReadOnlyAccess`.
+2.  Grant administrative access to the `cmtr-zdv1y551-iam-mp-iam_role-administrator` role. The appropriate AWS-managed policy is `AdministratorAccess`.
+
+The AWS CLI command `aws iam attach-role-policy` is the correct tool for this task.
+
+#### Step 2: Execution via AWS CLI
+
+First, the CLI was configured with the new credentials for this specific task. Then, the following two commands were executed.
+
+1.  **Attach Read-Only Policy:**
+    ```bash
+    aws iam attach-role-policy \
+      --role-name cmtr-zdv1y551-iam-mp-iam_role-readonly \
+      --policy-arn arn:aws:iam::aws:policy/ReadOnlyAccess
+    ```
+
+2.  **Attach Administrator Policy:**
+    ```bash
+    aws iam attach-role-policy \
+      --role-name cmtr-zdv1y551-iam-mp-iam_role-administrator \
+      --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
+    ```
+
+#### Step 3: Verification
+
+A quick visual check was performed using the AWS Management Console to ensure the policies were attached correctly before final validation:
+1.  Navigated to the **IAM -> Roles** section in the AWS Console.
+2.  Selected the `cmtr-zdv1y551-iam-mp-iam_role-readonly` role and confirmed under its "Permissions" tab that the `ReadOnlyAccess` policy was present.
+3.  Selected the `cmtr-zdv1y551-iam-mp-iam_role-administrator` role and confirmed that the `AdministratorAccess` policy was attached.
+
+This visual confirmation ensured the CLI commands were successful.
