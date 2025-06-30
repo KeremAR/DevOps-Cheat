@@ -1,3 +1,57 @@
+# AWS Cloud Fundamentals: An Interview-Oriented Overview
+
+This section provides a high-level summary of core AWS concepts, designed for quick review before a technical interview.
+
+---
+
+## What is AWS?
+
+Amazon Web Services (AWS) is a comprehensive cloud platform offering over 200 services from global data centers. It allows businesses to rent computing power, storage, and other IT infrastructure on a pay-as-you-go basis, eliminating the need for large upfront hardware investments.
+
+---
+
+## The AWS Well-Architected Framework
+
+This framework is a set of best practices for building secure, high-performing, resilient, and efficient infrastructure on AWS. It is built on six pillars:
+
+1.  **Operational Excellence:** Running and monitoring systems to deliver business value and continually improving processes.
+2.  **Security:** Protecting information, systems, and assets while delivering business value through risk assessments and mitigation strategies.
+3.  **Reliability:** Ensuring a workload performs its intended function correctly and consistently. It includes the ability to operate and test the workload through its total lifecycle.
+4.  **Performance Efficiency:** Using computing resources efficiently to meet system requirements, and maintaining that efficiency as demand changes and technologies evolve.
+5.  **Cost Optimization:** Avoiding or eliminating unneeded cost or suboptimal resources.
+6.  **Sustainability:** Minimizing the environmental impacts of running cloud workloads.
+
+---
+
+## The Shared Responsibility Model
+
+This is a critical security concept that defines who is responsible for what.
+
+-   **AWS is responsible for "Security OF the Cloud":** They secure the physical infrastructure, the hardware, software, networking, and facilities that run all AWS services.
+-   **You (the Customer) are responsible for "Security IN the Cloud":** Your responsibility depends on the service. For IaaS like EC2, you manage the guest OS, security patches, applications, and firewall rules (Security Groups). For managed services like S3, you are responsible for managing your data (e.g., encryption), classifying assets, and configuring permissions (IAM policies, bucket policies).
+
+---
+
+## Core Service Domains
+
+AWS services can be grouped into several core domains:
+
+-   **Compute:** Virtual servers (`EC2`), serverless execution (`Lambda`), and container orchestration (`ECS`, `EKS`).
+-   **Storage:** Scalable object storage (`S3`), file systems (`EFS`), and block storage for EC2 (`EBS`).
+-   **Databases:** Relational (`RDS`, `Aurora`), NoSQL (`DynamoDB`), and in-memory caching (`ElastiCache`).
+-   **Networking & Content Delivery:** Isolated cloud networks (`VPC`), load balancing (`ELB`), DNS (`Route 53`), and a global content delivery network (`CloudFront`).
+-   **Security, Identity & Compliance:** User and permission management (`IAM`), key management (`KMS`), and threat detection (`GuardDuty`).
+
+---
+
+## Foundational Governance Concepts
+
+-   **Tagging:** Assigning key-value metadata to resources to organize, manage costs, and automate tasks. A consistent tagging strategy is crucial for managing any non-trivial AWS environment.
+-   **Cost Management:** Using tools like `AWS Cost Explorer` to visualize costs, `AWS Budgets` to set spending alerts, and `Savings Plans` to commit to usage for lower prices.
+-   **Service Quotas (Limits):** Every AWS account has default limits on the number of resources you can create per region (e.g., number of VPCs, EC2 instances). These can be increased via a support request.
+
+---
+
 # AWS Identity and Access Management (IAM)
 
 ## What is IAM and Why is it Important?
