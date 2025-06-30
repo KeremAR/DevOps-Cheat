@@ -558,3 +558,90 @@ Verification is performed by invoking the API Gateway endpoint from a web browse
     ```
 2.  Paste the returned URL into a web browser.
 3.  A successful configuration will return a JSON response containing a list of the Lambda functions in the account, which looks like this: `["cmtr-zdv1y551-iam-lp-lambda"]`. An "Internal Server Error" message typically indicates that the Lambda function's execution role is missing the required permissions (Move 1). A "Forbidden" or "Not Found" message can indicate that the resource-based policy is missing or that the URL path is incorrect (Move 2).
+
+---
+
+### Task: Protecting S3 Data with KMS Customer-Managed Key (CLI Method)
+
+*This task covers a crucial security practice: enforcing server-side encryption on an S3 bucket with a specific, customer-managed KMS key and ensuring an IAM role has the necessary, fine-grained permissions to interact with it.*
+
+This report outlines the three moves required to configure the bucket encryption, grant the necessary permissions, and test the setup.
+
+#### Step 1: Task Analysis & Strategy
+
+The objective is to secure a bucket, give a role access, and then move data into it.
+
+1.  **Grant KMS Permissions:** The IAM role `cmtr-zdv1y551-iam-sewk-iam_role` needs permissions to use the specified KMS key (`arn:aws:kms:us-east-1:692859931137:key/c5caf4f8-2d73-463e-a29e-2f58d87e1502`). Since this is a highly specific permission set, an **inline policy** is the best choice. The policy will grant the `kms:Encrypt`, `kms:Decrypt`, and `kms:GenerateDataKey` actions, which are required by S3 for KMS-encrypted operations.
+2.  **Enable S3 Bucket Encryption:** Configure the destination bucket (`cmtr-zdv1y551-iam-sewk-bucket-6311730-2`) to enforce default server-side encryption (SSE-KMS) using the provided KMS key.
+3.  **Copy Object to Encrypted Bucket:** Copy the `confidential_credentials.csv` file from the source bucket to the newly configured destination bucket. The bucket's default encryption setting will ensure the copied object is automatically encrypted with the KMS key.
+
+#### Step 2: Policy and Configuration Definitions
+
+The following JSON files define the permissions and configurations required for this task.
+
+*   **`kms-policy.json` (For the Role's Inline Policy):**
+    ```json
+    {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "AllowKMSUsageForS3",
+                "Effect": "Allow",
+                "Action": [
+                    "kms:Encrypt",
+                    "kms:Decrypt",
+                    "kms:GenerateDataKey"
+                ],
+                "Resource": "arn:aws:kms:us-east-1:692859931137:key/c5caf4f8-2d73-463e-a29e-2f58d87e1502"
+            }
+        ]
+    }
+    ```
+
+*   **`bucket-encryption.json` (For S3 Bucket Default Encryption):**
+    ```json
+    {
+        "Rules": [
+            {
+                "ApplyServerSideEncryptionByDefault": {
+                    "SSEAlgorithm": "aws:kms",
+                    "KMSMasterKeyID": "c5caf4f8-2d73-463e-a29e-2f58d87e1502"
+                }
+            }
+        ]
+    }
+    ```
+
+#### Step 3: Execution via AWS CLI
+
+The following three commands perform all the necessary actions in sequence.
+
+1.  **Attach Inline KMS Policy to Role:**
+    ```bash
+    aws iam put-role-policy \
+      --role-name cmtr-zdv1y551-iam-sewk-iam_role \
+      --policy-name AllowKMSUsageForS3 \
+      --policy-document file://CLOUD/AWS/iam-kms-s3-task/kms-policy.json
+    ```
+
+2.  **Enable Default Encryption on S3 Bucket:**
+    ```bash
+    aws s3api put-bucket-encryption \
+      --bucket cmtr-zdv1y551-iam-sewk-bucket-6311730-2 \
+      --server-side-encryption-configuration file://CLOUD/AWS/iam-kms-s3-task/bucket-encryption.json
+    ```
+
+3.  **Copy the File to the Encrypted Bucket:**
+    ```bash
+    aws s3 cp s3://cmtr-zdv1y551-iam-sewk-bucket-6311730-1/confidential_credentials.csv s3://cmtr-zdv1y551-iam-sewk-bucket-6311730-2/
+    ```
+
+#### Step 4: Verification
+
+Verification can be done by checking the metadata of the copied object.
+
+1.  Run the `head-object` command on the newly copied file.
+    ```bash
+    aws s3api head-object --bucket cmtr-zdv1y551-iam-sewk-bucket-6311730-2 --key confidential_credentials.csv
+    ```
+2.  Examine the JSON output. A successful operation will show a `ServerSideEncryption` field set to `aws:kms` and a `SSEKMSKeyId` field containing the ARN of the KMS key you used.
