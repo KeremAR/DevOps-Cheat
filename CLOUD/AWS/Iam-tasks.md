@@ -508,3 +508,53 @@ The IAM Policy Simulator is used to verify the precise permissions.
     -   Service: **S3**, Actions: **`ListBucket`**, **`GetObject`**, **`PutObject`**.
     -   For each action, set the **"ARN"** field to `arn:aws:s3:::cmtr-zdv1y551-iam-pela-bucket-2-5240637`.
     -   Result: **`Denied`** for all three actions. The role does not have these permissions itself, and `bucket-2` does not have a resource policy granting them.
+
+---
+
+### Task: Granting Permissions for Lambda and API Gateway (CLI Method)
+
+*This task demonstrates a foundational serverless pattern: securing the interaction between an API Gateway and a backend Lambda function. It involves configuring both identity-based and resource-based policies.*
+
+This report details the two moves required to correctly configure the necessary permissions using the AWS CLI.
+
+#### Step 1: Task Analysis & Strategy
+
+The objective is to establish a working, secure connection between an HTTP API endpoint and a Lambda function. This requires two separate permission configurations:
+
+1.  **Granting Lambda Execution Permissions:** The function's code is designed to list other Lambda functions, which means its execution role (`cmtr-zdv1y551-iam-lp-iam_role`) requires IAM permissions for `lambda:ListFunctions`. The task specifies using an existing AWS-managed policy that adheres to the principle of least privilege. The `AWSLambda_ReadOnlyAccess` policy is the appropriate choice as it grants the necessary read-level permissions for the Lambda service.
+2.  **Granting API Gateway Invocation Permissions:** The API Gateway service (`apigateway.amazonaws.com`) needs permission to trigger the `cmtr-zdv1y551-iam-lp-lambda` function. This is achieved by adding a resource-based policy to the Lambda function itself, granting the `lambda:InvokeFunction` action to the specific API Gateway as a trusted principal.
+
+#### Step 2: Execution via AWS CLI
+
+The following two commands perform the necessary actions to configure the permissions.
+
+1.  **Attach Read-Only Policy to the Lambda Execution Role (Identity-Based Policy):**
+    ```bash
+    aws iam attach-role-policy \
+      --role-name cmtr-zdv1y551-iam-lp-iam_role \
+      --policy-arn arn:aws:iam::aws:policy/AWSLambda_ReadOnlyAccess
+    ```
+
+2.  **Add Permission for API Gateway to Invoke Lambda (Resource-Based Policy):**
+    This command requires the specific ARN of the API Gateway to ensure it's the only service that can invoke the function. The ARN is constructed dynamically using the API ID.
+    ```bash
+    # Note: The $API_ARN variable must be set to the ARN of your API Gateway
+    # e.g., arn:aws:execute-api:us-east-1:463470949310:cmtr-zdv1y551-iam-lp-apigwv2_api/*/*
+    aws lambda add-permission \
+      --function-name cmtr-zdv1y551-iam-lp-lambda \
+      --statement-id "ApiGatewayInvoke" \
+      --action "lambda:InvokeFunction" \
+      --principal "apigateway.amazonaws.com" \
+      --source-arn $API_ARN
+    ```
+
+#### Step 3: Verification
+
+Verification is performed by invoking the API Gateway endpoint from a web browser.
+
+1.  First, retrieve the API endpoint URL using the AWS CLI.
+    ```bash
+    aws apigatewayv2 get-apis --query "Items[?Name=='cmtr-zdv1y551-iam-lp-apigwv2_api'].ApiEndpoint" --output text
+    ```
+2.  Paste the returned URL into a web browser.
+3.  A successful configuration will return a JSON response containing a list of the Lambda functions in the account, which looks like this: `["cmtr-zdv1y551-iam-lp-lambda"]`. An "Internal Server Error" message typically indicates that the Lambda function's execution role is missing the required permissions (Move 1). A "Forbidden" or "Not Found" message can indicate that the resource-based policy is missing or that the URL path is incorrect (Move 2).
