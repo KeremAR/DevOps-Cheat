@@ -98,7 +98,7 @@ This summary is designed for quick review and direct answers during a technical 
 ### 🌐 1. VPC & Subnets
 
 -   **VPC (Virtual Private Cloud):** is your own logically isolated section of the AWS Cloud where you can launch AWS resources in a virtual 
-network that you define. You define the IP range **using a CIDR block** (e.g., `10.0.0.0/16`). This defines the private network space available for your resources.
+network that you define. You define the IP range using a CIDR block. The size can be between `/16` (max 65,536 IPs) and `/28` (min 16 IPs).
 -   **Subnet:** A segment of your VPC's IP range, tied to a single Availability Zone (AZ).
     -   **Public Subnet:** Has a route to an Internet Gateway. Used for internet-facing resources (e.g., Load Balancers).
     -   **Private Subnet:** Does NOT have a direct route to the internet (but can use a NAT Gateway for outbound traffic). Used for backend resources (e.g., Databases, Application Servers).
@@ -106,7 +106,7 @@ network that you define. You define the IP range **using a CIDR block** (e.g., `
 
 ### ↔️ 2. VPC Connectivity & Routing
 
--   **Route Table:** A set of rules that determines where network traffic is directed. Every subnet is associated with one route table. The `local` route allows all resources within the VPC to communicate.
+-   **Route Table:** A set of rules that determines where network traffic is directed. Each rule specifies a **destination (CIDR block)** and a **target** to send the traffic to (e.g., `igw-` for internet, `nat-` for NAT, or `local` for traffic within the VPC).
 -   **Internet Gateway (IGW):** Allows **two-way** (inbound/outbound) internet traffic for **public subnets**. Must be attached to the VPC.
 -   **NAT Gateway:** Allows instances in **private subnets** to initiate **outbound-only** internet traffic (e.g., for software updates). It must be placed in a public subnet and have an Elastic IP.
 -   **VPC Peering:** Connects two VPCs privately. It's a 1-to-1 connection and is **not transitive** (if A is peered with B, and B with C, A cannot talk to C).
@@ -125,8 +125,9 @@ network that you define. You define the IP range **using a CIDR block** (e.g., `
 -   **Security Groups (SGs):** A **stateful firewall** at the **instance level**.
     -   **Stateful:** If inbound traffic is allowed, the outbound return traffic is automatically allowed.
     -   You can only create `Allow` rules.
+    -   **Common Rule:** A typical rule allows inbound traffic on **Port 22 (SSH)** for Linux or **Port 3389 (RDP)** for Windows from a specific, trusted IP address for management. It should never be open to the world (`0.0.0.0/0`).
 -   **Network ACLs (NACLs):** A **stateless firewall** at the **subnet level**.
-    -   **Stateless:** You must create rules for both inbound and outbound traffic explicitly.
+    -   **Stateless:** You must create rules for both inbound and outbound traffic explicitly. **Example:** If you allow inbound traffic on port 80 (HTTP), you must *also* create an outbound rule to allow traffic on high-numbered ports (1024-65535) for the response packets to leave the subnet.
     -   You can create both `Allow` and `Deny` rules. Rules are processed in number order.
 -   **Evaluation Order:** Traffic first hits the **NACL**. If allowed, it then hits the **Security Group**. Both must allow the traffic.
 -   **Bastion Host (Jump Host):** A hardened EC2 instance in a public subnet that you connect to first, in order to "jump" into and manage instances in your private subnets securely.
@@ -136,14 +137,20 @@ network that you define. You define the IP range **using a CIDR block** (e.g., `
 -   **Private IP:** Assigned from the subnet's range. Stays with the instance on stop/start/reboot.
 -   **Public IP:** Assigned from AWS's pool. **Changes** if you stop and start the instance.
 -   **Elastic IP (EIP):** A static public IP you own. **Persists** through stop/start cycles. Default limit is 5 per region.
--   **Elastic Network Interface (ENI):** A virtual network card. You can attach multiple ENIs to an instance to give it a presence in multiple subnets.
+-   **Elastic Network Interface (ENI):** A **virtual network card** in your VPC. An EC2 instance can have multiple ENIs, allowing it to have a network presence in different subnets.
 
-### 📊 6. Monitoring & Pricing
+
+### 🌍 6. Edge & Hybrid Connectivity
+
+-   **CloudFront:** AWS's **Content Delivery Network (CDN)**. It caches your content (videos, images, APIs) in edge locations around the world, closer to your users, which significantly reduces latency.
+    -   **Geo-restriction:** A CloudFront feature that allows you to block or allow users from specific countries from accessing your content.
+-   **AWS Direct Connect:** A dedicated, private physical network connection between your on-premises data center and AWS. It provides
+### 📊 7. Monitoring & Pricing
 
 -   **VPC Flow Logs:** Captures information about IP traffic going to and from network interfaces in your VPC. Use it to troubleshoot connectivity or for security analysis.
 -   **VPC Pricing:** The VPC itself is free. You pay for the components you launch inside it (EC2, NAT Gateways, Endpoints, etc.).
 
-### 🏆 7. Networking Best Practices
+### 🏆 8. Networking Best Practices
 
 1.  **Use Custom VPCs for Production:** Never use the Default VPC for production workloads. Always design a custom VPC to have full control over your network's architecture and security.
 2.  **Prioritize Private Subnets:** Apply the principle of least privilege. Place resources in private subnets by default. Only use public subnets for resources that must be directly accessible from the internet, like load balancers or bastion hosts.
@@ -152,4 +159,5 @@ network that you define. You define the IP range **using a CIDR block** (e.g., `
 5.  **Prefer Managed Services:** Use a NAT Gateway over a self-managed NAT Instance. Use a Transit Gateway over a complex VPC Peering mesh. Let AWS handle the management, scaling, and availability.
 6.  **Secure Traffic to AWS Services:** Whenever possible, use VPC Endpoints to access services like S3, DynamoDB, or SQS. This keeps traffic within the AWS private network and avoids the public internet, which is more secure and can be faster.
 7.  **Monitor Your Network:** Enable VPC Flow Logs on critical VPCs. The logs are invaluable for troubleshooting connectivity issues, performing security analysis, and understanding traffic patterns.
+ higher bandwidth, a more consistent network experience, and increased security compared to a standard VPN connection over the internet.
 
