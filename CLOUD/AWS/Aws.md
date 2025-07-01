@@ -200,4 +200,64 @@ When using the AWS CLI or SDKs, AWS looks for credentials in a specific order. T
 6.  **Use Policy Conditions:** Use condition keys for extra security, such as requiring requests to come from specific IP addresses.
 7.  **Monitor Activity:** Use AWS CloudTrail to log and monitor all API calls (`read`, `write`, and `management` events) made in your account.
 8.  **Use IAM Access Analyzer:** Regularly run the IAM Access Analyzer to identify resources that are shared with external entities.
+9.  **Use the IAM Policy Simulator:** Test and troubleshoot policies before applying them to avoid unintended consequences.
+
+---
+
+# AWS Networking and Content Delivery
+
+## What is a VPC (Virtual Private Cloud)?
+
+A **VPC** is your own logically isolated section of the AWS Cloud where you can launch AWS resources in a virtual network that you define. It is the foundational building block for almost anything you do in AWS.
+
+-   **Analogy:** Think of it as your own private data center within AWS's massive global infrastructure.
+-   **Key Features:**
+    -   **Logical Isolation:** Your VPC's resources are completely isolated from all other virtual networks in the AWS Cloud.
+    -   **Full Control:** You have complete control over your virtual networking environment, including selection of your own IP address range, creation of subnets, and configuration of route tables and network gateways.
+    -   **Security:** You can use multiple layers of security, including security groups and network access control lists (NACLs), to help control access to Amazon EC2 instances in each subnet.
+
+### Core VPC Components
+
+-   **CIDR Block (Classless Inter-Domain Routing):** The IP address range for your VPC (e.g., `10.0.0.0/16`). This defines the private network space available for your resources.
+-   **Subnets:** A range of IP addresses in your VPC. Subnets are used to partition the network and isolate resources. They must reside in a single Availability Zone.
+    -   **Public Subnet:** A subnet whose traffic is routed to an **Internet Gateway**. Instances in a public subnet can directly access the internet.
+    -   **Private Subnet:** A subnet that does not have a direct route to the internet. It is intended for backend resources like databases that should not be publicly accessible.
+-   **Route Tables:** A set of rules, called **routes**, that are used to determine where network traffic from your subnet or gateway is directed. Each subnet must be associated with a route table.
+-   **Internet Gateway (IGW):** A horizontally scaled, redundant, and highly available VPC component that allows communication between your VPC and the internet. It serves two purposes: to provide a target in your VPC route tables for internet-routable traffic, and to perform network address translation (NAT) for instances that have been assigned public IPv4 addresses.
+-   **Security Groups:** Acts as a virtual **stateful firewall** for your EC2 instances to control inbound and outbound traffic at the instance level. By default, they deny all inbound traffic and allow all outbound traffic.
+-   **NACLs (Network Access Control Lists):** An optional layer of security for your VPC that acts as a **stateless firewall** for controlling traffic in and out of one or more subnets. Because they are stateless, you must create rules for both inbound and outbound traffic.
+
+## Key Networking Concepts for Interviews
+
+### Public vs. Private Subnet
+
+This is a fundamental VPC design concept.
+
+| Feature                      | Public Subnet                                                | Private Subnet                                               |
+| ---------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| **Internet Access**          | Has a route to an Internet Gateway (`0.0.0.0/0 -> igw-id`).    | Does **not** have a direct route to the Internet Gateway.      |
+| **Public IP Address**        | Instances launched here can be assigned a public IP address, making them reachable from the internet. | Instances here only have a private IP address.               |
+| **Common Use Case**          | Web servers, load balancers, bastion hosts.                  | Application servers, databases, internal microservices.      |
+| **How it gets Internet?**    | Through the attached Internet Gateway.                       | To access the internet for updates, it needs a **NAT Gateway** located in a public subnet. |
+
+### NAT Gateway vs. Internet Gateway
+
+| Feature                 | Internet Gateway (IGW)                                       | NAT Gateway (NAT)                                            |
+| ----------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| **Purpose**             | Allows **two-way** communication between the VPC and the internet. | Allows instances in a **private subnet** to initiate **outbound** traffic to the internet, but prevents the internet from initiating a connection with those instances. |
+| **Location**            | Attached to a VPC.                                           | Lives in a **public subnet** and is managed by AWS.          |
+| **Traffic Direction**   | Inbound & Outbound.                                          | Outbound only.                                               |
+| **Stateful/Stateless?** | Not stateful or stateless itself; it's a gateway. Manages the connection point. | Stateful. It automatically handles the return traffic for an outbound request. |
+| **Use Case**            | To provide internet access to **public subnets**.            | To allow **private subnets** to download software patches, updates, etc., without being exposed. |
+
+## IAM Best Practices (Crucial for any Role)
+
+1.  **Never use your Root User account** for daily tasks. Create an IAM user with administrative privileges for yourself.
+2.  **Enforce the Principle of Least Privilege:** Grant only the permissions required to perform a task. Start with a minimum set of permissions and grant additional permissions as necessary.
+3.  **Use IAM Roles for Applications:** Never hardcode access keys in your application code. Use roles for AWS services like EC2, ECS, and Lambda to grant them temporary credentials automatically.
+4.  **Enable MFA (Multi-Factor Authentication):** Especially for privileged users (like administrators) and the root user.
+5.  **Rotate Credentials Regularly:** Regularly rotate access keys and passwords.
+6.  **Use Policy Conditions:** Use condition keys for extra security, such as requiring requests to come from specific IP addresses.
+7.  **Monitor Activity:** Use AWS CloudTrail to log and monitor all API calls (`read`, `write`, and `management` events) made in your account.
+8.  **Use IAM Access Analyzer:** Regularly run the IAM Access Analyzer to identify resources that are shared with external entities.
 9.  **Use the IAM Policy Simulator:** Test and troubleshoot policies before applying them to avoid unintended consequences. 
