@@ -220,12 +220,37 @@ A **VPC** is your own logically isolated section of the AWS Cloud where you can 
 
 -   **CIDR Block (Classless Inter-Domain Routing):** The IP address range for your VPC (e.g., `10.0.0.0/16`). This defines the private network space available for your resources.
 -   **Subnets:** A range of IP addresses in your VPC. Subnets are used to partition the network and isolate resources. They must reside in a single Availability Zone.
-    -   **Public Subnet:** A subnet whose traffic is routed to an **Internet Gateway**. Instances in a public subnet can directly access the internet.
-    -   **Private Subnet:** A subnet that does not have a direct route to the internet. It is intended for backend resources like databases that should not be publicly accessible.
--   **Route Tables:** A set of rules, called **routes**, that are used to determine where network traffic from your subnet or gateway is directed. Each subnet must be associated with a route table.
+    -   **Important Note:** In any subnet, AWS reserves the **first four** IP addresses and the **last one** for its own use (network address, VPC router, DNS, future use, broadcast). You cannot assign these 5 IPs to your instances.
+-   **Route Tables:** A set of rules, called **routes**, that are used to determine where network traffic from your subnet or gateway is directed. Each subnet must be associated with a route table. Every route table contains a default `local` route that allows all resources within the VPC to communicate with each other.
 -   **Internet Gateway (IGW):** A horizontally scaled, redundant, and highly available VPC component that allows communication between your VPC and the internet. It serves two purposes: to provide a target in your VPC route tables for internet-routable traffic, and to perform network address translation (NAT) for instances that have been assigned public IPv4 addresses.
 -   **Security Groups:** Acts as a virtual **stateful firewall** for your EC2 instances to control inbound and outbound traffic at the instance level. By default, they deny all inbound traffic and allow all outbound traffic.
 -   **NACLs (Network Access Control Lists):** An optional layer of security for your VPC that acts as a **stateless firewall** for controlling traffic in and out of one or more subnets. Because they are stateless, you must create rules for both inbound and outbound traffic.
+
+### Default vs. Custom VPC
+
+| Feature                 | Default VPC                                                  | Custom VPC                                                   |
+| ----------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| **Creation**            | Automatically created in each region when you create your AWS account. | You create it manually from scratch.                         |
+| **Configuration**       | "Ready to use." Comes with a pre-configured CIDR, a public subnet in each AZ, an internet gateway, and a main route table. | **Empty canvas.** You must configure everything: CIDR block, subnets, route tables, gateways, etc. |
+| **Use Case**            | Good for beginners, quick tests, or launching simple public-facing resources without network configuration hassle. | **Production standard.** Required for any serious application to ensure security, proper network segmentation, and control. |
+
+### IP Addressing in a VPC
+
+AWS provides several types of IP addresses.
+
+| IP Type             | Description                                                  | Behavior on Stop/Start                                       | Behavior on Reboot |
+| ------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------ |
+| **Private IPv4**    | A private IP from the subnet's CIDR range. Used for internal communication. Every instance *must* have one. | **Stays the same.**                                          | Stays the same.    |
+| **Public IPv4**     | A public IP from Amazon's pool, automatically assigned.      | **Lost and replaced** with a new one upon start.             | Stays the same.    |
+| **Elastic IP (EIP)**| A static, public IP you allocate to your account. You can manually attach/detach it from instances. | **Persists.** It remains attached to the instance unless you manually detach it. | Stays the same.    |
+
+### Elastic Network Interfaces (ENIs)
+An ENI is a virtual network card that you can attach to an EC2 instance.
+- **Can you assign multiple IP addresses?** Yes, by using multiple ENIs or by assigning multiple private IPs to a single ENI. This allows an instance to have a network presence in different subnets or to host multiple applications that require separate IPs.
+
+### Bastion Host (or Jump Host)
+A Bastion Host is a special-purpose EC2 instance that is designed to be the **only** point of entry from the internet to your private subnets.
+- **How it works:** You place it in a public subnet and harden its security. You connect (e.g., via SSH or RDP) to the bastion host first, and from there, you "jump" to the other instances in your private subnets. This prevents your private instances from being exposed to the internet.
 
 ## Key Networking Concepts for Interviews
 
@@ -240,24 +265,89 @@ This is a fundamental VPC design concept.
 | **Common Use Case**          | Web servers, load balancers, bastion hosts.                  | Application servers, databases, internal microservices.      |
 | **How it gets Internet?**    | Through the attached Internet Gateway.                       | To access the internet for updates, it needs a **NAT Gateway** located in a public subnet. |
 
-### NAT Gateway vs. Internet Gateway
+### NAT Gateway vs. NAT Instance
 
-| Feature                 | Internet Gateway (IGW)                                       | NAT Gateway (NAT)                                            |
+Both allow instances in private subnets to access the internet, but the managed NAT Gateway is almost always preferred.
+
+| Feature                 | NAT Gateway (Managed Service)                                | NAT Instance (Self-Managed)                                  |
 | ----------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| **Purpose**             | Allows **two-way** communication between the VPC and the internet. | Allows instances in a **private subnet** to initiate **outbound** traffic to the internet, but prevents the internet from initiating a connection with those instances. |
-| **Location**            | Attached to a VPC.                                           | Lives in a **public subnet** and is managed by AWS.          |
-| **Traffic Direction**   | Inbound & Outbound.                                          | Outbound only.                                               |
-| **Stateful/Stateless?** | Not stateful or stateless itself; it's a gateway. Manages the connection point. | Stateful. It automatically handles the return traffic for an outbound request. |
-| **Use Case**            | To provide internet access to **public subnets**.            | To allow **private subnets** to download software patches, updates, etc., without being exposed. |
+| **Management**          | **Managed by AWS.** Highly available and redundant within an AZ by default. | **You manage it.** It's just an EC2 instance running a specific AMI. You are responsible for patching, scaling, and failover. |
+| **Performance**         | **High performance.** Bursts up to 45 Gbps.                  | Limited by the instance type's network bandwidth.            |
+| **Availability**        | **High.** AWS handles failover within the AZ. For cross-AZ redundancy, you must create a NAT Gateway in each AZ and configure routes. | **Single point of failure.** If the instance fails, private instances lose internet access until you fix it. You need to build custom scripts for failover. |
+| **Cost**                | Pay per hour and for data processed. Can be more expensive for low traffic. | Pay for the EC2 instance and its data transfer. Can be cheaper for very low traffic, but management overhead is high. |
+| **Security**            | Does not have a security group.                              | Requires a security group. You must disable the "Source/Destination Check" attribute on the instance. |
 
-## IAM Best Practices (Crucial for any Role)
+### Security Groups vs. Network ACLs (NACLs)
 
-1.  **Never use your Root User account** for daily tasks. Create an IAM user with administrative privileges for yourself.
-2.  **Enforce the Principle of Least Privilege:** Grant only the permissions required to perform a task. Start with a minimum set of permissions and grant additional permissions as necessary.
-3.  **Use IAM Roles for Applications:** Never hardcode access keys in your application code. Use roles for AWS services like EC2, ECS, and Lambda to grant them temporary credentials automatically.
-4.  **Enable MFA (Multi-Factor Authentication):** Especially for privileged users (like administrators) and the root user.
-5.  **Rotate Credentials Regularly:** Regularly rotate access keys and passwords.
-6.  **Use Policy Conditions:** Use condition keys for extra security, such as requiring requests to come from specific IP addresses.
-7.  **Monitor Activity:** Use AWS CloudTrail to log and monitor all API calls (`read`, `write`, and `management` events) made in your account.
-8.  **Use IAM Access Analyzer:** Regularly run the IAM Access Analyzer to identify resources that are shared with external entities.
-9.  **Use the IAM Policy Simulator:** Test and troubleshoot policies before applying them to avoid unintended consequences. 
+<img src="/Media/sg.png" alt="sg" width="500"/>
+
+This is a critical security concept. Both are virtual firewalls, but they operate at different levels.
+
+| Feature                 | Security Group (SG)                                          | Network ACL (NACL)                                           |
+| ----------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| **Scope**               | **Instance Level:** Operates on the Elastic Network Interface (ENI) of an EC2 instance. | **Subnet Level:** Operates at the boundary of a subnet. Applies to all instances within it. |
+| **State**               | **Stateful:** If you allow inbound traffic, the return (outbound) traffic is automatically allowed, regardless of outbound rules. | **Stateless:** You must explicitly define rules for both inbound AND outbound traffic. Return traffic must be explicitly allowed. |
+| **Rules**               | **Allow only:** You cannot create "deny" rules. By default, all traffic is denied. | **Allow and Deny:** You can create both allow and deny rules.      |
+| **Rule Processing**     | All rules are evaluated before making a decision.            | Rules are processed in **numerical order**, starting with the lowest number. The first matching rule is applied. |
+| **Typical Use Case**    | The primary firewall for your instances. Used for fine-grained control (e.g., allow web traffic on port 80 to web servers). | An optional, secondary layer of defense. Used for broad rules like blocking a specific malicious IP address at the subnet level. |
+
+**Evaluation Order:** When traffic enters a subnet, the **Network ACL** rules are evaluated first. If the traffic is allowed by the NACL, the **Security Group** rules for the specific instance are then evaluated. Both must allow the traffic for it to reach the instance.
+
+### VPC Peering vs. Transit Gateway
+
+Both services connect VPCs, but they solve different problems at different scales.
+
+| Feature                 | VPC Peering                                                  | Transit Gateway (TGW)                                        |
+| ----------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| **Model**               | **1-to-1 Connection:** A direct, non-transitive link between two VPCs. | **Hub-and-Spoke:** A central "cloud router" that connects many VPCs, VPNs, and Direct Connect gateways. |
+| **Complexity**          | **Simple for few VPCs.** Becomes a complex "mesh" network as the number of VPCs grows (N*(N-1)/2 connections). | **Simple at scale.** Each VPC just connects to the central TGW once. |
+| **Transitivity**        | **No:** If VPC A is peered with B, and B is peered with C, A cannot talk to C through B. | **Yes:** All VPCs attached to the TGW can (if routes allow) communicate with each other through the TGW. |
+| **Use Case**            | Good for connecting a small number of VPCs, especially if they are managed by different teams or accounts. | The standard for connecting many VPCs. Simplifies network management and is the foundation for hybrid connectivity. |
+| **Other Connections**   | VPCs only.                                                   | Connects VPCs, on-premises networks (via VPN/Direct Connect), and can be peered with TGWs in other regions. |
+
+### VPC Endpoints (AWS PrivateLink)
+
+VPC Endpoints allow you to privately and securely connect your VPC to supported AWS services without needing an Internet Gateway, NAT Gateway, or VPN. Traffic never leaves the Amazon network.
+
+#### 1. Gateway Endpoints
+
+-   **How it works:** A gateway that you specify as a target for a route in your VPC's route table.
+-   **Analogy:** It's like adding a special doorway from your VPC directly to the service's front door.
+-   **Supported Services:** Only **S3** and **DynamoDB**.
+-   **Cost:** Free.
+
+#### 2. Interface Endpoints
+
+-   **How it works:** An **Elastic Network Interface (ENI)** with a private IP address from your subnet's IP range. It acts as the entry point for traffic going to the service.
+-   **Analogy:** The service gets its own private office (the ENI) inside your VPC's building.
+-   **Supported Services:** Most AWS services (SQS, SNS, Kinesis, etc.) and services hosted by other customers/partners.
+-   **Cost:** Charged per hour plus data processing fees.
+
+### What is Route 53?
+
+Amazon Route 53 is AWS's highly available and scalable **Domain Name System (DNS)** web service.
+
+-   **Core Functions:**
+    1.  **Domain Registration:** You can buy and manage domain names like `example.com`.
+    2.  **DNS Routing:** It translates human-friendly domain names into IP addresses that computers use. This is its primary function.
+    3.  **Health Checking:** It can monitor the health of your endpoints (e.g., web servers) and only route traffic to healthy ones.
+
+-   **Key Concept: Routing Policies**
+    This is how Route 53 decides which IP address to return in response to a DNS query. This is a classic interview topic.
+    -   **Simple:** The standard. Returns one or more IPs. If multiple, a random one is chosen by the client.
+    -   **Failover:** Used for active-passive setups. Provides a primary and secondary IP. Routes to the secondary if the primary fails its health check.
+    -   **Geolocation:** Routes traffic based on the geographic location of the user (e.g., users from Europe go to a European server).
+    -   **Latency-based:** Routes traffic to the AWS region that provides the lowest network latency for the user.
+    -   **Weighted:** Routes traffic to multiple resources in proportions that you specify (e.g., 80% to server A, 20% to server B). Useful for A/B testing.
+
+-   **Key Concept: Alias Record**
+    An **Alias record** is an AWS-specific type of DNS record.
+    -   **Function:** It lets you map a domain name (like `www.example.com`) to an AWS resource (like a Load Balancer, CloudFront distribution, or S3 bucket).
+    -   **Advantage over CNAME:** You can create an Alias record for your **root domain** (e.g., `example.com`), which you **cannot** do with a CNAME. This is its main benefit. It's also free and resolves faster.
+
+### Monitoring and Pricing
+
+- **How can you monitor network traffic?** **VPC Flow Logs** is a feature that captures information about the IP traffic going to and from network interfaces in your VPC. You can publish this data to Amazon S3 or CloudWatch Logs to troubleshoot connectivity issues or analyze traffic patterns.
+- **Do you pay for VPC?** Creating and using the VPC itself is free. However, you pay for the components you use, such as EC2 instances, NAT Gateways, and VPC Endpoints.
+- **How many Elastic IPs can you have?** By default, the limit is **5 EIPs per region** per account. This is a "soft limit" and can be increased by requesting a limit increase through AWS Support. This is an example of a **Service Quota**.
+

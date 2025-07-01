@@ -105,4 +105,110 @@ After creating the resources via the console, the configuration can be verified 
 
 3.  **Private Instance Connectivity (EC2 Session Manager):**
     *   Connect to the `cmtr-zdv1y551-private` instance via Session Manager.
-    *   Test internet access: `ping 8.8.8.8` (should fail, confirming its isolation). 
+    *   Test internet access: `ping 8.8.8.8` (should fail, confirming its isolation).
+
+---
+
+## Task 2: Setup Cross-Region VPC Peering and Transit Gateway (GUI Method)
+
+*This advanced task involves connecting three VPCs across three different AWS regions using two distinct methods: a direct VPC Peering connection and a more scalable, hub-and-spoke model using Transit Gateway peering.*
+
+### Step 1: Task Analysis & Strategy
+
+The lab provides pre-configured VPCs and EC2 instances in three regions: `us-east-1` (Region A), `eu-west-1` (Region B), and `ap-south-1` (Region C). Our goal is to establish network connectivity between all of them using the AWS Console.
+
+The strategy will be executed in two main parts:
+
+**Part 1: VPC Peering (Region A <-> Region B)**
+1.  **Create Peering Connection:** Initiate a VPC peering connection from VPC-A (`us-east-1`) to VPC-B (`eu-west-1`).
+2.  **Accept Connection:** Switch to the `eu-west-1` region and accept the incoming peering request.
+3.  **Update Route Tables:** Modify the route tables in both VPC-A and VPC-B to direct traffic destined for the other VPC's CIDR block through the new peering connection.
+
+**Part 2: Transit Gateway Peering (Connecting Region C to A & B)**
+1.  **Create Transit Gateways:** Create a new Transit Gateway (TGW) in each of the three regions (A, B, and C).
+2.  **Create VPC Attachments:** In each region, create a VPC attachment to connect the local VPC to the local TGW.
+3.  **Create TGW Peering Attachments:**
+    *   Initiate a peering connection from TGW-C to TGW-A.
+    *   Initiate another peering connection from TGW-C to TGW-B.
+    *   Switch to regions A and B to accept these TGW peering requests.
+4.  **Update TGW Route Tables:** Configure static routes in the TGW route tables. For example, TGW-A's route table needs a route to VPC-C's CIDR pointing to the peering attachment. TGW-C's route table needs routes to both VPC-A and VPC-B.
+5.  **Update VPC Route Tables:** Add new routes to the VPC route tables in all three regions to direct traffic to the other VPCs via their local TGW.
+
+### Step 2: Execution via AWS Management Console
+
+This process requires switching between AWS regions frequently. Pay close attention to the region you are working in.
+
+**Part 1: Configure VPC Peering (us-east-1 <-> eu-west-1)**
+
+1.  **Initiate Peering from `us-east-1` (Region A):**
+    *   Navigate to the **VPC Dashboard** in the `us-east-1` region.
+    *   Go to **Peering connections** and click **Create peering connection**.
+    *   **Name:** `vpcA-to-vpcB`
+    *   **VPC ID (Requester):** Select `cmtr-zdv1y551-vpc-a`.
+    *   **Accepter Account:** My account.
+    *   **Accepter Region:** `eu-west-1` (Europe - Ireland).
+    *   **VPC ID (Accepter):** Enter the VPC ID for `cmtr-zdv1y551-vpc-b` from the `eu-west-1` region.
+    *   Click **Create peering connection**.
+2.  **Accept Peering in `eu-west-1` (Region B):**
+    *   Switch your region to `eu-west-1`.
+    *   Navigate to **Peering connections**. You will see the pending request.
+    *   Select it, click **Actions** -> **Accept request**, and confirm.
+3.  **Update Route Tables for Peering:**
+    *   **In `us-east-1`:**
+        *   Go to **Route tables**, select `cmtr-zdv1y551-public-rt-a`.
+        *   Go to the **Routes** tab, click **Edit routes**.
+        *   **Add route:** Destination `10.1.0.0/16` (VPC-B's CIDR), Target: **Peering Connection**, select the `vpcA-to-vpcB` connection. Save changes.
+    *   **In `eu-west-1`:**
+        *   Go to **Route tables**, select `cmtr-zdv1y551-public-rt-b`.
+        *   **Add route:** Destination `10.0.0.0/16` (VPC-A's CIDR), Target: **Peering Connection**, select the same connection. Save changes.
+
+**Part 2: Configure Transit Gateway (Connecting All Three Regions)**
+
+1.  **Create Transit Gateways in All Regions:**
+    *   For each region (`us-east-1`, `eu-west-1`, `ap-south-1`):
+        *   Navigate to **Transit gateways** and click **Create transit gateway**.
+        *   **Name tag:** `tgw-region-a`, `tgw-region-b`, `tgw-region-c` respectively.
+        *   Accept the default settings and click **Create**.
+2.  **Create VPC Attachments in All Regions:**
+    *   For each region (`us-east-1`, `eu-west-1`, `ap-south-1`):
+        *   Navigate to **Transit gateway attachments**, click **Create**.
+        *   Select the TGW you just created in that region.
+        *   **Attachment type:** VPC.
+        *   Select the corresponding VPC for that region (e.g., `cmtr-zdv1y551-vpc-a` in `us-east-1`).
+        *   Click **Create attachment**.
+3.  **Create TGW Peering Attachments (from `ap-south-1`):**
+    *   In the `ap-south-1` region (Region C), go to **Transit gateway attachments** and click **Create**.
+    *   **Connection C to A:**
+        *   Select `tgw-region-c`. **Attachment type:** Peering Connection.
+        *   **Accepter region:** `us-east-1`. **Accepter TGW ID:** Get the TGW ID for `tgw-region-a`.
+        *   Create the attachment.
+    *   **Connection C to B:**
+        *   Repeat the process, this time for `tgw-region-b` in `eu-west-1`.
+4.  **Accept TGW Peering Attachments:**
+    *   Go to `us-east-1`, find the pending TGW peering attachment, and **Accept** it.
+    *   Go to `eu-west-1`, find the pending TGW peering attachment, and **Accept** it.
+5.  **Update TGW Route Tables:**
+    *   **In `us-east-1` (A):**
+        *   Go to **Transit gateway route tables**, select the route table for `tgw-region-a`.
+        *   Under **Routes**, click **Create static route**.
+        *   **CIDR:** `10.2.0.0/16` (VPC-C). **Choose attachment:** Select the peering attachment to TGW-C.
+    *   **In `eu-west-1` (B):**
+        *   Repeat the process for `tgw-region-b`, adding a static route for `10.2.0.0/16` pointing to the peering attachment to TGW-C.
+    *   **In `ap-south-1` (C):**
+        *   For `tgw-region-c`, create **two** static routes:
+        *   Route 1: **CIDR** `10.0.0.0/16` (VPC-A) -> Attachment to TGW-A.
+        *   Route 2: **CIDR** `10.1.0.0/16` (VPC-B) -> Attachment to TGW-B.
+6.  **Update VPC Route Tables for TGW Traffic:**
+    *   **In `us-east-1`:** Edit `cmtr-zdv1y551-public-rt-a`. Add route: `10.2.0.0/16` (VPC-C) -> Target: **Transit Gateway**, select `tgw-region-a`.
+    *   **In `eu-west-1`:** Edit `cmtr-zdv1y551-public-rt-b`. Add route: `10.2.0.0/16` (VPC-C) -> Target: **Transit Gateway**, select `tgw-region-b`.
+    *   **In `ap-south-1`:** Edit `cmtr-zdv1y551-public-rt-c`. Add two routes:
+        *   Route 1: `10.0.0.0/16` (VPC-A) -> Target: **Transit Gateway**, select `tgw-region-c`.
+        *   Route 2: `10.1.0.0/16` (VPC-B) -> Target: **Transit Gateway**, select `tgw-region-c`.
+
+### Step 3: Verification
+
+1.  Use Session Manager to connect to the EC2 instance in **Region A (`us-east-1`)**.
+2.  From this instance, run a ping command to the **private IP address** of the instance in **Region B (`eu-west-1`)**. This should succeed, testing the VPC Peering.
+3.  From the same instance (A), run a ping command to the **private IP address** of the instance in **Region C (`ap-south-1`)**. This should succeed, testing the Transit Gateway connection.
+4.  Connect to the EC2 instance in **Region C (`ap-south-1`)**.
+5.  Ping the private IPs of the instances in Region A and Region B to confirm bidirectional connectivity. 
