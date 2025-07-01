@@ -265,6 +265,16 @@ This is a fundamental VPC design concept.
 | **Common Use Case**          | Web servers, load balancers, bastion hosts.                  | Application servers, databases, internal microservices.      |
 | **How it gets Internet?**    | Through the attached Internet Gateway.                       | To access the internet for updates, it needs a **NAT Gateway** located in a public subnet. |
 
+### Internet Gateway vs. NAT Gateway
+
+This comparison explains how different subnets handle traffic to and from the internet.
+
+| Feature                 | Internet Gateway (IGW)                                       | NAT Gateway                                                  |
+| ----------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| **Purpose**             | Allows **two-way** (inbound/outbound) communication between the VPC and the internet. | Allows instances in a **private subnet** to initiate **outbound** traffic to the internet, but prevents the internet from initiating a connection with those instances. |
+| **Association**         | Attaches to a VPC.                                           | Lives in a **public subnet** and is associated with a private subnet's route table. |
+| **Use Case**            | To provide direct internet access to resources in a **public subnet**. | To allow resources in a **private subnet** to download updates, patches, or access external APIs without being exposed. |
+
 ### NAT Gateway vs. NAT Instance
 
 Both allow instances in private subnets to access the internet, but the managed NAT Gateway is almost always preferred.
