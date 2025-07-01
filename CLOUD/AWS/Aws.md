@@ -48,6 +48,13 @@ This summary is designed for quick review and direct answers during a technical 
 ### 📜 3. IAM Policies (The "What")
 
 -   **Policy:** A JSON document that explicitly defines `Allow` or `Deny` permissions for actions and resources.
+-   **Core Policy Elements:**
+    -   `Effect`: The outcome (`Allow` or `Deny`).
+    -   `Principal`: The "who" that is allowed/denied access (user, role, service). Required in Resource-based policies.
+    -   `Action`: The specific operation allowed/denied (e.g., `s3:GetObject`).
+    -   `Resource`: The AWS entity the action applies to, identified by its ARN.
+    -   `Condition`: (Optional) Conditions for the policy to be in effect (e.g., restrict by IP address).
+    -   `Sid`: (Optional) A statement ID to differentiate between statements.
 -   **Managed Policy:** A standalone, reusable policy you can attach to multiple identities. **This is the best practice for most use cases.**
     -   **AWS-Managed:** Created and managed by AWS for common use cases (e.g., `AdministratorAccess`). You cannot edit them.
     -   **Customer-Managed:** Created and managed by you for specific permissions within your organization.
