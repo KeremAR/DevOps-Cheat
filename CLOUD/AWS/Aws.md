@@ -268,13 +268,13 @@ network that you define. You define the IP range using a CIDR block. The size ca
 ### ⚖️ 3. Elastic Load Balancing (ELB)
 -   **Purpose:** Automatically distributes incoming application traffic across multiple targets, such as EC2 instances, in multiple Availability Zones. This increases availability and fault tolerance.
 
-> **Architectural Note: Multi-Tier Architectures**
-> Modern cloud applications are often designed in a multi-tier structure instead of on a single server. The primary goal is to increase high availability, scalability, and security.
->
-> *   **Web Tier:** This is the user-facing tier managed by an Application Load Balancer (ALB). The ALB intelligently distributes incoming HTTP requests to the relevant web servers based on paths like `/customers` or `/orders`.
-> *   **Application/Backend Tier:** This tier runs behind the web tier and can be managed by a Network Load Balancer (NLB). It contains the business logic servers. The NLB forwards raw TCP/UDP requests from the web servers to these backend services at the highest speed.
->
-> This layered structure prevents an issue in one tier from affecting others and allows each tier to be scaled independently.
+ **Architectural Note: Multi-Tier Architectures**
+ Modern cloud applications are often designed in a multi-tier structure instead of on a single server. The primary goal is to increase high availability, scalability, and security.
+
+ *   **Web Tier:** This is the user-facing tier managed by an Application Load Balancer (ALB). The ALB intelligently distributes incoming HTTP requests to the relevant web servers based on paths like `/customers` or `/orders`.
+ *   **Application/Backend Tier:** This tier runs behind the web tier and can be managed by a Network Load Balancer (NLB). It contains the business logic servers. The NLB forwards raw TCP/UDP requests from the web servers to these backend services at the highest speed.
+
+ This layered structure prevents an issue in one tier from affecting others and allows each tier to be scaled independently.
 
 -   **Key ELB Components:**
     -   **Listener:** Checks for connection requests from clients, using a configured protocol and port.
