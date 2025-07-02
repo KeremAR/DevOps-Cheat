@@ -109,6 +109,8 @@ Verification was performed using multiple methods to confirm all aspects of the 
 
 ---
 
+
+
 ## Task: Setting Up Communication between EC2 Instances (CLI Method)
 
 *This task demonstrates a critical security best practice: allowing communication between EC2 instances by referencing their security groups rather than their IP addresses. This creates a more dynamic and scalable rule set. The goal is to configure two security groups to allow two-way HTTP and ICMP traffic between them using the AWS CLI.*
@@ -394,3 +396,69 @@ Verification was performed using the `curl` utility to test the ALB's public DNS
     curl -I http://cmtr-zdv1y551-ec2-es-lb-1632687557.us-east-1.elb.amazonaws.com/
     ```
     **Expected Result:** The command returned a `HTTP/1.1 302 Found` status code with a `Location` header pointing to the `/orders` path, confirming the default action redirect is working correctly.
+## Task: Setting Up Systems Manager to Manage a Private EC2 Instance (CLI Method)
+
+*This task demonstrates how to enable AWS Systems Manager (SSM) Session Manager for a private EC2 instance. The key to solving this task is understanding that in a correctly configured lab environment, the networking infrastructure (like VPC Endpoints) is often pre-configured. The solution focuses on the two specific IAM-related "moves" required to grant the instance the necessary permissions, followed by a reboot.*
+
+### Step 1: Task Analysis & Strategy
+
+The objective is to enable Session Manager connectivity for a private EC2 instance in exactly "two moves", followed by a reboot. Based on a working lab environment, this implies that the networking components are already in place and we only need to configure the instance's identity and permissions.
+
+The strategy is a clean, two-step IAM configuration:
+
+1.  **Move 1: Grant Permissions to the IAM Role.** The provided IAM role (`cmtr-zdv1y551-ec2-sms-iam_role`) is missing the permissions needed to communicate with the SSM service. The first move is to attach the AWS-managed `AmazonSSMManagedInstanceCore` policy to this role.
+2.  **Move 2: Grant the Role to the EC2 Instance.** The private EC2 instance needs to be granted the permissions from the role. The second move is to associate the corresponding IAM Instance Profile (`cmtr-zdv1y551-ec2-sms-instance_profile`) with the private EC2 instance.
+
+After these two moves, a mandatory reboot allows the instance to assume the new role. A crucial final step is to **wait several minutes** for the instance's SSM agent to check in with the service and for the connection status to update in the console.
+
+### Step 2: Execution via AWS CLI
+
+First, the environment was configured with the provided AWS credentials for the CLI.
+
+1.  **Define Names and Get Instance ID:**
+    The following PowerShell commands set up variables for the known resource names and dynamically fetch the new private instance's ID.
+    ```powershell
+    # Define the resource names based on the lab's naming convention
+    $privateInstanceName = "cmtr-zdv1y551-ec2-sms-instance-private"
+    $iamRoleName = "cmtr-zdv1y551-ec2-sms-iam_role"
+    $instanceProfileName = "cmtr-zdv1y551-ec2-sms-instance_profile"
+
+    # Get the ID of the private instance
+    $privateInstanceId = (aws ec2 describe-instances --filters "Name=tag:Name,Values=$privateInstanceName" --query "Reservations[].Instances[].InstanceId" --output text)
+    ```
+
+2.  **Move 1: Attach Policy to the IAM Role:**
+    This command grants the necessary SSM permissions to the role.
+    ```powershell
+    aws iam attach-role-policy `
+      --role-name $iamRoleName `
+      --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+    ```
+
+3.  **Move 2: Associate Instance Profile with the Instance:**
+    This command gives the EC2 instance the ability to use the configured role.
+    ```powershell
+    aws ec2 associate-iam-instance-profile `
+      --instance-id $privateInstanceId `
+      --iam-instance-profile Name=$instanceProfileName
+    ```
+
+4.  **Reboot the Private Instance:**
+    This final command reboots the instance to apply the IAM changes.
+    ```powershell
+    aws ec2 reboot-instances --instance-ids $privateInstanceId
+    ```
+
+### Step 3: Verification
+
+Verification requires patience, as the system needs time to synchronize after the reboot.
+
+1.  **Wait:** After running the reboot command, wait for **3 to 5 minutes**. This gives the SSM agent on the instance time to start, assume the new role, and establish a connection with the SSM service endpoints.
+2.  Navigate to the **EC2 Dashboard** in the AWS Management Console.
+3.  Select the `cmtr-zdv1y551-ec2-sms-instance-private` instance.
+4.  Click the **Connect** button at the top.
+5.  In the "Connect to instance" screen, select the **Session Manager** tab. The "Connect" button should now be enabled.
+6.  Click the **Connect** button.
+7.  **Expected Result:** A new browser tab opens with a fully functional shell session into the private instance, confirming the task is complete. If the button is not yet enabled, wait another minute and refresh the page.
+
+---
