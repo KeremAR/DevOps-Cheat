@@ -168,9 +168,7 @@ network that you define. You define the IP range using a CIDR block. The size ca
 
 ---
 
-# AWS EC2 (Elastic Compute Cloud) (Interview Quick Sheet)
-
-This summary is designed for quick review and direct answers during a technical interview.
+# AWS EC2 (Elastic Compute Cloud)
 
 ### 🖥️ 1. What is EC2?
 -   **EC2 (Elastic Compute Cloud):** A core AWS service that provides scalable computing capacity—essentially, virtual servers called **instances**—that you can rent in the cloud.
