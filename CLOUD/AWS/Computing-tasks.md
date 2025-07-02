@@ -286,8 +286,111 @@ First, the environment was configured with the provided AWS credentials for the 
       --auto-scaling-group-name cmtr-zdv1y551-ec2-us-asg `
       --preferences '{\"MinHealthyPercentage\": 50}'
     ```
-2.  **Check the New Instance:**
+2.  **Check the New Instance:** 
     *   Waited for the Auto Scaling group to terminate the old instance and launch a new one.
     *   Retrieved the public IP address of the new `cmtr-zdv1y551-ec2-us-instance-webserver` instance from the EC2 console.
     *   Navigated to the public IP in a web browser.
     *   The page correctly displayed the message in the format `WebServer (18.193.67.243) with ID: i-01b00136a14890932`, with the actual IP and ID of the new instance. This confirmed the user data script ran successfully.
+
+---
+
+## Task: Setting Up Architecture with Load Balancers (CLI Method)
+
+*This advanced task demonstrates how to configure a multi-tier application architecture using both an Application Load Balancer (ALB) for web traffic and a Network Load Balancer (NLB) for backend services. The solution involves registering EC2 instances with target groups, creating listeners, and configuring complex, path-based routing rules on the ALB, all via the AWS CLI.*
+
+### Step 1: Task Analysis & Strategy
+
+The objective is to correctly wire up a pre-existing set of load balancers, target groups, and instances to serve a multi-tier application. The task can be broken down into three main parts, all to be executed with the AWS CLI.
+
+1.  **Register Instances with Target Groups:** The first step is to connect the correct EC2 instances to their corresponding target groups. This involves four separate registration actions. The `aws elbv2 register-targets` command is the appropriate tool for this.
+
+2.  **Configure Network Load Balancer (NLB) Listeners:** The internal NLB needs to be configured to listen for traffic and forward it to the backend services. This requires creating two new listeners:
+    *   A TCP listener on port 3000 for the TCP backend service.
+    *   A UDP listener on port 7788 for the UDP backend service.
+    The `aws elbv2 create-listener` command will be used twice to accomplish this.
+
+3.  **Configure Application Load Balancer (ALB) Listener Rules:** This is the most complex part. The internet-facing ALB's existing listener needs to be configured with path-based routing rules. The logic is as follows:
+    *   Requests to the `/customers` path should be forwarded to the "customers" target group.
+    *   Requests to the `/orders` path should be forwarded to the "orders" target group.
+    *   All other requests (the default rule) should be redirected (HTTP 302) to the `/orders` path.
+    This will be achieved by first modifying the listener's default action using `aws elbv2 modify-listener`, and then adding the two new path-based rules with higher priority using `aws elbv2 create-rule`.
+
+### Step 2: Execution via AWS CLI
+
+First, the environment was configured with the provided AWS credentials for the CLI. The ARNs and IDs for all resources were taken from the lab description.
+
+1.  **Register EC2 Instances with Target Groups:**
+    The following four commands register each instance with its designated target group.
+
+    *   Attach the "customers" web server:
+        ```powershell
+        aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:423623848599:targetgroup/cmtr-zdv1y551-ec2-es-tg-cust/a82c0a1b20aea158 --targets Id=i-0bf55980c8485ef00
+        ```
+    *   Attach the "orders" web server:
+        ```powershell
+        aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:423623848599:targetgroup/cmtr-zdv1y551-ec2-es-tg-orders/3cfa7d68fb61b9a2 --targets Id=i-031f9ff68d7d89e08
+        ```
+    *   Attach the TCP backend server:
+        ```powershell
+        aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:423623848599:targetgroup/cmtr-zdv1y551-ec2-es-tg-tcp/27304c8e3d036020 --targets Id=i-005eb229f97b9591b
+        ```
+    *   Attach the UDP backend server:
+        ```powershell
+        aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-1:423623848599:targetgroup/cmtr-zdv1y551-ec2-es-tg-udp/ce9b8262f2ac710c --targets Id=i-05dfb1427403ba56b
+        ```
+
+2.  **Create Network Load Balancer Listeners:**
+    The following two commands create the TCP and UDP listeners for the NLB.
+
+    *   Create TCP listener on port 3000:
+        ```powershell
+        aws elbv2 create-listener --load-balancer-arn arn:aws:elasticloadbalancing:us-east-1:423623848599:loadbalancer/net/cmtr-zdv1y551-ec2-es-nlb/d89173da2ad83a92 --protocol TCP --port 3000 --default-actions Type=forward,TargetGroupArn=arn:aws:elasticloadbalancing:us-east-1:423623848599:targetgroup/cmtr-zdv1y551-ec2-es-tg-tcp/27304c8e3d036020
+        ```
+    *   Create UDP listener on port 7788:
+        ```powershell
+        aws elbv2 create-listener --load-balancer-arn arn:aws:elasticloadbalancing:us-east-1:423623848599:loadbalancer/net/cmtr-zdv1y551-ec2-es-nlb/d89173da2ad83a92 --protocol UDP --port 7788 --default-actions Type=forward,TargetGroupArn=arn:aws:elasticloadbalancing:us-east-1:423623848599:targetgroup/cmtr-zdv1y551-ec2-es-tg-udp/ce9b8262f2ac710c
+        ```
+
+3.  **Configure Application Load Balancer Listener and Rules:**
+    *   First, find the ARN of the existing listener for the ALB.
+        ```powershell
+        aws elbv2 describe-listeners --load-balancer-arn arn:aws:elasticloadbalancing:us-east-1:423623848599:loadbalancer/app/cmtr-zdv1y551-ec2-es-lb/76227eb366f475c5
+        ```
+        *(The listener ARN was retrieved from the output of this command).*
+
+    *   Modify the listener's default action to redirect to `/orders`. Note the escaped quotes (`\"`) for PowerShell compatibility.
+        ```powershell
+        aws elbv2 modify-listener --listener-arn <ALB_LISTENER_ARN> --default-actions '[{\"Type\":\"redirect\",\"RedirectConfig\":{\"Protocol\":\"HTTP\",\"Port\":\"80\",\"Path\":\"/orders\",\"StatusCode\":\"HTTP_302\"}}]'
+        ```
+
+    *   Create a new rule for `/customers` traffic with priority 10.
+        ```powershell
+        aws elbv2 create-rule --listener-arn <ALB_LISTENER_ARN> --priority 10 --conditions '[{\"Field\":\"path-pattern\",\"Values\":[\"/customers\"]}]' --actions '[{\"Type\":\"forward\",\"TargetGroupArn\":\"arn:aws:elasticloadbalancing:us-east-1:423623848599:targetgroup/cmtr-zdv1y551-ec2-es-tg-cust/a82c0a1b20aea158\"}]'
+        ```
+
+    *   Create a new rule for `/orders` traffic with priority 20.
+        ```powershell
+        aws elbv2 create-rule --listener-arn <ALB_LISTENER_ARN> --priority 20 --conditions '[{\"Field\":\"path-pattern\",\"Values\":[\"/orders\"]}]' --actions '[{\"Type\":\"forward\",\"TargetGroupArn\":\"arn:aws:elasticloadbalancing:us-east-1:423623848599:targetgroup/cmtr-zdv1y551-ec2-es-tg-orders/3cfa7d68fb61b9a2\"}]'
+        ```
+
+### Step 3: Verification
+
+Verification was performed using the `curl` utility to test the ALB's public DNS name provided in the task description.
+
+1.  **Test `/customers` path:**
+    ```bash
+    curl http://cmtr-zdv1y551-ec2-es-lb-1632687557.us-east-1.elb.amazonaws.com/customers
+    ```
+    **Expected Result:** The command returned the "Customer service" response, confirming the first rule works.
+
+2.  **Test `/orders` path:**
+    ```bash
+    curl http://cmtr-zdv1y551-ec2-es-lb-1632687557.us-east-1.elb.amazonaws.com/orders
+    ```
+    **Expected Result:** The command returned the "Orders service" response, confirming the second rule works.
+
+3.  **Test default path (redirect):**
+    ```bash
+    curl -I http://cmtr-zdv1y551-ec2-es-lb-1632687557.us-east-1.elb.amazonaws.com/
+    ```
+    **Expected Result:** The command returned a `HTTP/1.1 302 Found` status code with a `Location` header pointing to the `/orders` path, confirming the default action redirect is working correctly.
