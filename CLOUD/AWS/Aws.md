@@ -206,6 +206,7 @@ network that you define. You define the IP range using a CIDR block. The size ca
         -   **Cold HDD (sc1):** Lowest-cost HDD for less frequently accessed data.
     -   **Sizing & Multi-Attach:** You can increase an EBS volume's size, but you **cannot decrease it**. A specific feature (`EBS Multi-Attach`) for `io1/io2` volumes allows a single volume to be attached to multiple instances in the same AZ.
 -   **EBS Snapshot:** A point-in-time backup of an **EBS volume**. It's used for backup/disaster recovery or to create a new EBS volume. It only contains the data from a single volume.
+-   **Data Lifecycle Manager (DLM):** An automation service to create, copy, and delete EBS snapshots and AMIs. It allows you to define policies (e.g., "create a snapshot every 12 hours and retain for 7 days") and apply them to instances or volumes using tags, ensuring a consistent and automated backup strategy.
 
 ### 🔒 5. Security & Access
 -   **Security Groups:**
@@ -334,9 +335,14 @@ This summary covers the main storage services beyond EBS, which is tightly coupl
 
 -   **Key Features & Concepts:**
     -   **Storage Classes:** A range of tiers to optimize cost based on access patterns (e.g., `S3 Standard` for frequent access, `S3 Glacier` for long-term archive).
-    -   **Versioning:** Automatically keeps multiple variants of an object. Protects against accidental overwrites and deletes. When you "delete" a versioned object, it just adds a delete marker.
+    -   **Versioning:** Automatically keeps multiple variants of an object. Protects against accidental overwrites and deletes. When you "delete" a versioned object, it just adds a **delete marker**, making the object invisible. The object can be fully restored by **deleting this marker**.
     -   **Replication (CRR & SRR):** Automatically copies objects to another bucket in the same (SRR) or a different (CRR) region for disaster recovery or reduced latency.
     -   **Static Website Hosting:** S3 can be configured to serve a static website directly from a bucket.
+    -   **Lifecycle Policies:** A powerful automation tool to manage object cost and retention. Rules can be configured to:
+        -   Transition **current versions** of objects to cheaper storage classes over time (e.g., move to S3-IA after 30 days).
+        -   Transition or permanently delete **noncurrent (old) versions** of objects to save costs (e.g., move noncurrent versions to Glacier after 60 days and delete them after a year).
+        -   Clean up incomplete multipart uploads.
+    -   **Event Notifications:** A feature that allows S3 to send a notification message to a destination (like **SQS**, **SNS**, or **Lambda**) when a specific event occurs in a bucket (e.g., an object is created `s3:ObjectCreated:*` or deleted). This is a cornerstone of event-driven architectures.
 
 ### 📁 3. EFS (Elastic File System)
 
@@ -356,7 +362,7 @@ This summary covers the main storage services beyond EBS, which is tightly coupl
     -   **EBS:** For high-performance block storage for a single EC2 instance (e.g., databases, boot volumes).
     -   **EFS:** For shared file storage across multiple Linux EC2 instances.
     -   **FSx:** For specialized file system needs (Windows, Lustre).
-2.  **Optimize S3 Costs with Lifecycle Policies:** Automatically move objects between storage classes (e.g., Standard -> Infrequent Access -> Glacier) based on age to save money.
+2.  **Optimize S3 Costs with Lifecycle Policies:** Automatically move objects between storage classes (e.g., Standard -> Infrequent Access -> Glacier) based on age to save money. Use them to also clean up old/noncurrent versions.
 3.  **Secure Your Data:**
     -   **In S3:** Use Bucket Policies and IAM to enforce least privilege. Block all public access by default. Enable server-side encryption.
     -   **In EBS/EFS:** Leverage IAM and Security Groups to control access. Enable encryption at rest.
