@@ -133,3 +133,78 @@ The following steps were performed in the `us-east-1` region using the AWS Conso
     *   The `ls` command on instance2 correctly listed `test-file.txt`.
     *   The `cat` command on instance2 correctly displayed "Hello, World!".
     *   This confirms that the EFS file system is successfully shared and mounted between the two EC2 instances in different Availability Zones.
+
+---
+
+## Task: Create an S3 Bucket with Versioning and Lifecycle Policy
+
+*This task demonstrates how to create and configure an S3 bucket, focusing on two key features for data management and cost optimization: Versioning and Lifecycle Policies.*
+
+### Step 1: Task Analysis & Strategy
+
+The objective is to create an S3 bucket, enable versioning to protect against accidental data loss, and then configure a lifecycle rule to automatically manage the cost of storing older (noncurrent) versions of objects. The approach will use the AWS Management Console for all steps.
+
+The strategy is as follows:
+
+1.  **Create and Configure S3 Bucket:**
+    *   Navigate to the S3 console and begin the bucket creation process.
+    *   The bucket name (`cmtr-zdv1y551-bucket-1751548535`) must be globally unique, so using the provided name is critical.
+    *   During creation, locate the **Bucket Versioning** setting and explicitly **Enable** it. All other settings, like "Block all public access," should remain at their default (recommended) values.
+2.  **Upload Test Files:**
+    *   Once the bucket is created, upload two simple, empty `.txt` files to serve as test objects. This fulfills the requirement of the bucket not being empty.
+3.  **Create Lifecycle Policy:**
+    *   Navigate to the bucket's **Management** tab to create the lifecycle rule.
+    *   The rule will be named `cmtr-zdv1y551-rule` and will apply to all objects in the bucket.
+    *   The rule actions must be configured precisely:
+        *   **Action 1:** Transition **noncurrent versions** to the `Standard-IA` storage class 30 days after they become noncurrent.
+        *   **Action 2:** Permanently delete **noncurrent versions** 50 days after they become noncurrent.
+    *   It's important to ensure these actions apply only to *noncurrent* versions, not the current object versions.
+
+### Step 2: Execution via AWS Management Console
+
+The following steps were performed in the `us-east-1` region using the AWS Console.
+
+1.  **Create S3 Bucket and Enable Versioning:**
+    *   Navigated to the **S3** service dashboard.
+    *   Clicked **Create bucket**.
+    *   **Bucket name:** Entered `cmtr-zdv1y551-bucket-1751548535`.
+    *   **AWS Region:** Confirmed it was `us-east-1`.
+    *   Scrolled down to the **Bucket Versioning** section and selected **Enable**.
+    *   Kept all other settings at their default values (including "Block all public access" enabled).
+    *   Clicked **Create bucket**.
+
+2.  **Upload Files to the Bucket:**
+    *   Navigated into the newly created `cmtr-zdv1y551-bucket-1751548535` bucket.
+    *   Clicked **Upload**.
+    *   On the "Upload" screen, clicked **Add files**.
+    *   Selected two locally created empty text files (e.g., `test1.txt`, `test2.txt`).
+    *   Clicked **Upload**.
+
+3.  **Create Lifecycle Policy:**
+    *   Inside the bucket, clicked on the **Management** tab.
+    *   Under "Lifecycle rules", clicked **Create lifecycle rule**.
+    *   **Lifecycle rule name:** Entered `cmtr-zdv1y551-rule`.
+    *   **Choose a rule scope:** Selected **Apply to all objects in the bucket**.
+    *   **Lifecycle rule actions:**
+        *   Checked the box for **Transition noncurrent versions of objects between storage classes**.
+            *   **Storage class transitions:** `Standard-IA`.
+            *   **Days after objects become noncurrent:** `30`.
+        *   Checked the box for **Permanently delete noncurrent versions of objects**.
+            *   **Number of days after objects become noncurrent:** `50`.
+    *   Acknowledged that the rule will apply to all objects.
+    *   Clicked **Create rule**.
+
+### Step 3: Verification
+
+1.  **Verify Bucket and Files:**
+    *   Confirmed that the bucket `cmtr-zdv1y551-bucket-1751548535` exists in the S3 console.
+    *   Navigated into the bucket and confirmed the two `.txt` files are present.
+
+2.  **Verify Versioning:**
+    *   Navigated into the bucket and clicked on the **Properties** tab.
+    *   Scrolled down to the "Bucket Versioning" card and confirmed its status is **Enabled**.
+
+3.  **Verify Lifecycle Policy:**
+    *   Navigated into the bucket and clicked on the **Management** tab.
+    *   Under "Lifecycle rules", confirmed that a rule named `cmtr-zdv1y551-rule` exists and its status is **Enabled**.
+    *   Clicked on the rule name to review its configuration. Verified that the actions correctly target **noncurrent versions** for transition to Standard-IA at 30 days and permanent deletion at 50 days.
