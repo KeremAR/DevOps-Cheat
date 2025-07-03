@@ -490,3 +490,147 @@ The entire process will be done via the AWS Management Console.
     *   In the S3 console, navigate to the **secondary bucket** in the `ap-south-1` region. The test file should appear here automatically.
 3.  **Verify Lifecycle and Versioning Configuration:**
     *   Verification for this part is done by confirming the rules are set up correctly in the **Management** tab of each bucket, as immediate testing is not feasible within a short lab. The configuration itself is the deliverable.
+
+---
+
+## Task: Create Application-Consistent Snapshots with DLM and SSM
+
+*This task demonstrates an advanced backup strategy for stateful workloads like databases. It uses AWS Data Lifecycle Manager (DLM) to automate instance snapshots and a single, intelligent AWS Systems Manager (SSM) Document to run pre-snapshot and post-snapshot scripts, ensuring application consistency by quiescing the MySQL service during the snapshot process.*
+
+### Step 1: Task Analysis & Strategy
+
+The objective is to create an automated, hourly snapshot policy for a MySQL instance that is "application-consistent." This requires stopping the database service before the snapshot and restarting it after.
+
+Recent changes in the AWS API and Console UI mean this must be accomplished with a **single SSM Document** that handles both the pre- and post-snapshot actions.
+
+The strategy involves a hybrid approach:
+
+1.  **Create a Single, Combined SSM Document (via CLI):** We will use the AWS CLI to create one intelligent SSM Command document. This document will inspect a parameter automatically passed by DLM (`aws:dlm:lifecycle-hook`) to determine if it's running in the "pre-script" or "post-script" stage, and will stop or start the `mysqld` service accordingly.
+2.  **Create the DLM Lifecycle Policy (via GUI):** We will then use the AWS Management Console to create the lifecycle policy, which is simpler for this part. The policy will:
+    *   Target the specific EC2 instance (`cmtr-zdv1y551-ec2-s-instance`) by tag.
+    *   Define an hourly schedule.
+    *   Be configured to use our single, combined SSM document for both pre and post-snapshot actions.
+
+### Step 2: Execution
+
+#### Part A: Create the Combined SSM Document (AWS CLI)
+
+1.  **Manually Create the JSON File:**
+    *   First, create a file named `DLM-Combined-MySQL-Script.json` inside the `CLOUD/AWS/task-config-files/` directory with the following content. This document is designed to react to the hook sent by DLM.
+        ```json
+        {
+          "schemaVersion": "2.2",
+          "description": "Handles pre-snapshot (stop mysql) and post-snapshot (start mysql) actions for DLM.",
+          "parameters": {
+              "command": {
+                  "type": "String",
+                  "description": "The command to execute, passed by DLM.",
+                  "allowedValues": [
+                      "pre-script",
+                      "post-script"
+                  ]
+              }
+          },
+          "mainSteps": [
+            {
+              "action": "aws:runShellScript",
+              "name": "PrePostScriptHandler",
+              "inputs": {
+                "runCommand": [
+                  "#!/bin/bash",
+                  "if [[ \"{{command}}\" == \"pre-script\" ]]; then",
+                  "  echo \"Executing PRE-snapshot script: Stopping MySQL...\"",
+                  "  systemctl stop mysqld",
+                  "elif [[ \"{{command}}\" == \"post-script\" ]]; then",
+                  "  echo \"Executing POST-snapshot script: Starting MySQL...\"",
+                  "  systemctl start mysqld",
+                  "else",
+                  "  echo \"No valid command found ('{{command}}'). Exiting.\"",
+                  "  exit 1",
+                  "fi"
+                ]
+              }
+            }
+          ]
+        }
+        ```
+
+2.  **Create the SSM Document using AWS CLI:**
+    *   After creating the file, run the following command in your terminal to create the single SSM document.
+    ```powershell
+    aws ssm create-document --name "DLM-Combined-MySQL-Script" --document-type "Command" --content file://CLOUD/AWS/task-config-files/DLM-Combined-MySQL-Script.json
+    ```
+
+#### Part B: Create the Data Lifecycle Policy (AWS CLI)
+
+1.  **Manually Create the DLM Policy JSON file:**
+    *   Create a file named `dlm-policy.json` inside the `CLOUD/AWS/task-config-files/` directory with the following content. This JSON defines the policy that targets the instance and uses the combined script.
+        ```json
+        {
+            "PolicyType": "EBS_SNAPSHOT_MANAGEMENT",
+            "ResourceTypes": [
+                "INSTANCE"
+            ],
+            "TargetTags": [
+                {
+                    "Key": "Name",
+                    "Value": "cmtr-zdv1y551-ec2-s-instance"
+                }
+            ],
+            "Schedules": [
+                {
+                    "Name": "HourlyMySQLSnapshots",
+                    "TagsToAdd": [
+                        {
+                            "Key": "CreatedBy",
+                            "Value": "DLM"
+                        }
+                    ],
+                    "CreateRule": {
+                        "Interval": 1,
+                        "IntervalUnit": "HOURS",
+                        "Times": [
+                            "01:00"
+                        ],
+                        "Scripts": [
+                            {
+                                "Stages": [
+                                    "PRE",
+                                    "POST"
+                                ],
+                                "ExecutionHandler": "DLM-Combined-MySQL-Script"
+                            }
+                        ]
+                    },
+                    "RetainRule": {
+                        "Count": 3
+                    },
+                    "CopyTags": false
+                }
+            ]
+        }
+        ```
+2.  **Create the policy from the JSON file:**
+    *   You will need the ARN for the `cmtr-zdv1y551-ec2-s-DLMFullAccess` IAM role, which you can find in the IAM section of the AWS Console.
+    ```powershell
+    # Replace <YOUR_IAM_ROLE_ARN> with the actual ARN of the DLMFullAccess role
+    aws dlm create-lifecycle-policy --description "DLM Policy for MySQL with Combined Script" --state ENABLED --execution-role-arn <YOUR_IAM_ROLE_ARN> --policy-details file://CLOUD/AWS/task-config-files/dlm-policy.json --tags "Name=cmtr-zdv1y551-policy"
+    ```
+
+### Step 3: Verification
+
+1.  **Verify Lifecycle Policy Creation:**
+    *   Run the following command to list all instance-level policies. You should see your new policy in the output.
+        ```bash
+        aws dlm get-lifecycle-policies --resource-types INSTANCE
+        ```
+2.  **Verify Policy Details:**
+    *   From the output of the previous command, copy the `PolicyId` of your new policy.
+    *   Use the `get-lifecycle-policy` command to inspect its configuration and confirm all details (schedule, retention, single script, tags) are correct.
+        ```bash
+        # Replace <your-policy-id> with the actual ID
+        aws dlm get-lifecycle-policy --policy-id <your-policy-id>
+        ```
+3.  **Check for Snapshots and Logs (Optional):**
+    *   After the next scheduled run time (e.g., if created at 12:45, check after 13:00 UTC), you can navigate to the **EC2 > Snapshots** section of the console to see if a snapshot was created.
+    *   You can also check the **SSM > Run Command** history to see the output from the script, which will show whether the `pre-script` or `post-script` logic was executed.
