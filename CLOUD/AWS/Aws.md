@@ -310,3 +310,58 @@ network that you define. You define the IP range using a CIDR block. The size ca
 3.  **Automate and Standardize:** Use **User Data** and **Launch Templates** to automate instance setup. Create custom **AMIs** from your configured instances to ensure consistency and speed up deployment for your Auto Scaling Groups.
 4.  **Optimize for Cost and Performance:** Mix **pricing models** (Reserved/Savings Plans for baseline, Spot for fault-tolerant workloads) to dramatically reduce costs. **Monitor everything** with CloudWatch to find performance bottlenecks and right-size your instances.
 
+
+---
+
+# AWS Storage (Interview Quick Sheet)
+
+This summary covers the main storage services beyond EBS, which is tightly coupled with EC2.
+
+### 🗄️ 1. Storage Types Overview
+
+| Type          | Analogy                       | AWS Service                               | Use Case                                                              |
+|---------------|-------------------------------|-------------------------------------------|-----------------------------------------------------------------------|
+| **Object**    | Dropbox, Google Drive         | **S3 (Simple Storage Service)**           | Storing files, backups, data lakes, static website hosting.           |
+| **Block**     | Virtual Hard Drive            | **EBS (Elastic Block Store)**             | Boot volumes, databases, high-performance storage for a single instance. |
+| **File**      | Shared Network Drive          | **EFS (Elastic File System)**, **FSx**    | Shared content, web serving, when multiple instances need access.      |
+
+### 📦 2. S3 (Simple Storage Service)
+
+-   **What is S3?** A highly scalable, durable, and secure object storage service. You can store and retrieve any amount of data from anywhere on the web. It is **not a file system**.
+-   **Core Concepts:**
+    -   **Object:** The data you store (e.g., a file) and its metadata.
+    -   **Bucket:** A container for objects with a **globally unique name**.
+
+-   **Key Features & Concepts:**
+    -   **Storage Classes:** A range of tiers to optimize cost based on access patterns (e.g., `S3 Standard` for frequent access, `S3 Glacier` for long-term archive).
+    -   **Versioning:** Automatically keeps multiple variants of an object. Protects against accidental overwrites and deletes. When you "delete" a versioned object, it just adds a delete marker.
+    -   **Replication (CRR & SRR):** Automatically copies objects to another bucket in the same (SRR) or a different (CRR) region for disaster recovery or reduced latency.
+    -   **Static Website Hosting:** S3 can be configured to serve a static website directly from a bucket.
+
+### 📁 3. EFS (Elastic File System)
+
+-   **What is EFS?** A fully managed, scalable network file system (NFS) for **Linux-based** workloads.
+-   **Core Use Case:** To provide a **shared file system** that can be mounted and accessed by **multiple EC2 instances** simultaneously. It scales automatically as you add or remove files.
+-   **How it Works:** You mount an EFS file system on your EC2 instances using the standard NFSv4.1 protocol. It works across multiple AZs within a region for high availability.
+
+### 🗃️ 4. Amazon FSx
+
+-   **What is FSx?** A service that provides fully managed **third-party file systems** with native compatibility and feature sets.
+-   **Core Use Case:** Use it when you need specific file systems like **FSx for Windows File Server** (for Windows applications) or **FSx for Lustre** (for high-performance computing). It's the go-to when EFS doesn't fit the workload's requirements.
+
+### 🏆 5. Storage Best Practices
+
+1.  **Use the Right Tool for the Job:**
+    -   **S3:** For object storage, backups, data lakes, and static content.
+    -   **EBS:** For high-performance block storage for a single EC2 instance (e.g., databases, boot volumes).
+    -   **EFS:** For shared file storage across multiple Linux EC2 instances.
+    -   **FSx:** For specialized file system needs (Windows, Lustre).
+2.  **Optimize S3 Costs with Lifecycle Policies:** Automatically move objects between storage classes (e.g., Standard -> Infrequent Access -> Glacier) based on age to save money.
+3.  **Secure Your Data:**
+    -   **In S3:** Use Bucket Policies and IAM to enforce least privilege. Block all public access by default. Enable server-side encryption.
+    -   **In EBS/EFS:** Leverage IAM and Security Groups to control access. Enable encryption at rest.
+4.  **Plan for Durability and Availability:**
+    -   Use **S3 Versioning and Replication** to protect against data loss.
+    -   For EBS, take regular **snapshots**.
+    -   Deploy EFS and Multi-AZ FSx across multiple Availability Zones.
+
