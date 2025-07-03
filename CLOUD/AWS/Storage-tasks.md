@@ -259,3 +259,99 @@ The following steps were performed in the `us-east-1` region using the AWS Conso
 2.  **Confirm File is Restored:**
     *   Observed the object list in the standard view.
     *   Confirmed that the file `accidentally_deleted_file.csv` is now visible, indicating it has been successfully restored.
+
+---
+
+## Task: Trigger Lambda from S3 via SQS (CLI Method)
+
+*This advanced task demonstrates how to build a common event-driven pipeline on AWS. It involves configuring an S3 bucket to send event notifications to an SQS queue, which then triggers a Lambda function for processing. This task must be completed using the AWS CLI.*
+
+### Step 1: Task Analysis & Strategy
+
+The objective is to connect three services in a specific order using the AWS CLI in exactly "three moves":
+
+1.  **S3 -> SQS:** When a `.txt` file is uploaded to the `input/` folder in an S3 bucket, it sends a message to an SQS queue.
+2.  **SQS -> Lambda:** A Lambda function polls this SQS queue, and upon receiving a message, it is triggered.
+3.  **Lambda -> S3:** The Lambda function processes the file from the message and writes a result back to the `output/` folder in the same S3 bucket.
+
+The strategy is to configure these connections sequentially using the AWS CLI. Given this is a CLI-only task and we are using PowerShell, creating configuration files locally for complex JSON arguments is the most reliable approach.
+
+1.  **Move 1: Create S3 Event Notification.** We will use the `aws s3api put-bucket-notification-configuration` command. This requires a JSON payload specifying the SQS queue's ARN as the destination, the event type (`s3:ObjectCreated:*`), and a filter to only watch the `input/` prefix. We will first fetch the SQS queue's ARN and then dynamically generate this JSON file.
+2.  **Move 2: Create the Lambda Trigger.** We will use the `aws lambda create-event-source-mapping` command to link the SQS queue to the Lambda function. This tells Lambda to start polling the queue for messages.
+3.  **Move 3: Trigger the Pipeline.** We will create a local test file and upload it to the `s3://<bucket-name>/input/` folder using the `aws s3 cp` command. This action will kick off the entire process.
+
+### Step 2: Execution via AWS CLI (PowerShell)
+
+The following PowerShell commands were used to execute the task. It's assumed the AWS CLI is configured with the provided credentials.
+
+1.  **Define Names and Get Resource ARNs:**
+    *   First, define variables for the resource names and retrieve the full ARN for the SQS queue, which is needed for the other commands.
+    ```powershell
+    # Define resource names
+    $bucketName = "cmtr-zdv1y551-s3-snlt-bucket-750236"
+    $queueName = "cmtr-zdv1y551-s3-snlt-queue"
+    $functionName = "cmtr-zdv1y551-s3-snlt-lambda"
+
+    # Get SQS Queue URL
+    $queueUrl = (aws sqs get-queue-url --queue-name $queueName --query "QueueUrl" --output text)
+
+    # Get SQS Queue ARN from its attributes
+    $queueArn = (aws sqs get-queue-attributes --queue-url $queueUrl --attribute-names "QueueArn" --query "Attributes.QueueArn" --output text)
+    ```
+
+2.  **Move 1: Create S3 Event Notification**
+    *   **A) Manually Create `notification.json` file:** To avoid potential formatting issues with PowerShell, it's more reliable to create the JSON file manually. First, get the SQS Queue ARN by running `echo $queueArn` in your terminal. Then, create a file named `notification.json` in your working directory with the following content, replacing the placeholder with your actual queue ARN.
+        ```json
+        {
+            "QueueConfigurations": [
+                {
+                    "Id": "s3-input-to-sqs-event",
+                    "QueueArn": "PASTE_YOUR_QUEUE_ARN_HERE",
+                    "Events": [
+                        "s3:ObjectCreated:*"
+                    ],
+                    "Filter": {
+                        "Key": {
+                            "FilterRules": [
+                                {
+                                    "Name": "prefix",
+                                    "Value": "input/"
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        }
+        ```
+    *   **B) Apply the notification configuration to the bucket:**
+        ```powershell
+        aws s3api put-bucket-notification-configuration --bucket $bucketName --notification-configuration file://notification.json
+        ```
+
+3.  **Move 2: Configure Lambda Trigger from SQS**
+    *   This command creates the mapping between the SQS queue and the Lambda function.
+    ```powershell
+    aws lambda create-event-source-mapping --function-name $functionName --batch-size 10 --event-source-arn $queueArn
+    ```
+
+4.  **Move 3: Upload a File to Trigger the Process**
+    *   **A) Create a local test file:**
+        ```powershell
+        "This is a test." | Set-Content -Path "test.txt"
+        ```
+    *   **B) Upload the file to the S3 bucket's `input/` folder:**
+        ```powershell
+        aws s3 cp test.txt s3://$bucketName/input/
+        ```
+
+### Step 3: Verification
+
+1.  **Navigate to the S3 Bucket:**
+    *   In the AWS Management Console, navigate to the **S3** service.
+    *   Click on the bucket `cmtr-zdv1y551-s3-snlt-bucket-750236`.
+2.  **Check the `output/` Folder:**
+    *   Look for a folder named `output/`. It might take a minute or two for the Lambda function to execute and create it.
+    *   Navigate into the `output/` folder.
+    *   Inside, there should be another subfolder.
+    *   Inside the subfolder, you should find a new file. This is the processed output from the Lambda function, confirming the entire pipeline worked successfully.
