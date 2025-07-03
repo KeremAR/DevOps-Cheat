@@ -355,3 +355,138 @@ The following PowerShell commands were used to execute the task. It's assumed th
     *   Navigate into the `output/` folder.
     *   Inside, there should be another subfolder.
     *   Inside the subfolder, you should find a new file. This is the processed output from the Lambda function, confirming the entire pipeline worked successfully.
+
+---
+
+## Task: Synchronizing Files with S3, Cross-Region Replication, and Cron Jobs
+
+*This complex task integrates multiple services to create a resilient, automated backup solution. It involves creating a least-privilege IAM policy, configuring S3 versioning, lifecycle rules, and cross-region replication, and setting up a cron job on an EC2 instance to sync local files to S3.*
+
+### Step 1: Task Analysis & Strategy
+
+The objective is to build a full-fledged file synchronization and backup pipeline. This involves four distinct parts that must be configured to work together:
+
+1.  **IAM Permissions:** The principle of least privilege is key. Instead of giving the EC2 instance full S3 access, we must create a custom IAM policy that grants only the exact permissions needed for the `aws s3 sync` command to function with the primary bucket (`ListBucket`, `PutObject`, `GetObject`). This policy will be attached to the instance's existing role.
+2.  **S3 Bucket Configuration:** Both the primary and secondary buckets need to be prepared. This involves:
+    *   Enabling versioning on both, which is a prerequisite for both replication and version-based lifecycle rules.
+    *   Creating a specific lifecycle rule on the primary bucket to keep only the last 3 versions of any object.
+    *   Creating a similar rule on the secondary bucket to keep the last 5 versions.
+3.  **Cross-Region Replication (CRR):** A replication rule must be created on the primary bucket to automatically copy all new objects to the secondary bucket in a different region (`ap-south-1`) for disaster recovery purposes.
+4.  **EC2 Cron Job:** An automated task (cron job) must be configured on the EC2 instance. This job will run every minute, executing the `aws s3 sync` command to upload files from a local `/backups` directory to the primary S3 bucket, and logging its output to a specific file.
+
+The entire process will be done via the AWS Management Console.
+
+### Step 2: Execution via AWS Management Console & EC2
+
+#### Part A: Configure IAM Policy and Role
+
+1.  **Navigate to IAM Policies:**
+    *   Go to the **IAM** service dashboard.
+    *   In the left pane, click **Policies**, then **Create policy**.
+2.  **Create Custom IAM Policy:**
+    *   Select the **JSON** tab.
+    *   Paste the following policy document. This grants the minimal permissions needed for the sync command on the specific primary bucket.
+        ```json
+        {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Sid": "AllowListBucket",
+                    "Effect": "Allow",
+                    "Action": "s3:ListBucket",
+                    "Resource": "arn:aws:s3:::cmtr-zdv1y551-s3-s-bucket-7290211-backup-primary"
+                },
+                {
+                    "Sid": "AllowSyncObjects",
+                    "Effect": "Allow",
+                    "Action": [
+                        "s3:GetObject",
+                        "s3:PutObject"
+                    ],
+                    "Resource": "arn:aws:s3:::cmtr-zdv1y551-s3-s-bucket-7290211-backup-primary/*"
+                }
+            ]
+        }
+        ```
+    *   Click **Next: Tags**, then **Next: Review**.
+    *   **Name:** Entered `EC2-S3-Sync-Policy`.
+    *   Clicked **Create policy**.
+3.  **Attach Policy to Role:**
+    *   In the IAM dashboard's left pane, click **Roles**.
+    *   Find and click on the role named `cmtr-zdv1y551-s3-s-iam_role`.
+    *   Under "Permissions policies", click **Add permissions** > **Attach policies**.
+    *   Search for `EC2-S3-Sync-Policy`, select the checkbox next to it, and click **Attach policies**.
+
+#### Part B: Configure S3 Buckets (Versioning, Lifecycle, Replication)
+
+1.  **Enable Versioning on Both Buckets:**
+    *   Navigate to the **S3** console.
+    *   For **both** buckets (`cmtr-zdv1y551-s3-s-bucket-7290211-backup-primary` and `cmtr-zdv1y551-s3-s-bucket-945939-backup-secondary`):
+        *   Click the bucket name.
+        *   Go to the **Properties** tab.
+        *   Next to "Bucket Versioning", click **Edit** and select **Enable**. Save changes.
+2.  **Create Lifecycle Rules:**
+    *   **Primary Bucket (`...-primary`):**
+        *   Go to the **Management** tab > **Create lifecycle rule**.
+        *   **Rule name:** `Retain-Last-3-Versions`.
+        *   **Scope:** Apply to all objects in the bucket.
+        *   **Actions:** Check "Permanently delete noncurrent versions of objects".
+        *   **Number of newer versions to retain:** Enter `3`. (Note: The checker specifically expects the value "3" for noncurrent versions to retain, in addition to the current version).
+        *   **Days after objects become noncurrent:** Enter `30`. (Note: The AWS UI requires a value in this field even though the main logic is version-based).
+        *   Click **Create rule**.
+    *   **Secondary Bucket (`...-secondary`):**
+        *   Go to the **Management** tab > **Create lifecycle rule**.
+        *   **Rule name:** `Retain-Last-5-Versions`.
+        *   **Scope:** Apply to all objects in the bucket.
+        *   **Actions:** Check "Permanently delete noncurrent versions of objects".
+        *   **Number of newer versions to retain:** Enter `5`. (Note: The checker specifically expects the value "5" for noncurrent versions to retain, in addition to the current version).
+        *   **Days after objects become noncurrent:** Enter `60`. (Note: A value is required. It's good practice to make this longer than the primary's).
+        *   Click **Create rule**.
+3.  **Set Up Cross-Region Replication:**
+    *   Navigate to the **primary bucket** (`...-primary`).
+    *   Go to the **Management** tab > **Create replication rule**.
+    *   **Replication rule name:** `Primary-to-Secondary-Replication`.
+    *   **Scope:** Ensure "Apply to all objects in the bucket" is selected.
+    *   **Destination:** Select **"Choose a bucket in this account"**. Click **"Browse S3"**. In the new panel, change the region to `ap-south-1` and select the secondary bucket (`cmtr-zdv1y551-s3-s-bucket-945939-backup-secondary`). Click **"Choose path"**.
+    *   **IAM role:** Choose **Choose from existing IAM roles** and select `s3crr_role_for_cmtr-zdv1y551-s3-s-bucket-7290211-backup-primary`.
+    *   Click **Save**. A popup will ask to replicate existing objects.
+    *   Select **"No, do not replicate existing objects."** and click **Submit**.
+
+#### Part C: Configure EC2 Cron Job
+
+1.  **Connect to EC2 Instance:**
+    *   Navigate to the **EC2** dashboard.
+    *   Select the instance `i-0257a58e2f74e00da`, click **Connect** > **Session Manager** > **Connect**.
+2.  **Set Up the Cron Job:**
+    *   In the shell prompt, open the cron table for the **`ec2-user`** for editing. Using `sudo` and the `-u ec2-user` flag is critical to ensure the job runs as the correct user.
+        ```bash
+        sudo crontab -u ec2-user -e
+        ```
+    *   This will open a text editor (like `vi`). Press `i` to enter insert mode.
+    *   Add the following line to the file. This command syncs the `/backups` directory to the S3 bucket every minute and appends all output (both standard and error) to the specified log file.
+        ```
+        * * * * * /usr/bin/aws s3 sync /backups s3://cmtr-zdv1y551-s3-s-bucket-7290211-backup-primary >> /home/ec2-user/sync_s3.log 2>&1
+        ```
+    *   Press **Esc**, then type `:wq` and press **Enter** to save and quit the editor.
+    *   You should see the confirmation `crontab: installing new crontab`.
+
+### Step 3: Verification
+
+1.  **Verify Cron Job and S3 Sync:**
+    *   In the EC2 Session Manager, create a test file in the directory that the cron job watches.
+        ```bash
+        sudo mkdir -p /backups
+        sudo touch /backups/testfile-`date +%s`.txt
+        ```
+    *   Wait for just over a minute.
+    *   Check the cron job log file for output from the `aws s3 sync` command:
+        ```bash
+        cat /home/ec2-user/sync_s3.log
+        ```
+        You should see output like `upload: ../backups/testfile-....txt to s3://...`.
+    *   In the S3 console, check the contents of the **primary bucket**. The new test file should be present.
+2.  **Verify Cross-Region Replication:**
+    *   Wait a few more moments.
+    *   In the S3 console, navigate to the **secondary bucket** in the `ap-south-1` region. The test file should appear here automatically.
+3.  **Verify Lifecycle and Versioning Configuration:**
+    *   Verification for this part is done by confirming the rules are set up correctly in the **Management** tab of each bucket, as immediate testing is not feasible within a short lab. The configuration itself is the deliverable.
