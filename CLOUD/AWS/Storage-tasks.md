@@ -208,3 +208,54 @@ The following steps were performed in the `us-east-1` region using the AWS Conso
     *   Navigated into the bucket and clicked on the **Management** tab.
     *   Under "Lifecycle rules", confirmed that a rule named `cmtr-zdv1y551-rule` exists and its status is **Enabled**.
     *   Clicked on the rule name to review its configuration. Verified that the actions correctly target **noncurrent versions** for transition to Standard-IA at 30 days and permanent deletion at 50 days.
+
+---
+
+## Task: Restore a Deleted File Using S3 Versioning
+
+*This task demonstrates a critical capability of S3 Versioning: recovering an object that was accidentally "deleted" by removing its delete marker.*
+
+### Step 1: Task Analysis & Strategy
+
+The objective is to restore a file named `accidentally_deleted_file.csv` in a version-enabled S3 bucket. Understanding how deletion works with versioning is key to this task.
+
+When you delete an object in a versioned bucket, S3 does not permanently remove the data. Instead, it places a special, zero-byte object called a **delete marker** at the top of the object's version stack. This marker becomes the "current" version, effectively hiding the actual file data from normal view.
+
+The strategy to restore the file is therefore not to "undelete" it, but simply to **delete the delete marker**.
+
+1.  **Navigate to the S3 Bucket:** Go to the specified bucket (`cmtr-zdv1y551-s3-rfuv-bucket-791277`).
+2.  **List Object Versions:** The file will not be visible initially. Use the **"Show versions"** toggle switch to reveal all versions of all objects, including delete markers.
+3.  **Identify and Select the Delete Marker:** Find the `accidentally_deleted_file.csv` object. You will see two entries for it: the actual previous version and a delete marker. Select **only the delete marker**.
+4.  **Permanently Delete the Marker:** Use the "Delete" action to permanently remove the selected delete marker. This action, when applied to a specific version ID (like a delete marker's), is permanent and cannot be undone.
+5.  **Verify Restoration:** Once the marker is gone, the previous version of the file automatically becomes the current version again. Turn off the "Show versions" toggle to confirm the file is now visible in the standard bucket view.
+
+### Step 2: Execution via AWS Management Console
+
+The following steps were performed in the `us-east-1` region using the AWS Console.
+
+1.  **Navigate to the Bucket and Show Versions:**
+    *   Navigated to the **S3** service dashboard.
+    *   Clicked on the bucket named `cmtr-zdv1y551-s3-rfuv-bucket-791277`.
+    *   At the top of the object list, toggled the **Show versions** switch to the **on** position.
+
+2.  **Find and Identify the Delete Marker:**
+    *   The object list now showed all versions.
+    *   Located the two entries for `accidentally_deleted_file.csv`. One had "Delete marker" in the "Type" column. The other was the previous version of the file.
+
+3.  **Delete the Delete Marker:**
+    *   Selected the radio button next to the `accidentally_deleted_file.csv` entry that was identified as the **Delete marker**. It is critical to select only this one entry.
+    *   Clicked the **Delete** button.
+
+4.  **Confirm Permanent Deletion:**
+    *   A new screen appeared asking to confirm the permanent deletion of the object.
+    *   In the text box, typed `Permanently delete`.
+    *   Clicked the **Delete objects** button.
+    *   A confirmation banner appeared at the top, indicating the delete marker was successfully removed.
+
+### Step 3: Verification
+
+1.  **Turn Off "Show Versions":**
+    *   In the S3 bucket view, toggled the **Show versions** switch back to the **off** position.
+2.  **Confirm File is Restored:**
+    *   Observed the object list in the standard view.
+    *   Confirmed that the file `accidentally_deleted_file.csv` is now visible, indicating it has been successfully restored.
