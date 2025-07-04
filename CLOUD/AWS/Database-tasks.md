@@ -130,4 +130,121 @@ The following steps were performed in the `us-east-1` region using the AWS Conso
 
 4.  **Confirm Results:**
     *   If the connection is successful, you will see the MySQL welcome message and the `mysql>` prompt.
-    *   This confirms that the security groups are configured correctly and the EC2 instance can successfully communicate with the RDS database. You can type `exit` to close the MySQL connection. 
+    *   This confirms that the security groups are configured correctly and the EC2 instance can successfully communicate with the RDS database. You can type `exit` to close the MySQL connection.
+
+---
+
+# AWS RDS Hands-On Lab: Configure a Multi-AZ DB Instance with Read-Replica
+
+This document provides a detailed walkthrough for converting a single-AZ RDS instance to Multi-AZ, creating a read-replica, reconfiguring an application to use it, and validating a failover event.
+
+---
+
+## Task: Configure a Multi-AZ DB Instance with Read-Replica
+
+*This task guides you through enhancing an existing RDS instance for high availability and performance, and ensuring applications can leverage these features and withstand failover events.*
+
+### Step 1: Task Analysis & Strategy
+
+The objective is to create a robust and scalable database architecture. This involves two key concepts:
+*   **Multi-AZ:** Provides high availability and disaster recovery by maintaining a synchronous standby replica in a different Availability Zone. The primary purpose is fault tolerance, not performance scaling.
+*   **Read Replica:** Provides performance scaling by offloading read-only queries from the primary instance. It is an asynchronous copy of the primary database.
+
+The strategy is to perform the configuration in a logical sequence:
+
+1.  **Enable Multi-AZ:** Modify the primary RDS instance to convert it from a Single-AZ to a Multi-AZ deployment. This is the foundation for high availability.
+2.  **Create the Read Replica:** Once the primary instance is configured, create a read-replica from it. This is a critical step for scaling read traffic. The lab has very specific requirements for the replica's name (`db-replica`) and settings (disabling Enhanced Monitoring).
+3.  **Reconfigure the `data-collector` Application:** An application designed for reading data (like a reporting or statistics tool) is the perfect candidate to use the read-replica. This offloads the primary instance, allowing it to focus on writes from the `data-generator`. This involves connecting to the EC2 instance, getting the new replica's endpoint, editing the application's configuration file, and restarting the service.
+4.  **Trigger and Validate Failover:** Force a failover of the primary Multi-AZ instance. This is the ultimate test. We need to verify that the `data-generator` (the write-intensive application) can survive the brief downtime and automatically reconnect to the new primary instance (the former standby).
+
+### Step 2: Execution via AWS Management Console & EC2
+
+The following steps are performed in the `us-east-1` region.
+
+#### Part A: Configure Multi-AZ for the Primary RDS Instance
+
+1.  **Navigate to the RDS Dashboard:**
+    *   Go to the **RDS** service.
+    *   In the left pane, click **Databases**.
+2.  **Modify the Primary Instance:**
+    *   Select the database instance named `cmtr-zdv1y551-rds-madi-rds-7373322-primary`.
+    *   Click the **Modify** button.
+3.  **Enable Multi-AZ:**
+    *   Scroll down to the **Availability & durability** section.
+    *   For the "Multi-AZ DB instance" option, select **Create a standby instance**.
+4.  **Apply Changes:**
+    *   Scroll to the bottom and click **Continue**.
+    *   On the summary page, under "Scheduling of modifications", select **Apply immediately**.
+    *   Click **Modify DB Instance**.
+    *   Wait for the instance's status to change from "Modifying" back to **"Available"**. This may take several minutes.
+
+#### Part B: Create the Read Replica
+
+1.  **Start the Creation Process:**
+    *   In the RDS Databases list, ensure the primary instance (`...-primary`) is selected.
+    *   Click the **Actions** menu and select **Create read replica**.
+2.  **Configure the Read Replica:**
+    *   **DB instance identifier:** Enter exactly `db-replica`.
+    *   **Instance configuration:** Ensure the "DB instance class" matches the primary instance.
+    *   **Connectivity:** Ensure **Public access** is set to `No`.
+    *   **Monitoring:** Scroll down and expand the **Additional configuration** section. Find **Enhanced monitoring** and **uncheck** the "Enable Enhanced Monitoring" box.
+3.  **Create the Replica:**
+    *   Click **Create read replica**.
+    *   The creation process will begin. Wait for the new `db-replica` instance's status to become **"Available"**.
+
+#### Part C: Reconfigure the Data Collector Application
+
+1.  **Get the Read Replica Endpoint:**
+    *   Once the `db-replica` is "Available", click on its name to open the details page.
+    *   Under the **Connectivity & security** tab, find and copy the **Endpoint** value for the replica.
+2.  **Connect to the EC2 Instance:**
+    *   Navigate to the **EC2** service > **Instances**.
+    *   Select the instance `i-0908e5c173f0ed435`, click **Connect**.
+    *   Select the **Session Manager** tab and click **Connect**.
+3.  **Update the Application Configuration:**
+    *   In the Session Manager terminal, run the following command to replace the old endpoint with the new replica endpoint. **Remember to replace `<YOUR_REPLICA_ENDPOINT>` with the actual endpoint you copied.**
+        ```bash
+        sudo sed -i 's|ENDPOINT=.*|ENDPOINT="<YOUR_REPLICA_ENDPOINT>"|' /usr/local/bin/data-collector
+        ```
+4.  **Restart the Application Service:**
+    *   Apply the changes by restarting the `data-collector` service.
+        ```bash
+        sudo systemctl restart data-collector
+        ```
+
+#### Part D: Trigger and Validate Failover
+
+1.  **Start Tailing Both Log Files:**
+    *   To observe the failover in real-time, it's best to have two Session Manager terminals open.
+    *   **In Terminal 1:** Tail the `data-generator` log (the write application).
+        ```bash
+        tail -f /var/log/data-generator.log
+        ```
+    *   **In Terminal 2:** Tail the `data-collector` log (the read application).
+        ```bash
+        tail -f /var/log/data-collector.log
+        ```
+2.  **Trigger the Failover:**
+    *   Go back to the **RDS Console**.
+    *   Select the **primary** RDS instance (`cmtr-zdv1y551-rds-madi-rds-7373322-primary`).
+    *   Click the **Actions** menu and select **Reboot**.
+    *   In the reboot confirmation dialog, **check the box for "Reboot with failover?"**. This is the most important step.
+    *   Click **Confirm**.
+3.  **Observe the Logs:**
+    *   Watch the log files in your terminals.
+    *   You will see connection errors appear in the `data-generator.log` for about 1-2 minutes while the failover occurs. This is expected.
+    *   Crucially, after the failover completes, you should see the `data-generator` log automatically resume showing successful "Data inserted" messages.
+    *   The `data-collector.log` should continue to show successful reads from the replica, largely unaffected by the primary's failover.
+
+### Step 3: Verification
+
+1.  **Confirm Database Configuration:**
+    *   In the RDS console, click on the primary instance. In the **Configuration** tab, verify that "Multi-AZ" is set to **Yes**.
+    *   In the **Connectivity & security** tab, note the Availability Zone. After the failover, this AZ should be different from the original one.
+    *   Confirm the `db-replica` instance exists and is in the "Available" state.
+2.  **Confirm Application Connectivity:**
+    *   Check the `data-collector.log` (`cat /var/log/data-collector.log`). The log entries should show connection attempts to the **read-replica's endpoint**.
+3.  **Confirm Failover Validation:**
+    *   Check the `data-generator.log` (`cat /var/log/data-generator.log`). You should see a period of errors followed by a resumption of successful "Data inserted" log entries, proving the application's resilience.
+
+This completes the task, demonstrating a fully functional, highly available, and performance-scaled database architecture. 
