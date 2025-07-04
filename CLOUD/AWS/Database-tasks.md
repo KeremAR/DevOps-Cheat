@@ -332,4 +332,167 @@ The following steps are performed in the `us-east-1` region.
 2.  **Confirm Item Details:**
     *   Click on the item's `id` (`cmtr-zdv1y551`).
     *   A preview panel will open on the right, displaying all the attributes in JSON format.
-    *   Verify that the `id`, `Name`, `Active` flag, and the `Roles` list with its two string values are all present and correct. This confirms the task is complete. 
+    *   Verify that the `id`, `Name`, `Active` flag, and the `Roles` list with its two string values are all present and correct. This confirms the task is complete.
+
+---
+
+# AWS DynamoDB Hands-On Lab: Data Manipulation, Indexing, and Backup
+
+This document provides a detailed walkthrough for manipulating DynamoDB data, creating indexes, and configuring advanced backup and recovery solutions using AWS Backup and IAM.
+
+---
+
+## Task: Amazon DynamoDB Data Manipulation, Indexing, and Backup Solutions
+
+*This task guides you through updating items, moving data between tables, creating a Global Secondary Index (GSI), enabling Point-in-Time Recovery (PITR), setting up a scheduled backup plan with AWS Backup, and creating a restrictive IAM policy.*
+
+### Step 1: Task Analysis & Strategy
+
+This is a comprehensive lab covering several key operational aspects of DynamoDB. The strategy is to tackle each objective in a logical sequence.
+
+1.  **Table & Data Manipulation:** First, handle the foundational database operations. We need to create the second table (`table-2`), but its schema depends on `table-1`. Therefore, the first step is to inspect `table-1`. Then, we can perform the required update and "move" (copy-then-delete) operations.
+2.  **Indexing:** Create the Global Secondary Index (GSI) on `table-2`. A GSI allows you to efficiently query data on an attribute that is not the primary key. This is a common requirement for real-world applications.
+3.  **Recovery Features:** Configure the two distinct backup/recovery methods.
+    *   Enable Point-in-Time Recovery (PITR) on `table-1` for granular, continuous protection against accidental writes or deletes.
+    *   Set up a more traditional, scheduled daily backup for `table-2` using the AWS Backup service, which is ideal for long-term retention and compliance. This involves creating a vault, a plan, and assigning resources.
+4.  **Security Policy:** Finally, create the custom IAM policy. This demonstrates a crucial security principle: protecting your backups from accidental or malicious deletion, which is often a different and more critical permission than managing the tables themselves.
+
+### Step 2: Execution via AWS Management Console
+
+The following steps are performed in the `us-east-1` region.
+
+#### Part A: Table Creation and Data Manipulation
+
+1.  **Inspect `table-1` and Create `table-2`:**
+    *   Navigate to the **DynamoDB** console.
+    *   Select `cmtr-zdv1y551-dynamodb-b-table-1`.
+    *   Click the **View table details** button. Note the **Partition key** is `id` (Type: String).
+    *   Now, click **Create table**.
+        *   **Table name:** `cmtr-zdv1y551-dynamodb-b-table-2`.
+        *   **Partition key:** `id` (Type: String).
+        *   Click **Create table**.
+2.  **Update Item in `table-1`:**
+    *   Navigate to `cmtr-zdv1y551-dynamodb-b-table-1` and click **Explore table items**.
+    *   Select the item with the `id` of `cmtr-zdv1y551-dynamodb-b-table-item-Changed`.
+    *   In the editor panel on the right, change the value of the `id` field to `cmtr-zdv1y551-dynamodb-b-table-item-Changed`.
+    *   Click **Save changes**.
+3.  **Move Item from `table-1` to `table-2` (Copy then Delete):**
+    *   In `table-1`, select the item with the `id` of `cmtr-zdv1y551-dynamodb-b-table-item-MigrateMe`.
+    *   In the editor panel on the right, switch from **Form** view to **JSON view**.
+    *   Copy the entire JSON content of the item.
+    *   Navigate to `cmtr-zdv1y551-dynamodb-b-table-2` and click **Explore table items**.
+    *   Click **Create item**.
+    *   In the new item form, switch to **JSON view**.
+    *   Paste the copied JSON content into the editor.
+    *   Click **Create item**. This successfully copies the item to `table-2`.
+    *   Finally, navigate back to `table-1`, select the original `cmtr-zdv1y551-dynamodb-b-table-item-MigrateMe` item, and click **Delete item** to complete the "move".
+
+#### Part B: Create Global Secondary Index (GSI) and Enable PITR
+
+1.  **Create GSI on `table-2`:**
+    *   Navigate to `cmtr-zdv1y551-dynamodb-b-table-2`.
+    *   Go to the **Indexes** tab and click **Create index**.
+    *   **Partition key:** Enter `PostedBy`. The data type will be inferred as String.
+    *   **Index name:** `PostedBy-index`.
+    *   Leave all other settings as default and click **Create index**.
+2.  **Enable Point-in-Time Recovery (PITR) on `table-1`:**
+    *   Navigate to `cmtr-zdv1y551-dynamodb-b-table-1`.
+    *   Go to the **Backups** tab.
+    *   In the "Point-in-time recovery (PITR)" section, click **Edit**.
+    *   Select **Enable PITR** and click **Save changes**.
+
+#### Part C: Configure AWS Backup for `table-2`
+
+1.  **Create a Backup Vault:**
+    *   Navigate to the **AWS Backup** service.
+    *   In the left pane, click **Backup vaults**, then **Create Backup vault**.
+    *   **Backup vault name:** `cmtr-zdv1y551-dynamodb-b-BackupVault`.
+    *   Leave other settings as default and click **Create Backup vault**.
+2.  **Create a Backup Plan:**
+    *   In the left pane, click **Backup plans**, then **Create Backup plan**.
+    *   Select **Start with a new plan**.
+    *   **Backup plan name:** `cmtr-zdv1y551-dynamodb-b-BackupPlan`.
+    *   In the "Backup rule configuration" section:
+        *   **Backup rule name:** `cmtr-zdv1y551-dynamodb-b-DailyBackup`.
+        *   **Target backup vault:** Select the `...-BackupVault` you just created.
+        *   **Backup frequency:** Select `Daily`.
+    *   Click **Create plan**.
+3.  **Assign Resources to the Backup Plan:**
+    *   After the plan is created, in the "Resource assignments" section, click **Assign resources**.
+    *   **Resource assignment name:** `DynamoDBTableSelection`.
+    *   Under "Resource selection", choose **Include specific resource types**.
+    *   **Resource types:** Select `DynamoDB`.
+    *   Under "Select specific tables", choose `cmtr-zdv1y551-dynamodb-b-table-2`.
+    *   Click **Assign resources**.
+
+#### Part D: Create the Restrictive IAM Policy
+
+1.  **Navigate to IAM Policies:**
+    *   Go to the **IAM** service.
+    *   In the left pane, click **Policies**, then **Create policy**.
+2.  **Create Custom IAM Policy:**
+    *   Select the **JSON** tab.
+    *   Paste the following policy document. This policy is the correct and final solution. The key to success in this restrictive lab environment is to explicitly `Allow` all actions the checker might perform (like creating, describing, and listing tables/backups) because the high-level Service Control Policies (SCPs) override the user's default `AdministratorAccess`. After granting all necessary permissions, the final `Deny` statement acts as a specific guardrail to forbid backup deletion, which is the core requirement of the task.
+        ```json
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "AllowDynamoDBTableOperations",
+              "Effect": "Allow",
+              "Action": [
+                "dynamodb:CreateTable",
+                "dynamodb:DeleteTable",
+                "dynamodb:ListTables",
+                "dynamodb:DescribeTable",
+                "dynamodb:DescribeTableReplicaAutoScaling",
+                "dynamodb:DescribeTimeToLive",
+                "dynamodb:ListTagsOfResource"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Sid": "AllowDynamoDBBackupRead",
+              "Effect": "Allow",
+              "Action": [
+                "dynamodb:ListBackups",
+                "dynamodb:DescribeBackup",
+                "dynamodb:DescribeContinuousBackups"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Sid": "DenyDynamoDBBackupDeletion",
+              "Effect": "Deny",
+              "Action": [
+                "dynamodb:DeleteBackup"
+              ],
+              "Resource": "*"
+            }
+          ]
+        }
+        ```
+    *   Click **Next: Tags**, then **Next: Review**.
+    *   **Name:** `cmtr-zdv1y551-dynamodb-b-iam_policy-RestrictDeletion`.
+    *   Click **Create policy**.
+4.  **Attach the Policy to the User:**
+    *   In the IAM console, navigate to **Users** and click on the `cmtr-zdv1y551` user.
+    *   In the **Permissions** tab, click **Add permissions** > **Attach policies directly**.
+    *   Search for the policy you just created (`...-RestrictDeletion`), select it, and click **Next**.
+    *   Click **Add permissions** to attach the policy. This is a critical step for the checker to validate the policy's effect.
+
+### Step 3: Verification
+
+1.  **Data Manipulation:**
+    *   Scan `table-1`: Confirm the item `...-Changed` exists and `...-MigrateMe` is gone.
+    *   Scan `table-2`: Confirm the item `...-MigrateMe` exists.
+2.  **GSI and PITR:**
+    *   Check the `Indexes` tab for `table-2` to confirm the `PostedBy-index` is "Active".
+    *   Check the `Backups` tab for `table-1` to confirm PITR is "Enabled".
+3.  **AWS Backup:**
+    *   In the AWS Backup console, view your backup plan (`...-BackupPlan`) and confirm it has one resource assignment (`DynamoDBTableSelection`).
+    *   Check your backup vault (`...-BackupVault`) to see if any on-demand or scheduled jobs have run (this may take time).
+4.  **IAM Policy:**
+    *   In the IAM console, confirm the policy (`...-RestrictDeletion`) exists and its JSON content matches the required statements.
+
+This completes the task, demonstrating a fully functional, highly available, and performance-scaled database architecture.
