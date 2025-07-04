@@ -397,7 +397,14 @@ This summary covers the main storage services beyond EBS, which is tightly coupl
 -   **Registry:** A central location to manage public and private extensions, including resources, modules, and hooks.
 -   **Helper Scripts (cfn-init, cfn-signal):** Scripts you can use in your template's User Data to perform configuration tasks inside an EC2 instance, such as installing packages or starting services. `cfn-signal` is used to signal back to CloudFormation whether the configuration was successful.
 
-### 🏆 5. CloudFormation Best Practices
+### 🛡️ 5. Resource Deletion Policy
+-   **DeletionPolicy Attribute:** A critical attribute you can set on any resource in your template to control what happens to the physical resource when the CloudFormation stack is deleted.
+-   **Key Options:**
+    -   `Delete` (Default): The resource is deleted along with the stack. Use this for easily replaceable resources.
+    -   `Retain`: CloudFormation deletes its reference to the resource, but **leaves the physical resource intact**. Use this for critical resources you cannot afford to lose accidentally, like databases or S3 buckets with important data.
+    -   `Snapshot`: Before deleting the resource, CloudFormation creates a snapshot. This applies only to services that support snapshots, like `AWS::EC2::Volume` and `AWS::RDS::DBInstance`.
+
+### 🏆 6. CloudFormation Best Practices
 1.  **Use IaC Principles:** Treat your templates like application code. Store them in version control (like Git) to track changes and collaborate.
 2.  **Use Change Sets for Updates:** Always preview changes with a change set before updating a production stack to avoid unintended consequences.
 3.  **Make Templates Reusable:** Use **Parameters** and **Mappings** to create generic templates that can be adapted for different environments (dev, test, prod) instead of hardcoding values.
