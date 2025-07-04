@@ -247,4 +247,89 @@ The following steps are performed in the `us-east-1` region.
 3.  **Confirm Failover Validation:**
     *   Check the `data-generator.log` (`cat /var/log/data-generator.log`). You should see a period of errors followed by a resumption of successful "Data inserted" log entries, proving the application's resilience.
 
-This completes the task, demonstrating a fully functional, highly available, and performance-scaled database architecture. 
+This completes the task, demonstrating a fully functional, highly available, and performance-scaled database architecture.
+
+---
+
+# AWS DynamoDB Hands-On Lab: Simple Table Creation and Data Querying
+
+This document provides a detailed walkthrough for creating a DynamoDB table, inserting an item with multiple data types, and querying that item.
+
+---
+
+## Task: Amazon DynamoDB Simple Table Creation and Data Querying
+
+*This task guides you through the fundamental operations of AWS DynamoDB: creating a table, creating a multi-attribute item, and retrieving it.*
+
+### Step 1: Task Analysis & Strategy
+
+The objective is to perform the most basic Create, Read, Update, Delete (CRUD) operations in DynamoDB using the AWS Management Console. The key is to understand how DynamoDB handles schema-less items with different data types.
+
+The strategy is straightforward:
+
+1.  **Create the DynamoDB Table:** First, we'll create the table itself, defining only the essential primary key. DynamoDB is schema-less, so we don't need to define the other attributes (`Name`, `Active`, `Roles`) at the table level.
+    *   Table Name: `cmtr-dynamodb-create-table-zdv1y551-mytable` (must be exact).
+    *   Partition Key: `id` (Type: `String`).
+2.  **Create the Item:** Once the table is active, we'll use the "Explore table items" feature to create a new item. This is where we will define all the attributes for this specific record. The most critical part is correctly setting the data type for each attribute as specified:
+    *   `id`: `String`
+    *   `Name`: `String`
+    *   `Active`: `Boolean`
+    *   `Roles`: `List` (of Strings)
+3.  **Verify the Item:** After creating the item, we'll use the built-in query functionality within "Explore table items" to retrieve the item using its partition key (`id`) and confirm all data was stored correctly.
+
+### Step 2: Execution via AWS Management Console
+
+The following steps are performed in the `us-east-1` region.
+
+#### Part A: Create the DynamoDB Table
+
+1.  **Navigate to the DynamoDB Dashboard:**
+    *   Go to the **DynamoDB** service.
+    *   In the left pane, click **Tables**, then click **Create table**.
+2.  **Configure Table Details:**
+    *   **Table name:** Enter exactly `cmtr-dynamodb-create-table-zdv1y551-mytable`.
+    *   **Partition key:**
+        *   **Field name:** `id`.
+        *   **Data type:** Keep it as `String`.
+    *   Leave all other settings as their default values.
+3.  **Create the Table:**
+    *   Click **Create table**.
+    *   Wait for the table status to change from "Creating" to **"Active"**.
+
+#### Part B: Create an Item in the Table
+
+1.  **Explore Table Items:**
+    *   In the table list, click on the name of your new table (`cmtr-dynamodb-create-table-zdv1y551-mytable`).
+    *   In the left navigation pane for the table, click **Explore table items**.
+2.  **Create a New Item:**
+    *   On the right side, click the **Create item** button.
+3.  **Populate Item Attributes:**
+    *   A form will appear. The `id` (partition key) is already there.
+    *   **id (String):**
+        *   Enter the value `cmtr-zdv1y551`.
+    *   **Add Name (String):**
+        *   Click **Add new attribute** and select **String**.
+        *   For the **Field** name, enter `Name`.
+        *   For the **Value**, enter `Dean Winchester`.
+    *   **Add Active (Boolean):**
+        *   Click **Add new attribute** and select **Boolean**.
+        *   For the **Field** name, enter `Active`.
+        *   Select the radio button for **true**.
+    *   **Add Roles (List of Strings):**
+        *   Click **Add new attribute** and select **List**.
+        *   For the **Field** name, enter `Roles`.
+        *   Two new buttons will appear inside the list. Click **Add new attribute** and select **String**.
+        *   Enter the value `Incedent Analyst`.
+        *   Click the **Add new attribute** button *inside the list again* and select **String**.
+        *   Enter the value `Impala Manager`.
+4.  **Save the Item:**
+    *   Click the orange **Create item** button at the bottom right.
+
+### Step 3: Verification
+
+1.  **Query the Item:**
+    *   You should now be back on the "Explore table items" screen, and your newly created item will be listed.
+2.  **Confirm Item Details:**
+    *   Click on the item's `id` (`cmtr-zdv1y551`).
+    *   A preview panel will open on the right, displaying all the attributes in JSON format.
+    *   Verify that the `id`, `Name`, `Active` flag, and the `Roles` list with its two string values are all present and correct. This confirms the task is complete. 
