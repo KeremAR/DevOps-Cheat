@@ -496,3 +496,617 @@ The following steps are performed in the `us-east-1` region.
     *   In the IAM console, confirm the policy (`...-RestrictDeletion`) exists and its JSON content matches the required statements.
 
 This completes the task, demonstrating a fully functional, highly available, and performance-scaled database architecture.
+
+---
+
+# AWS DMS Hands-On Lab: Migrating MySQL to DynamoDB
+
+This document provides a detailed walkthrough for migrating a relational MySQL database to a NoSQL Amazon DynamoDB table using the AWS Database Migration Service (DMS).
+
+---
+
+## Task: Migrating MySQL to DynamoDB Using a DMS Architecture
+
+*This task covers the migration of data from a source MySQL database hosted on an EC2 instance to a target Amazon DynamoDB table. It involves creating DMS endpoints, partitioning the workload across multiple migration tasks, and using custom table mappings to transform the data.*
+
+At the start of this task, the following infrastructure is provided:
+*   **EC2 Host:** `cmtr-zdv1y551-dms-mtdm-MySQL-Instance` (hosts the source MySQL database).
+*   **MySQL DB Name:** `imdb`
+*   **MySQL DB Port:** `3306`
+*   **MySQL DB User:** `dbuser`
+*   **MySQL DB Password:** `Password@123`
+*   **IAM Role:** `cmtr-zdv1y551-dms-mtdm-dynamodb-access` (for DMS to access DynamoDB).
+*   **DMS Replication Instance:** `cmtr-zdv1y551-dms-mtdm-mysqltodynamo-instance`.
+*   **Target DynamoDB Table:** `movies`.
+
+**Updated Credentials:**
+*   **AWS Console URL:** https://084828573726.signin.aws.amazon.com/console?region=us-east-1
+*   **IAM username:** cmtr-zdv1y551
+*   **Password:** Wg5#ytRUXVGa4UY8
+*   **AWS_ACCESS_KEY_ID:** AKIARHQBNKAPKIFFKKOY
+*   **AWS_SECRET_ACCESS_KEY:** 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
+
+**Critical Database Information:**
+*   The source database contains **23 unique movie IDs** across three objects: `movies` view, `title_akas` table, and `title_ratings` table
+*   The `movies` view contains only **22 unique IDs**, but `title_akas` and `title_ratings` tables contain **23 unique IDs** each
+*   The missing ID in the `movies` view is `tt0072562`
+*   All migration tasks must include all **23 unique IDs** to ensure complete data migration
+
+### Step 1: Task Analysis & Strategy
+
+The primary goal is to perform a heterogeneous migration from a relational (MySQL) to a NoSQL (DynamoDB) database. This requires not just moving data but also transforming it to fit the NoSQL schema, which in this case will follow an **Adjacency List Design Pattern**.
+
+The strategy is to partition the migration into three parallel tasks to improve performance, a common approach for large historical datasets.
+
+1.  **Create DMS Endpoints:** The first step is to define the connection points for our migration.
+    *   A **source endpoint** to connect to the MySQL database on the EC2 instance.
+    *   A **target endpoint** to connect to the `movies` table in DynamoDB, using an IAM role for permissions.
+2.  **Prepare Migration Workload (Table Mappings):** The core logic of the migration resides in JSON-based table mapping rules. This process involves:
+    *   **Connecting to the source MySQL database** to retrieve a complete list of unique movie IDs.
+    *   **Partitioning the list of IDs** into three separate, smaller lists.
+    *   **Creating three distinct JSON mapping files**, one for each migration task. Each file will be based on a template and will contain a filter to select only the movies from its assigned ID list.
+3.  **Create and Execute DMS Tasks:** With the endpoints and mapping files ready, we will create three separate DMS migration tasks.
+    *   Each task (`...-historical-migration01`, `...-historical-migration02`, `...-historical-migration03`) will be configured with the same source and target endpoints.
+    *   Crucially, each task will use its own custom JSON mapping file, ensuring it only migrates its designated subset of data.
+    *   The tasks will be started to run the migration.
+4.  **Verification:** After the tasks are complete, the final step is to verify that the data has been successfully migrated and transformed in the target DynamoDB table.
+
+### Step 2: Execution via AWS Management Console & EC2
+
+The following steps are performed in the `us-east-1` region.
+
+#### Part A: Create DMS Endpoints
+
+1.  **Navigate to AWS DMS:**
+    *   Go to the **Database Migration Service (DMS)** console.
+    *   In the left pane, click **Endpoints**.
+2.  **Create the Source Endpoint:**
+    *   Click **Create endpoint**.
+    *   Select **Source endpoint**.
+    *   **Endpoint identifier:** `cmtr-zdv1y551-dms-mtdm-source-endpoint`.
+    *   **Source engine:** Select `MySQL`.
+    *   **Access to endpoint database:** Choose **Provide access information manually**.
+    *   **Server name:** Find and enter the **Public IPv4 address** of the `cmtr-zdv1y551-dms-mtdm-MySQL-Instance` EC2 instance.
+    *   **Port:** `3306`.
+    *   **User name:** `dbuser`.
+    *   **Password:** `Password@123`.
+    *   Click **Create endpoint**.
+3.  **Create the Target Endpoint:**
+    *   Click **Create endpoint** again.
+    *   Select **Target endpoint**.
+    *   **Endpoint identifier:** `cmtr-zdv1y551-dms-mtdm-target-endpoint`.
+    *   **Target engine:** Select `Amazon DynamoDB`.
+    *   **IAM role:** Enter the ARN for the `cmtr-zdv1y551-dms-mtdm-dynamodb-access` role.
+    *   Click **Create endpoint**.
+
+
+
+#### Part D: Prepare Table Mapping Files
+
+This is the most critical part of the task. We are not just copying data; we are transforming it from three different source objects (`movies` view, `title_akas` table, `title_ratings` table) into a single DynamoDB table (`movies`) using an Adjacency List pattern. Each migration task will handle a different part of this transformation. **Crucially, each task must filter for all 23 movies.**
+
+1.  **Retrieve Unique Movie IDs from Source Database:**
+    *   Connect to the EC2 instance using Session Manager and run MySQL queries to get all unique movie IDs from all source tables:
+        ```bash
+        # Connect to MySQL
+        mysql -h localhost -u dbuser -p
+        # Password: Password@123
+        
+        # Use the imdb database
+        USE imdb;
+        
+        # Get unique IDs from all tables to find the complete list
+        SELECT DISTINCT tconst as id FROM movies
+        UNION 
+        SELECT DISTINCT titleId as id FROM title_akas
+        UNION 
+        SELECT DISTINCT tconst as id FROM title_ratings
+        ORDER BY id;
+        ```
+    *   This query returns 23 unique IDs. **Important**: The `movies` view only contains 22 IDs, but `title_akas` and `title_ratings` tables contain 23 IDs each. The missing ID is `tt0072562`.
+
+2.  **Create JSON Mapping Files:**
+    *   Create three JSON files with the complete list of all 23 movie IDs. Each file filters for the same 23 IDs but targets different source tables.
+
+    **File 1: historical-migration01.json.tpl** (for `movies` view):
+    ```json
+    {
+        "rules": [
+          {
+            "rule-type": "selection",
+            "rule-id": "1",
+            "rule-name": "1",
+            "object-locator": {
+              "schema-name": "imdb",
+              "table-name": "movies",
+              "table-type": "view"
+            },
+            "rule-action": "include",
+            "filters": [
+              {
+                "filter-type": "source",
+                "column-name": "tconst",
+                "filter-conditions": [
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0027125"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0036855"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0037382"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0038109"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0038355"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0038787"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0049189"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0050419"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0050976"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0050986"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0053137"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0054452"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0056404"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0057345"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0069467"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0072308"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0072562"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0075213"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0077975"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0078723"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0080455"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0083922"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0117057"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "rule-type": "object-mapping",
+            "rule-id": "2",
+            "rule-name": "2",
+            "rule-action": "map-record-to-record",
+            "object-locator": {
+              "schema-name": "imdb",
+              "table-name": "movies",
+              "table-type": "view"
+            },
+            "target-table-name": "movies",
+            "mapping-parameters": {
+              "partition-key-name": "mpkey",
+              "sort-key-name": "mskey",
+              "exclude-columns": [],
+              "attribute-mappings": [
+                {
+                  "target-attribute-name": "mpkey",
+                  "attribute-type": "scalar",
+                  "attribute-sub-type": "string",
+                  "value": "${tconst}"
+                },
+                {
+                  "target-attribute-name": "mskey",
+                  "attribute-type": "scalar",
+                  "attribute-sub-type": "string",
+                  "value": "DETL|${category}|${ordering}"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ```
+
+    **File 2: historical-migration02.json.tpl** (for `title_akas` table):
+    ```json
+    {
+        "rules": [
+          {
+            "rule-type": "selection",
+            "rule-id": "1",
+            "rule-name": "1",
+            "object-locator": {
+              "schema-name": "imdb",
+              "table-name": "title_akas",
+              "table-type": "table"
+            },
+            "rule-action": "include",
+            "filters": [
+              {
+                "filter-type": "source",
+                "column-name": "titleId",
+                "filter-conditions": [
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0027125"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0036855"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0037382"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0038109"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0038355"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0038787"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0049189"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0050419"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0050976"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0050986"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0053137"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0054452"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0056404"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0057345"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0069467"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0072308"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0072562"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0075213"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0077975"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0078723"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0080455"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0083922"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0117057"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "rule-type": "object-mapping",
+            "rule-id": "2",
+            "rule-name": "2",
+            "rule-action": "map-record-to-record",
+            "object-locator": {
+              "schema-name": "imdb",
+              "table-name": "title_akas",
+              "table-type": "table"
+            },
+            "target-table-name": "movies",
+            "mapping-parameters": {
+              "partition-key-name": "mpkey",
+              "sort-key-name": "mskey",
+              "exclude-columns": [],
+              "attribute-mappings": [
+                {
+                  "target-attribute-name": "mpkey",
+                  "attribute-type": "scalar",
+                  "attribute-sub-type": "string",
+                  "value": "${titleId}"
+                },
+                {
+                  "target-attribute-name": "mskey",
+                  "attribute-type": "scalar",
+                  "attribute-sub-type": "string",
+                  "value": "REGN|${region}"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ```
+
+    **File 3: historical-migration03.json.tpl** (for `title_ratings` table):
+    ```json
+    {
+        "rules": [
+          {
+            "rule-type": "selection",
+            "rule-id": "1",
+            "rule-name": "1",
+            "object-locator": {
+              "schema-name": "imdb",
+              "table-name": "title_ratings",
+              "table-type": "table"
+            },
+            "rule-action": "include",
+            "filters": [
+              {
+                "filter-type": "source",
+                "column-name": "tconst",
+                "filter-conditions": [
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0027125"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0036855"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0037382"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0038109"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0038355"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0038787"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0049189"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0050419"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0050976"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0050986"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0053137"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0054452"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0056404"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0057345"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0069467"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0072308"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0072562"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0075213"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0077975"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0078723"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0080455"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0083922"
+                  },
+                  {
+                    "filter-operator": "eq",
+                    "value": "tt0117057"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "rule-type": "object-mapping",
+            "rule-id": "2",
+            "rule-name": "2",
+            "rule-action": "map-record-to-record",
+            "object-locator": {
+              "schema-name": "imdb",
+              "table-name": "title_ratings",
+              "table-type": "table"
+            },
+            "target-table-name": "movies",
+            "mapping-parameters": {
+              "partition-key-name": "mpkey",
+              "sort-key-name": "mskey",
+              "exclude-columns": [],
+              "attribute-mappings": [
+                {
+                  "target-attribute-name": "mpkey",
+                  "attribute-type": "scalar",
+                  "attribute-sub-type": "string",
+                  "value": "${tconst}"
+                },
+                {
+                  "target-attribute-name": "mskey",
+                  "attribute-type": "scalar",
+                  "attribute-sub-type": "string",
+                  "value": "RTNG"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ```
+
+
+#### Part E: Create and Run DMS Migration Tasks
+
+1.  **Navigate to Database migration tasks** and delete any previous tasks if they exist.
+
+2.  **Create Migration Task 1:**
+    *   Go to **Database migration tasks** > **Create task**.
+    *   **Task identifier:** `cmtr-zdv1y551-dms-mtdm-historical-migration01`
+    *   **Replication instance:** `cmtr-zdv1y551-dms-mtdm-mysqltodynamo-instance`
+    *   **Source database endpoint:** `cmtr-zdv1y551-dms-mtdm-source-endpoint`
+    *   **Target database endpoint:** `cmtr-zdv1y551-dms-mtdm-target-endpoint`
+    *   **Migration type:** **Migrate existing data**
+    *   **Target table preparation mode:** **Do nothing**
+    *   **Stop task after full load completes:** **Don't stop**
+    *   **Include LOB columns in replication:** **Limited LOB mode**
+    *   **Enable validation:** **Turn off**
+    *   **Enable CloudWatch logs:** **Turn off**
+    *   **Table mappings:** Select **JSON editor** and paste the complete JSON from **File 1** above.
+    *   **Premigration assessment:** Make sure this is **unchecked**.
+    *   Click **Create task**.
+
+3.  **Create Migration Task 2:**
+    *   Repeat the same process with:
+    *   **Task identifier:** `cmtr-zdv1y551-dms-mtdm-historical-migration02`
+    *   **Table mappings:** Select **JSON editor** and paste the complete JSON from **File 2** above.
+    *   All other settings remain the same.
+
+4.  **Create Migration Task 3:**
+    *   Repeat the same process with:
+    *   **Task identifier:** `cmtr-zdv1y551-dms-mtdm-historical-migration03`
+    *   **Table mappings:** Select **JSON editor** and paste the complete JSON from **File 3** above.
+    *   All other settings remain the same.
+
+5.  **Start all three tasks** manually from the dashboard by selecting each task and clicking **Start/Resume**.
+
+### Step 3: Verification
+
+1.  **Monitor Task Status:**
+    *   In the DMS console, watch the three migration tasks. Wait for their status to change to **Load complete**.
+2.  **Verify Data in DynamoDB:**
+    *   Navigate to the **DynamoDB** service and explore the `movies` table.
+    *   Use the **Scan** operation to see all items. You should see multiple items for each movie ID.
+    *   **Expected Result:** The table should contain items from all 23 unique movie IDs, with `mskey` (sort key) values beginning with:
+        *   `DETL` - from the `movies` view (movie details)
+        *   `REGN` - from the `title_akas` table (regional information)
+        *   `RTNG` - from the `title_ratings` table (rating information)
+    *   **Total Expected Items:** More than 23 items (since each movie ID may have multiple entries from different source tables)
+    *   **Key Validation:** Query for a specific `mpkey` (e.g., `tt0027125` or `tt0072562`) to verify that multiple items exist for that partition key with different sort keys, confirming the Adjacency List pattern migration is working correctly.
+
+**Important Note:** The critical insight is that while the `movies` view contains only 22 unique IDs, the `title_akas` and `title_ratings` tables both contain 23 unique IDs (including `tt0072562`). All three migration tasks must include all 23 IDs to ensure complete data migration from all source tables.
+
+---
