@@ -641,3 +641,74 @@ This summary covers the main storage services beyond EBS, which is tightly coupl
 4.  **Right-Size Your Instances:** Graph database queries can be memory-intensive. Monitor `CPUUtilization` and memory usage in CloudWatch to choose the correct instance size for your workload.
 5.  **Secure Your Cluster:** Always run Neptune clusters within a VPC. Use Security Groups to restrict access and leverage IAM for authentication and authorization to the database.
 
+---
+
+# AWS Container Services (Interview Quick Sheet)
+
+### 📦 1. What are AWS Container Services?
+-   **A suite of services** to store, manage, and run containerized applications. They remove the need to manage the underlying infrastructure, allowing you to focus on your application code.
+-   **Core Services:**
+    -   `ECR`: Stores your container images.
+    -   `ECS`: Runs your containers (AWS's orchestrator).
+    -   `EKS`: Runs your containers (Managed Kubernetes).
+
+---
+
+### 🐳 ECR (Elastic Container Registry)
+-   **What is it?** A fully-managed Docker container registry.
+-   **Analogy:** It's your private, secure **Docker Hub** hosted on AWS.
+-   **Key Features:**
+    -   **Lifecycle Policies:** Automatically cleans up old or unused images to save storage costs.
+    -   **Image Scanning:** Scans your container images for software vulnerabilities.
+    -   **Replication:** Replicates images across regions for disaster recovery or lower latency.
+
+---
+
+### ⛵ ECS (Elastic Container Service)
+-   **What is it?** A highly scalable, high-performance container orchestration service to run Docker containers.
+-   **Analogy:** It's **AWS's own simplified container orchestrator**. It's easier to use than Kubernetes but is proprietary to AWS.
+-   **Core Concepts:**
+    -   **Task Definition:** A JSON blueprint that describes how to launch a container (or group of containers). It specifies the image, CPU/memory, networking mode, IAM role, etc.
+    -   **Task:** A running instance of a Task Definition. It's the actual container(s) running.
+    -   **Service:** A scheduler that maintains a desired number of tasks. It can automatically restart failed tasks and integrate with a Load Balancer.
+    -   **Cluster:** A logical grouping of resources (EC2 instances or Fargate) where your tasks are placed.
+
+---
+
+### ☸️ EKS (Elastic Kubernetes Service)
+-   **What is it?** A managed service to run **Kubernetes** on AWS without needing to install, operate, and maintain your own Kubernetes control plane.
+-   **Analogy:** You get the full power of **open-source Kubernetes**, but AWS manages the complicated control plane for you (updates, patching, availability).
+-   **Why use it?**
+    -   You want to use standard Kubernetes tooling and plugins.
+    -   You are migrating an existing Kubernetes application to AWS.
+    -   You want to avoid vendor lock-in and have a portable solution.
+
+---
+
+### 🤔 2. Core Decisions: ECS vs. EKS & Fargate vs. EC2
+
+#### ECS vs. EKS
+| Aspect            | Amazon ECS                                | Amazon EKS                                          |
+|-------------------|-------------------------------------------|-----------------------------------------------------|
+| **Simplicity**    | **Simpler.** Easier learning curve, deeply integrated with AWS. | **More Complex.** Requires Kubernetes knowledge.    |
+| **Control**       | Less control, more opinionated.           | Full control over Kubernetes configuration.         |
+| **Ecosystem**     | AWS ecosystem.                            | Huge, open-source community and tooling.            |
+| **When to Use?**  | You are all-in on AWS and want simplicity.  | You need the power of Kubernetes or want portability. |
+
+#### Fargate vs. EC2 Launch Type
+| Feature           | AWS Fargate (Serverless)                  | Amazon EC2 (Server-based)                           |
+|-------------------|-------------------------------------------|-----------------------------------------------------|
+| **Analogy**       | Renting a container.                      | Renting a server to run containers on.              |
+| **Management**    | **No server management.** AWS handles everything. | **You manage the EC2 instances** (patching, scaling, security). |
+| **Control**       | Less control over the underlying environment. | Full control over the instance type, OS, networking. |
+| **Use Case**      | Short-running tasks, unpredictable workloads, microservices where you just want to run a container. | Long-running workloads, apps needing specific instance configurations or high performance. |
+
+---
+
+### 🏆 3. Container Services Best Practices
+1.  **Secure Your Images:** Use **ECR Image Scanning** to find vulnerabilities before deploying. Use **IAM permissions** to control who can push/pull images.
+2.  **Use IAM Roles for Tasks:** Instead of hardcoding credentials in your containers, assign an **IAM Role** directly to your ECS Task or Kubernetes Pod. This is the most secure way to grant AWS permissions.
+3.  **Choose the Right Compute:** Use **Fargate** for a serverless experience to eliminate operational overhead. Use **EC2** when you need more control or have sustained workloads that can be optimized with Reserved Instances or Spot.
+4.  **Isolate with Networking:** Run containers in a **VPC** and use **Security Groups** to control traffic between containers and other resources.
+5.  **Monitor Everything:** Use **CloudWatch Logs** and **Container Insights** to get detailed performance metrics and logs from your containers, tasks, and services to troubleshoot issues quickly.
+
