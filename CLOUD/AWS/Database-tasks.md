@@ -519,7 +519,6 @@ At the start of this task, the following infrastructure is provided:
 *   **DMS Replication Instance:** `cmtr-zdv1y551-dms-mtdm-mysqltodynamo-instance`.
 *   **Target DynamoDB Table:** `movies`.
 
-
 **Critical Database Information:**
 *   The source database contains **23 unique movie IDs** across three objects: `movies` view, `title_akas` table, and `title_ratings` table
 *   The `movies` view contains only **22 unique IDs**, but `title_akas` and `title_ratings` tables contain **23 unique IDs** each
@@ -537,11 +536,10 @@ The strategy is to partition the migration into three parallel tasks to improve 
     *   A **target endpoint** to connect to the `movies` table in DynamoDB, using an IAM role for permissions.
 2.  **Prepare Migration Workload (Table Mappings):** The core logic of the migration resides in JSON-based table mapping rules. This process involves:
     *   **Connecting to the source MySQL database** to retrieve a complete list of unique movie IDs.
-    *   **Partitioning the list of IDs** into three separate, smaller lists.
-    *   **Creating three distinct JSON mapping files**, one for each migration task. Each file will be based on a template and will contain a filter to select only the movies from its assigned ID list.
+    *   **Creating three distinct JSON mapping files**, one for each migration task. Each file will contain filters for all 23 unique movie IDs.
 3.  **Create and Execute DMS Tasks:** With the endpoints and mapping files ready, we will create three separate DMS migration tasks.
     *   Each task (`...-historical-migration01`, `...-historical-migration02`, `...-historical-migration03`) will be configured with the same source and target endpoints.
-    *   Crucially, each task will use its own custom JSON mapping file, ensuring it only migrates its designated subset of data.
+    *   Crucially, each task will use its own custom JSON mapping file, ensuring it targets the correct source table.
     *   The tasks will be started to run the migration.
 4.  **Verification:** After the tasks are complete, the final step is to verify that the data has been successfully migrated and transformed in the target DynamoDB table.
 
@@ -573,9 +571,7 @@ The following steps are performed in the `us-east-1` region.
     *   **IAM role:** Enter the ARN for the `cmtr-zdv1y551-dms-mtdm-dynamodb-access` role.
     *   Click **Create endpoint**.
 
-
-
-#### Part D: Prepare Table Mapping Files
+#### Part B: Prepare Table Mapping Files
 
 This is the most critical part of the task. We are not just copying data; we are transforming it from three different source objects (`movies` view, `title_akas` table, `title_ratings` table) into a single DynamoDB table (`movies`) using an Adjacency List pattern. Each migration task will handle a different part of this transformation. **Crucially, each task must filter for all 23 movies.**
 
@@ -1052,8 +1048,7 @@ This is the most critical part of the task. We are not just copying data; we are
       }
     ```
 
-
-#### Part E: Create and Run DMS Migration Tasks
+#### Part C: Create and Run DMS Migration Tasks
 
 1.  **Navigate to Database migration tasks** and delete any previous tasks if they exist.
 
