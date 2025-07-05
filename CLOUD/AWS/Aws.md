@@ -474,9 +474,20 @@ This summary covers the main storage services beyond EBS, which is tightly coupl
 - **Core Use Case:** Powering traditional applications like e-commerce sites, CRM systems, and mobile apps that require a relational data structure.
 - **Key Features:**
     - **Multiple Engines:** Supports familiar engines like MySQL, PostgreSQL, MariaDB, Oracle, and SQL Server.
-    - **High Availability (Multi-AZ):** Automatically creates a synchronous standby replica in a different AZ. If the primary fails, RDS automatically fails over to the standby.
-    - **Read Scaling (Read Replicas):** You can create one or more read-only copies of your database to handle high read traffic, offloading work from the primary instance.
     - **Automated Backups:** Manages backups and point-in-time recovery for you.
+
+### 🏗️ Multi-AZ Deployment
+**Multi-AZ:** Provides high availability by maintaining a synchronous standby replica in a different Availability Zone. Primary purpose is fault tolerance, not performance.
+- **Automatic Failover:** If the primary instance fails, RDS automatically fails over to the standby (typically 1-2 minutes).
+- **Zero Downtime Maintenance:** Maintenance is performed on the standby first, then they switch roles.
+- **Single Endpoint:** Applications connect to the same DNS endpoint; failover is transparent.
+
+### 📖 Read Replicas
+**Read Replicas:** Asynchronous copies of your database that handle read-only queries. Primary purpose is performance scaling, not high availability.
+- **Cross-Region Support:** Can be created in different regions for disaster recovery.
+- **Multiple Read Replicas:** Up to 5 read replicas per source database.
+- **Separate Endpoint:** Each read replica has its own DNS endpoint; applications must be configured to use it.
+- **Promotion:** A read replica can be promoted to become a standalone database.
 
 ### RDS Best Practices
 1. **Enable Multi-AZ:** For production databases to ensure high availability.
@@ -499,12 +510,25 @@ This summary covers the main storage services beyond EBS, which is tightly coupl
         - **Eventually Consistent Read (Default):** Returns data that might be slightly stale, but has the lowest latency.
     - **DynamoDB Accelerator (DAX):** An in-memory cache for DynamoDB that delivers microsecond read performance for read-heavy workloads.
 
+### 🔍 Global Secondary Indexes (GSI)
+**GSI:** An index with a partition key and sort key that can be different from the table's keys. Enables querying on non-key attributes.
+- **Separate Provisioned Throughput:** GSI has its own read/write capacity settings, independent of the base table.
+- **Eventually Consistent:** GSI updates are asynchronous and eventually consistent.
+- **Sparse Index:** Only items with GSI key attributes are projected to the index.
+
+### 🕒 Point-in-Time Recovery (PITR)
+**PITR:** Provides continuous backups of your DynamoDB table for up to 35 days. Enables restore to any point in time within that window.
+- **Automatic Backup:** Once enabled, DynamoDB continuously backs up your table data.
+- **Granular Recovery:** Restore to any specific second within the retention period.
+- **Zero Impact:** Backup operations don't affect table performance or availability.
+
 ### DynamoDB Best Practices
 1. **Choose the Right Partition Key:** A well-distributed partition key is critical for performance and avoiding "hot" partitions.
 2. **Use Secondary Indexes:** Create Global Secondary Indexes (GSIs) to support additional query patterns beyond the primary key.
 3. **Optimize Costs:** Use On-Demand capacity for unpredictable workloads and Provisioned for predictable ones. Use TTL to automatically delete old items.
 4. **Leverage DAX:** For read-heavy applications that need microsecond latency, use DynamoDB Accelerator (DAX).
 5. **Monitor Throttling:** Set CloudWatch alarms for `ReadThrottleEvents` and `WriteThrottleEvents` to know when you are exceeding your provisioned throughput.
+6. **Enable PITR:** For production tables, enable Point-in-Time Recovery for data protection.
 
 ## Amazon ElastiCache
 **Amazon ElastiCache:** A managed in-memory caching service used to accelerate application and database performance.
@@ -540,6 +564,61 @@ This summary covers the main storage services beyond EBS, which is tightly coupl
 3. **Define Sort Keys (SORTKEY):** Sort keys act like an index, allowing Redshift to quickly find the data it needs for range-filtered queries (e.g., querying by date).
 4. **Leverage Workload Management (WLM):** Configure WLM to prioritize critical queries and manage concurrency, ensuring that short, fast queries don't get stuck behind long-running ones.
 5. **Analyze and Vacuum Tables:** Regularly run `ANALYZE` to update table statistics and `VACUUM` to reclaim space and re-sort rows. This is critical for maintaining query performance.
+
+---
+
+# AWS Database Migration Service (DMS)
+
+### 🔄 1. What is AWS DMS?
+**AWS DMS:** A cloud service that migrates your data to and from most widely used commercial and open-source databases. It enables heterogeneous migrations between different database engines.
+- **Analogy:** It's like a universal translator for databases, moving data from one format to another while keeping applications running.
+- **Core Use Case:** Migrating databases to AWS with minimal downtime, including schema conversion (Oracle to PostgreSQL, MySQL to DynamoDB).
+- **Key Components:**
+    - **Replication Instance:** The compute resource that runs the migration task.
+    - **Source/Target Endpoints:** Connection information for source and target databases.
+    - **Migration Task:** The actual migration job with transformation rules.
+    - **Table Mappings:** JSON rules that define data transformation and filtering.
+
+### 🎯 2. Migration Types
+- **Full Load:** One-time migration of all data from source to target.
+- **Change Data Capture (CDC):** Continuous replication of ongoing changes.
+- **Full Load + CDC:** Initial full migration followed by ongoing replication.
+
+### 📊 3. Schema Conversion Tool (SCT)
+**AWS SCT:** Converts database schemas and code from one database engine to another. Required for heterogeneous migrations (different database types).
+- **Use Case:** Converting Oracle stored procedures to PostgreSQL functions, or relational schemas to NoSQL patterns.
+
+### 🏆 4. DMS Best Practices
+1. **Size Your Replication Instance Appropriately:** Choose instance type based on data volume and complexity.
+2. **Use Table Mappings for Data Transformation:** Filter and transform data during migration using JSON mapping rules.
+3. **Enable Multi-AZ for Production:** Deploy replication instance across multiple AZs for high availability.
+4. **Monitor with CloudWatch:** Track migration progress and performance metrics.
+5. **Test with Sample Data:** Always test migration logic with a subset before full migration.
+
+---
+
+# AWS Backup Service
+
+### 💾 1. What is AWS Backup?
+**AWS Backup:** A centralized backup service that automates and centralizes backup across AWS services. It provides a single place to configure backup policies and monitor backup activity.
+- **Analogy:** It's like having a universal backup system that works across all your AWS resources with a single control panel.
+- **Core Use Case:** Centralized backup management for EC2, RDS, DynamoDB, EFS, and other AWS services with compliance and governance.
+- **Key Components:**
+    - **Backup Vault:** A container that stores backup files with access policies.
+    - **Backup Plan:** A policy that defines when and how to back up resources.
+    - **Resource Assignment:** Specifies which resources to include in the backup plan.
+
+### 🔐 2. Backup Vault Features
+- **Encryption:** All backups are encrypted at rest and in transit.
+- **Access Control:** IAM policies control who can access backups.
+- **Cross-Region Copy:** Automatically copy backups to other regions for disaster recovery.
+
+### 🏆 3. AWS Backup Best Practices
+1. **Use Backup Plans for Consistency:** Define standardized backup policies across resources.
+2. **Implement Cross-Region Backup:** Copy critical backups to different regions for disaster recovery.
+3. **Set Proper Retention Policies:** Balance compliance requirements with storage costs.
+4. **Monitor Backup Jobs:** Set up CloudWatch alarms for backup failures.
+5. **Test Restore Procedures:** Regularly test backup restoration to ensure data recovery works.
 
 ---
 
