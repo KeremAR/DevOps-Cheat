@@ -232,3 +232,120 @@ sudo rm -rf /var/lib/amazon/ /var/log/amazon/ /etc/amazon/
 ```
 
 After these cleanup steps, your VM is in a fresh state. You can now run the new registration command from the current lab, and it will register to the correct AWS account.
+
+---
+
+# Task 3: Update ECS Task to a New Docker Image Version (CLI Only)
+
+## Lab Description
+The goal of this task is to update a running ECS service to deploy a new version of a Docker image using only the AWS Command Line Interface (CLI).
+
+**Region:** `us-east-1`
+**Cluster Name:** `cmtr-zdv1y551-ecs-tu-ecs_cluster`
+**Service Name:** `ECS_task_update_service`
+
+---
+
+## Step-by-Step Guide
+
+### Step 1: Configure your AWS CLI
+
+
+
+### Step 2: Find the Current Task Definition
+
+We need to get the details of the task that is currently running so we can create a new version of it.
+
+1.  Run the following command to get the details of the service.
+    ```bash
+    aws ecs describe-services --cluster "cmtr-zdv1y551-ecs-tu-ecs_cluster" --services "ECS_task_update_service"
+    ```
+
+2.  In the JSON output, find the `taskDefinition` key. It will have an ARN value like `"...:task-definition/webapp-task:1"`. We need the name and revision part, which is `webapp-task:1`. Note this down.
+
+### Step 3: Create a New Task Definition File
+
+Now, we'll fetch the full definition of the current task and save it to a file.
+
+1.  Use the task definition name you found in the previous step to run this command. (Replace `webapp-task:1` with your actual task definition name if it's different).
+    ```bash
+    aws ecs describe-task-definition --task-definition webapp-task:1 > task-def.json
+    ```
+
+2.  This creates a file named `task-def.json` in your current directory. **This is the most critical step.** Open this file in a text editor (like VS Code, Notepad++, etc.).
+
+3.  **Edit the `task-def.json` file:**
+    *   **Change the Image Version:** Find the `image` property inside `containerDefinitions`. The URL will end with `:v1`. Change this to **`:v2`**.
+    *   **Clean the JSON for Registration:** The `describe-task-definition` command includes output-only fields that are **not allowed** when creating a *new* definition. You must **delete** the following top-level keys and their values from the file:
+        *   `"taskDefinitionArn"`
+        *   `"revision"`
+        *   `"status"`
+        *   `"requiresAttributes"`
+        *   `"compatibilities"`
+        *   `"registeredAt"`
+        *   `"registeredBy"`
+
+    After editing, your file should start with keys like `"family"`, `"containerDefinitions"`, etc. Save the changes.
+
+### Step 4: Register the New Task Definition
+
+Now, use the modified JSON file to create a new revision of your task definition.
+
+```bash
+aws ecs register-task-definition --cli-input-json file://task-def.json
+```
+This command will succeed and output the details of the new task definition, which will now have a new revision number (e.g., `"revision": 2`).
+
+### Step 5: Update the Service to Use the New Task Definition
+
+This is the final step. We tell the service to stop the old task and launch a new one using our new task definition revision.
+
+1.  Run the following command. We don't need to specify the new revision number; by default, ECS will use the latest active revision for the family `webapp-task`.
+    ```bash
+    aws ecs update-service --cluster "cmtr-zdv1y551-ecs-tu-ecs_cluster" --service "ECS_task_update_service" --task-definition webapp-task
+    ```
+2.  This command will trigger a new deployment. ECS will start a new task with the `v2` image and, once it's healthy, stop the old task running the `v1` image.
+
+### Step 6: Verify the Update
+
+1.  You can monitor the deployment progress with the `describe-services` command from Step 2. Wait until the `rolloutState` is `COMPLETED`.
+2.  Open your web browser and navigate to the public IP address given in the lab description (`3.216.31.70`).
+3.  You should now see the web application displaying **Version 2**.
+
+---
+
+### Task 3: Update an ECS Service to Use a New Task Definition (GUI)
+
+In this task, we update a running ECS service to use a different, pre-existing task definition, effectively changing the version of the running application.
+
+**Scenario:** The lab environment provides two task definitions: `nginx_v1` (currently running) and `nginx_v2` (the target version). We need to update the service to stop using `nginx_v1` and start using `nginx_v2`. The initial state is that the service's public IP shows "Version_1".
+
+**Challenge Encountered: Port Conflict**
+
+When attempting a standard update, a common issue arises in single-instance clusters: The new task (`v2`) cannot start because the port it needs is already occupied by the old task (`v1`). ECS won't stop the old task until the new one is healthy, leading to a deadlock. The event logs show an error like: `"unable to place a task because no container instance met all of its requirements... is already using a port required by your task"`.
+
+**Solution: Manual Update by Scaling Down and Up**
+
+To resolve this, we manually force the update by briefly stopping the service, which frees up the port, and then starting it again with the new task definition. This causes a momentary service interruption but ensures the update succeeds.
+
+**Steps:**
+
+**Step 1: Stop the Service (Scale to 0)**
+
+1.  Navigate to your ECS Cluster -> **Services** tab and click on your service (e.g., `ECS_task_update_service`).
+2.  Click the **"Update"** button.
+3.  In the **"Desired tasks"** field, change the value from `1` to `0`.
+4.  Click **"Update"**.
+5.  Wait a moment for the running task count to become 0. This stops the `v1` container and frees the port.
+
+**Step 2: Start the Service with the New Version (Scale to 1)**
+
+1.  Click the **"Update"** button on the service page again.
+2.  This time, in the **"Task Definition"** section, select the `nginx_v2` family. Ensure the revision is set to the latest (e.g., `1 (latest)`).
+3.  Change the **"Desired tasks"** field back to `1`.
+4.  Click **"Update"**.
+
+**Verification:**
+
+*   After a minute, a new task using the `nginx_v2` definition will start.
+*   Navigate to the public IP address of the service. You should now see the page displaying **"Version_2"**.
