@@ -519,12 +519,6 @@ At the start of this task, the following infrastructure is provided:
 *   **DMS Replication Instance:** `cmtr-zdv1y551-dms-mtdm-mysqltodynamo-instance`.
 *   **Target DynamoDB Table:** `movies`.
 
-**Updated Credentials:**
-*   **AWS Console URL:** https://084828573726.signin.aws.amazon.com/console?region=us-east-1
-*   **IAM username:** cmtr-zdv1y551
-*   **Password:** Wg5#ytRUXVGa4UY8
-*   **AWS_ACCESS_KEY_ID:** AKIARHQBNKAPKIFFKKOY
-*   **AWS_SECRET_ACCESS_KEY:** 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
 
 **Critical Database Information:**
 *   The source database contains **23 unique movie IDs** across three objects: `movies` view, `title_akas` table, and `title_ratings` table
