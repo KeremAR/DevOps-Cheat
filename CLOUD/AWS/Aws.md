@@ -833,3 +833,61 @@ This summary covers the main storage services beyond EBS, which is tightly coupl
 -   **AWS Health:** Provides a personalized view of AWS service health and scheduled changes that might impact **your specific account and resources**. It answers the question, "Is an AWS issue affecting me?".
 -   **Trusted Advisor:** An automated service that inspects your AWS environment and makes recommendations based on best practices across five categories: **Cost Optimization, Security, Fault Tolerance, Performance, and Service Limits**. It's like having an AWS expert review your account.
 
+---
+
+# AWS CI/CD (Interview Quick Sheet)
+
+### 1. What are the AWS Developer Tools?
+-   A suite of services designed to enable developers and IT professionals to practice DevOps and deliver software rapidly and reliably.
+-   **Analogy:** They are the building blocks for an automated software assembly line on AWS.
+
+### 2. Core Services Comparison
+
+| Service | Role | Analogy | What it Does |
+|---|---|---|---|
+| **CodeCommit** | Source | Private GitHub on AWS | Securely hosts your private Git repositories. |
+| **CodeBuild** | Build & Test | Managed Jenkins/Build Server | Compiles source code, runs tests, and produces software packages (artifacts). |
+| **CodeDeploy** | Deployment | Automated Deployment Agent | Automates application deployments to EC2, ECS, Lambda, and on-premises servers. |
+| **CodePipeline**| Release Workflow| CI/CD Orchestrator | Models, visualizes, and automates your entire software release process from end to end. |
+
+### 3. CodeCommit
+-   **What is it?** A fully-managed source control service that hosts secure and private Git repositories.
+-   **Key Concepts:**
+    -   **Triggers:** You can create triggers to send notifications (via SNS) or invoke Lambda functions in response to repository events like a push to a specific branch.
+    -   **Security:** Access is controlled through IAM policies, making it highly secure and integrated with the AWS ecosystem.
+
+### 4. CodeBuild
+-   **What is it?** A fully managed continuous integration service that compiles source code, runs tests, and produces software packages that are ready to deploy.
+-   **Key Concepts:**
+    -   **`buildspec.yml`:** A mandatory YAML file in the root of your source code that tells CodeBuild what commands to run during each phase of the build process.
+    -   **Build Phases:** The `buildspec` is structured into phases: `install` (installing dependencies), `pre_build` (final commands before build), `build` (the main build commands), and `post_build` (finalizing steps like creating a Docker image).
+    -   **Build Environment:** A Docker container image that contains the operating system, programming language runtime, and tools required to run the build. AWS provides managed images, or you can use your own.
+    -   **Artifacts:** The output of the build (e.g., compiled code, JAR files, Docker images) which are typically uploaded to an S3 bucket or ECR.
+
+### 5. CodeDeploy
+-   **What is it?** A deployment service that automates application deployments to a variety of compute services.
+-   **Key Concepts:**
+    -   **`AppSpec.yml` (Application Specification File):** A critical YAML file that tells CodeDeploy how to deploy the application. It maps source files to their destination on the server and specifies scripts to be run at various stages of the deployment lifecycle.
+    -   **Lifecycle Hooks:** Specific points in the deployment process where you can run custom scripts (e.g., `BeforeInstall`, `AfterInstall`, `ApplicationStart`, `ValidateService`).
+    -   **Deployment Group:** The set of AWS resources where the application will be deployed (e.g., a group of EC2 instances with a specific tag, an ECS service, or a Lambda function).
+    -   **Deployment Configurations:** Defines the speed and strategy of the deployment (e.g., `OneAtATime`, `HalfAtATime`, `AllAtOnce`).
+-   **Deployment Types (EC2/On-Premises):**
+    -   **In-Place Deployment:** The application on each instance in the deployment group is stopped, the latest application revision is installed, and the new version is started. It's simple but involves downtime during the update.
+    -   **Blue/Green Deployment:** A new, identical environment ("Green") is provisioned with the new application version. Traffic is then rerouted from the old environment ("Blue") to the new one. After a successful switch, the Blue environment can be terminated. This approach minimizes downtime and risk, making rollback easy.
+
+### 6. CodePipeline
+-   **What is it?** A fully managed continuous delivery service that helps you automate your release pipelines for fast and reliable updates.
+-   **Key Concepts:**
+    -   **Pipeline:** The definition of your entire release workflow.
+    -   **Stage:** A logical division within a pipeline, such as "Source," "Build," "Staging-Deploy," and "Prod-Deploy." Stages are processed sequentially.
+    -   **Action:** A specific task performed within a stage. Actions can run in series or parallel. Examples include pulling from `CodeCommit`, building with `CodeBuild`, or deploying with `CodeDeploy`.
+    -   **Artifact:** A collection of files, such as source code or build output, that is passed between pipeline stages. Artifacts are stored in an S3 bucket managed by CodePipeline.
+
+### 7. CI/CD Best Practices on AWS
+1.  **Orchestrate with CodePipeline:** Use CodePipeline as the "master" service to connect your source, build, and deploy actions into a cohesive workflow.
+2.  **Define Everything as Code:** Store your `buildspec.yml` and `AppSpec.yml` files in your source code repository alongside your application code. This makes your build and deploy processes version-controlled and repeatable.
+3.  **Use IAM Roles for Permissions:** Never hardcode credentials. Each AWS service (CodeBuild, CodeDeploy, etc.) should have an IAM role with the minimum necessary permissions to interact with other AWS services.
+4.  **Secure Your Artifacts:** Ensure the S3 bucket used by CodePipeline for artifacts is encrypted and has strict access policies.
+5.  **Choose the Right Deployment Strategy:** For critical applications on EC2, prefer **Blue/Green** deployments to minimize downtime and provide a safe rollback path.
+6.  **Automate Notifications:** Configure pipeline stages to send notifications (via SNS) to your team about failures or successful deployments, enabling quick feedback.
+

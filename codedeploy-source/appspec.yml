@@ -1,0 +1,17 @@
+version: 0.0
+os: linux
+# The 'files' section is removed because we will run the scripts directly
+# from the bundle, which is a cleaner approach and avoids lifecycle hook timing issues.
+hooks:
+  BeforeInstall:
+    # This hook runs BEFORE files are copied.
+    # We point to the script's location relative to the root of the zip bundle.
+    - location: install_dependencies.sh
+      timeout: 300
+      runas: root
+  ApplicationStart:
+    # This hook runs AFTER the 'Install' phase.
+    # We will also run this from the bundle for consistency.
+    - location: run_app.sh
+      timeout: 300
+      runas: root 
