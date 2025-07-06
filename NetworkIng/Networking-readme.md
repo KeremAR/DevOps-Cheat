@@ -135,7 +135,8 @@ While the OSI model is conceptual, its layers can be broadly mapped to the Linux
 *   **Layer 1 (Physical):** Corresponds to the **Hardware** (Network Interface Cards - NICs, cables, physical transceivers) managed by kernel drivers.
 
 
-<img src="/Media/OSI-TCP.jpg" alt="ositcp" width="500"/>
+<img src="/Media/OSI-TCP.png" alt="ositcp" width="500"/>
+
 ### Network Configuration
 
 
