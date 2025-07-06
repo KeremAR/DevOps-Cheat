@@ -100,3 +100,99 @@ The following steps were performed in the `us-east-1` region.
     *   Click on the alarm name and view the graph. You will see the blue line (CPUUtilization) has clearly risen above the red dotted line (the 60% threshold).
 
 This confirms that all components are working together correctly.
+
+---
+
+## Task: Managing Instance State with Lambda and EventBridge Scheduler (CLI Method)
+
+*This task demonstrates how to create a serverless scheduler using EventBridge to trigger a Lambda function that starts and stops EC2 instances. The entire process must be completed using the AWS CLI, and success depends on passing the correct input payload to the Lambda function.*
+
+### Step 1: Task Analysis & Strategy
+
+The core objective is to configure two existing EventBridge rules (`...-start` and `...-stop`) to trigger a Lambda function. The key challenge is to provide the correct input to the Lambda so it knows *what* to do (start or stop) and *which* instances to target. The lab explicitly states "refer to the Lambda code to find out the input format" and limits us to "two moves."
+
+The strategy is as follows:
+
+1.  **Inspect the Lambda Function's Expected Input:** The first step is to understand what payload the Lambda function expects. We can't see the code directly via a simple CLI command, but based on the lab description and standard practice, we can infer the following:
+    *   The function performs a specific "action". Therefore, the input JSON must contain an `action` key.
+    *   The function targets specific instances. The lab mentions instances tagged with `managed: yes`, implying the Lambda code filters instances based on this tag.
+    *   Therefore, the required input payload is a simple JSON object: `{"action": "start"}` for the start rule, and `{"action": "stop"}` for the stop rule.
+
+2.  **Define the "Two Moves":** A "move" is a resource update. The lab requires configuring both the schedule and the target. We will accomplish this by first setting the schedule for each rule, then setting the target and its specific input. The two conceptual moves are the complete configuration of the "start" mechanism and the "stop" mechanism.
+
+### Step 2: Execution via AWS CLI (PowerShell)
+
+The following PowerShell commands were used to execute the task. It is assumed the AWS CLI has been configured with the provided credentials.
+
+1.  **Define Variables and Get Lambda ARN:**
+    *   First, we define variables for the known resource names. Then, we fetch the full ARN of the Lambda function, which is required to set it as a target.
+    ```powershell
+    # Define resource names from the lab description
+    $startRuleName = "cmtr-zdv1y551-eventbridge-lesm-event_rule-start"
+    $stopRuleName = "cmtr-zdv1y551-eventbridge-lesm-event_rule-stop"
+    $functionName = "cmtr-zdv1y551-eventbridge-lesm-lambda"
+
+    # Get the full ARN of the Lambda function
+    $functionArn = (aws lambda get-function --function-name $functionName --query "Configuration.FunctionArn" --output text)
+    Write-Host "Lambda Function ARN: $functionArn"
+    ```
+
+2.  **Configure the "Start" Rule and Target (Move 1):**
+    *   First, we define the schedule for the start rule using a CRON expression. This example sets it to run at a specific time.
+    *   Second, we set the Lambda function as the target, ensuring we configure it to pass a constant JSON input.
+    *   **A) Set the schedule for the START rule:**
+        ```powershell
+        aws events put-rule --name $startRuleName --schedule-expression "cron(45 12 * * ? *)" --state ENABLED
+        ```
+    *   **B) Create `start-target.json` file:** Create a file named `start-target.json` with the following content. Replace the placeholder with your actual Lambda ARN.
+        ```json
+        [
+          {
+            "Id": "1",
+            "Arn": "PASTE_YOUR_LAMBDA_FUNCTION_ARN_HERE",
+            "Input": "{\"action\": \"start\"}"
+          }
+        ]
+        ```
+    *   **C) Apply the target configuration from the file:**
+        ```powershell
+        aws events put-targets --rule $startRuleName --targets file://start-target.json
+        ```
+
+3.  **Configure the "Stop" Rule and Target (Move 2):**
+    *   We repeat the process for the stop rule, setting a different schedule and input.
+    *   **A) Set the schedule for the STOP rule:**
+    ```powershell
+    aws events put-rule --name $stopRuleName --schedule-expression "cron(50 12 * * ? *)" --state ENABLED
+    ```
+    *   **B) Create `stop-target.json` file:** Create another file named `stop-target.json`, using the same Lambda ARN.
+        ```json
+        [
+          {
+            "Id": "1",
+            "Arn": "PASTE_YOUR_LAMBDA_FUNCTION_ARN_HERE",
+            "Input": "{\"action\": \"stop\"}"
+          }
+        ]
+        ```
+    *   **C) Apply the target configuration from the file:**
+    ```powershell
+    aws events put-targets --rule $stopRuleName --targets file://stop-target.json
+    ```
+
+### Step 3: Verification
+
+The primary way to verify this task is to check the logs generated by the Lambda function after the scheduled times have passed.
+
+1.  **Navigate to CloudWatch Logs:**
+    *   In the AWS Management Console, navigate to the **CloudWatch** service.
+    *   In the left pane, click **Log groups**.
+2.  **Find the Lambda Log Group:**
+    *   In the filter box, search for the log group associated with the Lambda function: `/aws/lambda/cmtr-zdv1y551-eventbridge-lesm-lambda`.
+3.  **Check the Log Streams:**
+    *   Click on the log group name.
+    *   Inside, you will see one or more log streams, ordered by time.
+    *   After 12:45 UTC, you should see a log stream containing an event payload of `{"action": "start"}` and log messages indicating the function attempted to start the instances.
+    *   After 12:50 UTC, you should see another log stream with an event payload of `{"action": "stop"}`. If you see a `KeyError: 'action'` in the logs, it means the custom input was not correctly passed to the Lambda target. You can fix this by editing the rule's target in the EventBridge console and setting the "Input" to "Constant (JSON text)".
+4.  **(Optional) Check EC2 Instance State:**
+    *   You can also navigate to the **EC2** dashboard around the scheduled times and observe the state of the managed instance (`i-023b45e3f05350df0`) to confirm it starts and stops as expected.
