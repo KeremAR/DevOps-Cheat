@@ -791,3 +791,45 @@ This summary covers the main storage services beyond EBS, which is tightly coupl
 7.  **Monitor and Optimize:** Use **CloudWatch** to monitor invocations, duration, and errors. If a function is too slow, increase its memory to give it more CPU power.
 8.  **Test Locally and in the Cloud:** Use tools like the **SAM CLI** for local testing and the **Test Event** feature in the Lambda console to debug your function in the cloud.
 
+---
+
+# AWS Observability (Interview Quick Sheet)
+
+### 1. Core Services Comparison
+
+| Service       | What it Answers                                  | Analogy                                   | Primary Use                        |
+|---------------|--------------------------------------------------|-------------------------------------------|------------------------------------|
+| **CloudWatch**  | "What is the state of my resource?" (Performance) | The nervous system / dashboard of your car | Metrics, alarms, logs (performance monitoring) |
+| **EventBridge** | "What is happening across my applications?"      | A central switchboard for events           | Reacting to events, decoupling apps |
+| **CloudTrail**  | "Who did what and when?" (Audit)                 | The security camera and audit log         | Auditing, security analysis, compliance |
+
+### 2. CloudWatch
+-   **What is it?** A monitoring and observability service for AWS resources and applications. It provides data and actionable insights.
+-   **Key Components:**
+    -   **Metrics:** The core of CloudWatch. A time-ordered set of data points, like `CPUUtilization` for an EC2 instance or `Invocations` for a Lambda function. Standard metrics are published automatically; you can create custom metrics.
+    -   **Alarms:** Watches a single metric over a specified time period. If the metric breaches a threshold, it can trigger an action (e.g., send a notification to an SNS topic, trigger an Auto Scaling action).
+    -   **Logs (CloudWatch Logs):** A centralized repository to store, monitor, and analyze log files from various sources like EC2 instances, Lambda, and CloudTrail.
+    -   **Dashboards:** Customizable home pages in the CloudWatch console for monitoring your resources in one view, even across different regions.
+
+### 3. EventBridge
+-   **What is it?** A serverless event bus that makes it easy to connect applications together using data from your own apps, third-party SaaS applications, and AWS services.
+-   **How it Works:**
+    1.  An **Event Source** sends an **Event** to an **Event Bus**.
+    2.  The Event Bus has **Rules** that look for specific patterns in events.
+    3.  If an event matches a rule's pattern, the event is sent to a **Target** (like a Lambda function, SQS queue, or another event bus).
+-   **EventBridge vs. CloudWatch Events:** EventBridge is the evolution of CloudWatch Events. It uses the same API but adds features like partner event buses and a schema registry. All new features are added to EventBridge.
+
+### 4. CloudTrail
+-   **What is it?** A service that records all API calls made in your AWS account, providing a detailed history of actions.
+-   **Key Concepts:**
+    -   **Trail:** A configuration that enables the delivery of CloudTrail events to an S3 bucket for long-term storage and analysis. **Best Practice:** Create a trail that applies to all regions to capture all account activity.
+    -   **Management Events:** Record management operations on your resources (e.g., `CreateInstance`, `DeleteBucket`, `AttachRolePolicy`). By default, CloudTrail records these for free for 90 days.
+    -   **Data Events:** Record operations performed *on or within* a resource (e.g., `S3:GetObject`, `Lambda:InvokeFunction`). These are high-volume and disabled by default because they incur costs. Enable them only when you need detailed resource-level auditing.
+-   **CloudTrail vs. CloudWatch:** A classic interview question.
+    -   **CloudTrail** is for **auditing**: "Who deleted the S3 bucket?".
+    -   **CloudWatch** is for **monitoring**: "What was the CPU utilization of my EC2 instance when it crashed?".
+
+### 5. Other Key Observability Services
+-   **AWS Health:** Provides a personalized view of AWS service health and scheduled changes that might impact **your specific account and resources**. It answers the question, "Is an AWS issue affecting me?".
+-   **Trusted Advisor:** An automated service that inspects your AWS environment and makes recommendations based on best practices across five categories: **Cost Optimization, Security, Fault Tolerance, Performance, and Service Limits**. It's like having an AWS expert review your account.
+
