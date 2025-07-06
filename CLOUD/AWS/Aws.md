@@ -712,3 +712,70 @@ This summary covers the main storage services beyond EBS, which is tightly coupl
 4.  **Isolate with Networking:** Run containers in a **VPC** and use **Security Groups** to control traffic between containers and other resources.
 5.  **Monitor Everything:** Use **CloudWatch Logs** and **Container Insights** to get detailed performance metrics and logs from your containers, tasks, and services to troubleshoot issues quickly.
 
+---
+
+# AWS Serverless (Interview Quick Sheet)
+
+-   **What is Serverless?** A cloud computing model that lets you build and run applications without thinking about servers. AWS manages the infrastructure for you, so you can focus on your code.
+-   **Analogy:** Instead of renting a whole server, it's like paying only for the time a function is actually running. You don't pay for idle.
+-   **Core Services:** `Lambda` (Compute), `API Gateway` (API Frontend), `DynamoDB` (Database), `S3` (Storage).
+
+### 1. API Gateway
+-   **What is it?** A fully managed service that acts as a "front door" for your backend services, like Lambda. It lets you create, publish, and secure APIs.
+-   **Analogy:** It's the receptionist for your backend services. It accepts incoming requests, checks their identity, and routes them to the right place.
+-   **Core Concepts:**
+    -   **API Types:** `REST APIs` (standard web requests), `HTTP APIs` (a lighter, faster, cheaper version of REST), and `WebSocket APIs` (for real-time, two-way communication).
+    -   **Integration:** Connects to backend services like `Lambda`, `EC2`, or any public HTTP endpoint.
+    -   **Security:** Provides authorization and access control using `IAM`, `Cognito`, and `Lambda Authorizers`.
+    -   **Throttling & Usage Plans:** Protects your backend from traffic spikes by setting rate limits and quotas for API keys.
+    -   **Pricing:** Pay-per-request model. You are charged for API calls received and data transferred out.
+
+### 2. AWS Lambda
+-   **What is it?** A serverless, event-driven compute service that lets you run code without provisioning or managing servers.
+-   **Analogy:** It's a piece of code that waits for a specific event to happen, does its job, and then disappears.
+-   **Core Concepts:**
+    -   **Function:** Your code, packaged up with its dependencies. It's triggered by an **Event** (e.g., an API call) and receives `event` and `context` objects as parameters.
+    -   **Runtimes:** Supports popular languages like Node.js, Python, Java, Go, and allows for custom runtimes.
+    -   **Runtime Limit:** Maximum execution time is **15 minutes**.
+    -   **Stateless:** Each invocation is independent. Don't store persistent data in the function itself; use a database like DynamoDB or S3.
+    -   **Configuration:** You control the `Memory` (which also determines CPU power) and `Timeout`.
+    -   **Pricing:** Priced on the number of **requests** and **duration** (in GB-seconds). A generous free tier is included.
+    -   **Function URL:** A built-in HTTPS endpoint for your Lambda function. Ideal for simple webhooks or single-function microservices where API Gateway might be overkill.
+
+#### Key Interview Concepts for Lambda
+
+-   **Invocation Types (Sync vs. Async):**
+    -   **Synchronous:** The caller waits for the function to complete and gets a response back immediately. Used by API Gateway. This is a blocking call.
+    -   **Asynchronous:** The caller hands off the event to Lambda and doesn't wait for a response. Lambda queues the event and handles retries on failure. Used by S3 and SNS. This is a non-blocking call.
+
+-   **Concurrency & Scaling:**
+    -   **Concurrency:** The number of requests your function is serving at any given time. AWS automatically scales this up to a default limit per region.
+    -   **Provisioned Concurrency:** Pre-warming a specific number of function instances to ensure they are always ready to respond immediately, eliminating "cold starts" for predictable high-traffic loads.
+
+-   **Execution Context (Cold vs. Warm Starts):**
+    -   **Cold Start:** The first time a function is invoked (or after a long period of inactivity), AWS creates a new execution environment (downloads code, starts runtime). This adds latency.
+    -   **Warm Start:** For subsequent calls, AWS reuses the existing execution environment, which is much faster.
+    -   **How to Prepare:** To optimize for warm starts, initialize expensive setup code (like database connections or large library imports) *outside* of your main handler function. This way, it's done only once per execution context, not on every single invocation.
+
+### 3. API Gateway + Lambda: The Classic Serverless Pattern
+-   **How it Works:** This is the most common serverless pattern.
+    1.  A client sends an HTTP request to an **API Gateway** endpoint.
+    2.  API Gateway receives the request and **triggers a Lambda function**, passing the request data as an event.
+    3.  The **Lambda function** executes your business logic.
+    4.  The function returns a response to API Gateway, which then sends it back to the client.
+-   **Use Case:** Building scalable, cost-effective backends for web and mobile apps without managing any servers.
+
+### 4. AWS SAM (Serverless Application Model)
+-   **What is it?** An open-source Infrastructure as Code (IaC) framework built on top of CloudFormation specifically for defining and deploying serverless applications.
+-   **Analogy:** It's like a shortcut or macro for CloudFormation. It lets you define a complex serverless app (API, functions, database) with just a few lines of YAML.
+-   **Why Use It?**
+    -   **Simplified Syntax:** Expresses common serverless resources (functions, APIs, tables) concisely.
+    -   **Local Testing:** The **SAM CLI** lets you build, test, and debug your serverless applications locally in a Lambda-like environment before deploying.
+
+### 5. Serverless Best Practices
+1.  **Use the Right Service:** Use **Lambda** for event-driven logic, **API Gateway** for the API frontend, and a managed database like **DynamoDB** for state management.
+2.  **Keep Functions Small and Single-Purpose:** Design your Lambda functions to do one thing well. This makes them easier to test, debug, and maintain.
+3.  **Don't Hardcode Credentials:** Use **IAM Roles** to grant your Lambda function the exact permissions it needs to access other AWS services.
+4.  **Manage Dependencies:** Package your function's dependencies in the deployment package, or use **Lambda Layers** to share common libraries across multiple functions.
+5.  **Monitor and Optimize:** Use **CloudWatch** to monitor invocations, duration, and errors. If a function is too slow, increase its memory to give it more CPU power.
+
