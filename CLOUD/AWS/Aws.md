@@ -718,7 +718,7 @@ This summary covers the main storage services beyond EBS, which is tightly coupl
 
 -   **What is Serverless?** A cloud computing model that lets you build and run applications without thinking about servers. AWS manages the infrastructure for you, so you can focus on your code.
 -   **Analogy:** Instead of renting a whole server, it's like paying only for the time a function is actually running. You don't pay for idle.
--   **Core Services:** `Lambda` (Compute), `API Gateway` (API Frontend), `DynamoDB` (Database), `S3` (Storage).
+-   **Core Services:** `Lambda` (Compute), `API Gateway` (API Frontend), `SNS` (Notifications), `SQS` (Queues), `DynamoDB` (Database), `S3` (Storage).
 
 ### 1. API Gateway
 -   **What is it?** A fully managed service that acts as a "front door" for your backend services, like Lambda. It lets you create, publish, and secure APIs.
@@ -729,6 +729,11 @@ This summary covers the main storage services beyond EBS, which is tightly coupl
     -   **Security:** Provides authorization and access control using `IAM`, `Cognito`, and `Lambda Authorizers`.
     -   **Throttling & Usage Plans:** Protects your backend from traffic spikes by setting rate limits and quotas for API keys.
     -   **Pricing:** Pay-per-request model. You are charged for API calls received and data transferred out.
+
+#### Key Architectural Concepts
+-   **Integration:** The "glue" that connects an API route to a backend service like Lambda. You must create this connection.
+-   **Route:** A rule that defines which path and HTTP method (e.g., `GET /contacts`) maps to which integration.
+-   **Stage:** A snapshot of your API's configuration that is deployed to a specific URL (e.g., `dev`, `prod`). If a stage is named (not `$default`), its name **must be included in the invocation URL** (e.g., `.../prod/contacts`). Changes are not live until deployed to a stage.
 
 ### 2. AWS Lambda
 -   **What is it?** A serverless, event-driven compute service that lets you run code without provisioning or managing servers.
@@ -747,6 +752,10 @@ This summary covers the main storage services beyond EBS, which is tightly coupl
 -   **Invocation Types (Sync vs. Async):**
     -   **Synchronous:** The caller waits for the function to complete and gets a response back immediately. Used by API Gateway. This is a blocking call.
     -   **Asynchronous:** The caller hands off the event to Lambda and doesn't wait for a response. Lambda queues the event and handles retries on failure. Used by S3 and SNS. This is a non-blocking call.
+
+-   **Permissions Model (IAM Role vs. Resource-Based Policy):**
+    -   **IAM Role (Execution Role):** Defines what the Lambda function **is allowed to do** (e.g., publish to an SNS topic, write to an S3 bucket). This is the "outgoing" permission.
+    -   **Resource-Based Policy:** Defines which services **are allowed to invoke** the Lambda function. This is the "incoming" permission (e.g., allowing API Gateway or S3 to trigger the function).
 
 -   **Concurrency & Scaling:**
     -   **Concurrency:** The number of requests your function is serving at any given time. AWS automatically scales this up to a default limit per region.
@@ -773,9 +782,12 @@ This summary covers the main storage services beyond EBS, which is tightly coupl
     -   **Local Testing:** The **SAM CLI** lets you build, test, and debug your serverless applications locally in a Lambda-like environment before deploying.
 
 ### 5. Serverless Best Practices
-1.  **Use the Right Service:** Use **Lambda** for event-driven logic, **API Gateway** for the API frontend, and a managed database like **DynamoDB** for state management.
+1.  **Use the Right Service:** Use **Lambda** for event-driven logic, **API Gateway** for the API frontend, and a managed database like **DynamoDB** for state management. For decoupled, fan-out patterns, use **SNS** and **SQS**.
 2.  **Keep Functions Small and Single-Purpose:** Design your Lambda functions to do one thing well. This makes them easier to test, debug, and maintain.
 3.  **Don't Hardcode Credentials:** Use **IAM Roles** to grant your Lambda function the exact permissions it needs to access other AWS services.
-4.  **Manage Dependencies:** Package your function's dependencies in the deployment package, or use **Lambda Layers** to share common libraries across multiple functions.
-5.  **Monitor and Optimize:** Use **CloudWatch** to monitor invocations, duration, and errors. If a function is too slow, increase its memory to give it more CPU power.
+4.  **Separate Config from Code:** Use **Environment Variables** to pass configuration details like database names or SNS topic ARNs to your Lambda function.
+5.  **Use the AWS SDK:** Inside your Lambda code, use the appropriate AWS SDK (e.g., Boto3 for Python) to interact with other AWS services programmatically.
+6.  **Manage Dependencies:** Package your function's dependencies in the deployment package, or use **Lambda Layers** to share common libraries across multiple functions.
+7.  **Monitor and Optimize:** Use **CloudWatch** to monitor invocations, duration, and errors. If a function is too slow, increase its memory to give it more CPU power.
+8.  **Test Locally and in the Cloud:** Use tools like the **SAM CLI** for local testing and the **Test Event** feature in the Lambda console to debug your function in the cloud.
 
