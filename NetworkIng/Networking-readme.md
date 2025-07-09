@@ -152,7 +152,8 @@ While the OSI model is conceptual, its layers can be broadly mapped to the Linux
 *   **Layers 4-2 (Transport, Network, Data Link):** Primarily handled by the **Kernel Space** networking stack. The kernel manages TCP/IP sockets, routing, packet filtering, and interfacing with network drivers.
 *   **Layer 1 (Physical):** Corresponds to the **Hardware** (Network Interface Cards - NICs, cables, physical transceivers) managed by kernel drivers.
 
-![ositcp](/Media/OSI-TCP-PNG)
+
+<img src="/Media/OSI-TCP.png" alt="ositcp" width="500"/>
 
 ### Network Configuration
 
