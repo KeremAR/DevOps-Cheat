@@ -8,12 +8,30 @@ DNS (Domain Name System) is the **internet's phonebook**, translating human-read
 Without DNS, we would need to remember IP addresses instead of human-readable domain names.
 
 
-### What is TLS?
-TLS (Transport Layer Security) is a cryptographic protocol that provides secure communication over a network. It is the successor to SSL (Secure Sockets Layer).
+### What is TLS/SSL?
 
-- Ensures encryption, authentication, and data integrity.
-- Used in HTTPS, email, and secure messaging applications.
-- Latest version: TLS 1.3
+**TLS (Transport Layer Security)** is a cryptographic protocol designed to provide secure communication across a computer network. It is the modern standard used in `HTTPS` and other secure protocols. SSL (Secure Sockets Layer) is its predecessor; today, the terms are often used interchangeably, but modern systems use TLS.
+
+Its main goals are:
+- **Encryption:** Makes data unreadable to eavesdroppers.
+- **Authentication:** Verifies the server's identity using a TLS certificate.
+- **Integrity:** Ensures data is not tampered with during transit.
+
+### How the TLS Handshake Works
+
+The handshake establishes a secure session in four main steps:
+
+1.  **Negotiation:** The client and server agree on the TLS version (e.g., TLS 1.3) and the **cipher suite** (the set of encryption algorithms) to use.
+2.  **Authentication:** The server proves its identity to the client by sending its TLS certificate, which is verified by a trusted Certificate Authority (CA).
+3.  **Key Exchange:** Using the server's public key, the client and server securely generate and share a temporary **session key**.
+4.  **Secure Communication:** Both parties use this session key to encrypt all further communication for the duration of the session.
+
+### TLS Security Best Practices
+
+- **Automate Certificate Renewal:** Use tools like Let's Encrypt to prevent outages from expired certificates.
+- **Use Modern Versions:** Configure servers to use only secure protocols like **TLS 1.2** and **TLS 1.3**.
+- **Disable Insecure Protocols:** Actively disable old versions like **TLS 1.0, 1.1, and all SSL versions**.
+- **Use Strong Cipher Suites:** Regularly update configurations to use strong, modern ciphers and remove weak ones.
 
 ### How to Divide a Network into Subnets? What is /24? What is 255.255.255.0?
 
