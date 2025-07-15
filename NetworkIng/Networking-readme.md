@@ -97,14 +97,24 @@ DHCP is a network management protocol used to automatically assign essential TCP
 3.  **Request:** The client selects an offer and sends a DHCP Request message to that server.
 4.  **Acknowledge (ACK):** The selected server confirms the lease with a DHCP Acknowledge message, finalizing the assignment for a specific duration (lease time).
 
-### OSI Model (Open Systems Interconnection Model)
+### The OSI Model (Open Systems Interconnection)
+
+#### Why Was the OSI Model Created?
+
+Before the OSI model, the networking world was chaotic. Different manufacturers (like IBM, DEC) created their own proprietary networking hardware and software. This meant that a computer from one manufacturer could not easily communicate with a computer from another. This lack of interoperability created significant challenges for building and expanding networks.
+
+To solve this problem, the **International Organization for Standardization (ISO)** began developing the OSI model in 1977. It was published in 1984 as a **standardized reference model**. The goal was to create a universal framework that would allow different systems to communicate with each other, regardless of their underlying architecture.
+
+The OSI model isn't a specific protocol itself, but rather a conceptual framework that divides network communication into seven distinct layers. This layered approach simplifies troubleshooting, standardizes development, and promotes interoperability between different vendors.
+
+#### Encapsulation and Decapsulation
+As data moves down the OSI layers on the sending device, each layer adds its own header information. This process is called **encapsulation**. The header contains control information relevant to that layer's function (e.g., source/destination addresses, port numbers, error-checking).
+
+When the data reaches the receiving device, it moves up the layers. Each layer reads the corresponding header, performs its function, and then removes the header before passing the data up to the next layer. This reverse process is called **decapsulation**. This ensures that the original application data is delivered intact to the receiving application.
 
 <img src="/Media/OSI-1.jpg" alt="osi" width="500"/>
 
 
-
-
-The OSI Model is a conceptual framework used to understand and standardize the functions of a telecommunication or computing system in terms of network communication. It divides network communication into seven distinct layers. Each layer performs specific functions and relies on the layers below it.
 
 **The 7 Layers of the OSI Model:**
 
