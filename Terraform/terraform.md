@@ -85,6 +85,37 @@ resource "aws_instance" "web_server" {
 }
 ```
 
+### How to Set Variable Values
+A variable declaration (in `variables.tf`) is like defining a function's parameters; you still need to provide values (arguments) for them. Terraform offers several ways to do this, with a clear order of precedence.
+
+1.  **Variable Definition Files (`.tfvars`) - Recommended Method**
+    This is the most common and recommended way to manage variables for different environments (dev, prod) without changing the core code.
+    - **`terraform.tfvars`**: If a file with this exact name exists in your directory, Terraform automatically loads it. This is perfect for setting the main variables for a specific deployment.
+    - **`*.auto.tfvars`**: Any file ending in `.auto.tfvars` (e.g., `network.auto.tfvars`) will also be loaded automatically.
+
+    **Example `terraform.tfvars` file:**
+    ```hcl
+    # This file provides values for variables defined in variables.tf
+    instance_type = "t2.large"
+    # Note: No 'variable' keyword here. Just the name and value.
+    ```
+
+2.  **Command-Line Flags**
+    You can pass variables directly when running `plan` or `apply`. This is useful for CI/CD pipelines or temporary overrides.
+    - **`-var`**: Sets a single variable.
+      `terraform apply -var="instance_type=t2.large"`
+    - **`-var-file`**: Provides a path to a `.tfvars` file that isn't named `terraform.tfvars`.
+      `terraform apply -var-file="production.tfvars"`
+
+3.  **`default` Value in the Declaration**
+    As shown in the example above, you can provide a `default` value inside the `variable` block. This value is used if the variable is not set by any other method.
+
+**Precedence Order:**
+Terraform loads variables in the following order (later ones override earlier ones):
+1.  `default` values inside `variable` blocks.
+2.  Values in `terraform.tfvars` and `*.auto.tfvars` files.
+3.  Values from `-var` and `-var-file` flags on the command line.
+
 ### Outputs
 - **What they are**: Return values for your configuration, like function return values. They show useful information to the user or pass data to other Terraform configurations.
 
