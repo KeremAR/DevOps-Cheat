@@ -854,3 +854,688 @@ output "iam_instance_profile_name" {
     *   Confirm that the **Instance Profile** associated with the role is named `cmtr-zdv1y551-iam-instance-profile`.
     *   Verify all created resources have the `Project=cmtr-zdv1y551` tag.
 
+---
+
+## Task: AWS IaC with Terraform: Configure Network Security
+
+*The objective of this lab is to configure advanced network security for AWS infrastructure using Terraform. This involves creating security groups with specific ingress rules and establishing secure communication between Public and Private instances using source_security_group_id references.*
+
+### Step 1: Task Analysis & Strategy
+
+The objective is to create a comprehensive network security configuration that implements proper security group design patterns using Terraform. This task focuses on:
+
+1.  **Security Group Creation**: Three distinct security groups for different purposes:
+    -   SSH Security Group: Manages SSH and ICMP access from allowed IP ranges
+    -   Public HTTP Security Group: Controls HTTP and ICMP access for public-facing services
+    -   Private HTTP Security Group: Implements secure communication using security group references
+
+2.  **Security Group Rules**: Granular ingress rules that follow security best practices:
+    -   Using CIDR blocks for external access control
+    -   Implementing source_security_group_id for internal communication
+    -   Proper port and protocol specifications
+
+3.  **Security Group Attachments**: Associating security groups with existing EC2 instances using network interface attachments
+
+The strategy is to create a set of Terraform configuration files that logically separate concerns and follow infrastructure as code best practices.
+
+### Step 2: Pre-existing Infrastructure
+
+This task uses pre-created AWS infrastructure:
+
+*   **VPC**: `cmtr-zdv1y551-vpc` (vpc-04c5c5b36241bf576) with CIDR `10.0.0.0/16`
+*   **Public Subnet**: `cmtr-zdv1y551-public-subnet` (subnet-07e4ed568110e8739)
+*   **Private Subnet**: `cmtr-zdv1y551-private-subnet` (subnet-097650fa27e2abf0c)
+*   **Public EC2 Instance**: `cmtr-zdv1y551-public-instance` (i-0e67376b04721413e) running Nginx on port 80
+*   **Private EC2 Instance**: `cmtr-zdv1y551-private-instance` (i-03a896fe2b39c9a76) running Nginx on port 8080
+
+### Step 3: Terraform Configuration
+
+Create the following files in your `terraform-tasks/task_5` directory.
+
+#### `versions.tf`
+This file locks down the versions of Terraform and the AWS provider.
+
+```terraform
+terraform {
+  required_version = ">= 1.5.7"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+```
+
+#### `variables.tf`
+This file defines comprehensive input variables for network security configuration.
+
+```terraform
+variable "aws_region" {
+  description = "The AWS region where resources will be deployed."
+  type        = string
+}
+
+variable "project_tag" {
+  description = "The value for the Project tag."
+  type        = string
+}
+
+variable "allowed_ip_range" {
+  description = "List of IP address ranges for secure access."
+  type        = list(string)
+}
+
+variable "vpc_id" {
+  description = "The ID of the existing VPC."
+  type        = string
+}
+
+variable "public_instance_id" {
+  description = "The ID of the existing public EC2 instance."
+  type        = string
+}
+
+variable "private_instance_id" {
+  description = "The ID of the existing private EC2 instance."
+  type        = string
+}
+
+variable "ssh_sg_name" {
+  description = "The name for the SSH security group."
+  type        = string
+}
+
+variable "public_http_sg_name" {
+  description = "The name for the public HTTP security group."
+  type        = string
+}
+
+variable "private_http_sg_name" {
+  description = "The name for the private HTTP security group."
+  type        = string
+}
+```
+
+#### `terraform.tfvars`
+This file provides the values for all variables. **Important**: Replace `YOUR_PUBLIC_IP` with your actual public IP address.
+
+```terraform
+aws_region            = "us-east-1"
+project_tag           = "cmtr-zdv1y551"
+allowed_ip_range      = ["18.153.146.156/32", "YOUR_PUBLIC_IP/32"]
+vpc_id                = "vpc-04c5c5b36241bf576"
+public_instance_id    = "i-0e67376b04721413e"
+private_instance_id   = "i-03a896fe2b39c9a76"
+ssh_sg_name           = "cmtr-zdv1y551-ssh-sg"
+public_http_sg_name   = "cmtr-zdv1y551-public-http-sg"
+private_http_sg_name  = "cmtr-zdv1y551-private-http-sg"
+```
+
+#### `main.tf`
+This file configures the AWS provider and sets up data sources for existing infrastructure.
+
+```terraform
+provider "aws" {
+  region = var.aws_region
+}
+
+# Data source to get existing VPC information
+data "aws_vpc" "existing" {
+  id = var.vpc_id
+}
+
+# Data source to get existing public instance information
+data "aws_instance" "public" {
+  instance_id = var.public_instance_id
+}
+
+# Data source to get existing private instance information
+data "aws_instance" "private" {
+  instance_id = var.private_instance_id
+}
+```
+
+#### `network_security.tf`
+This file contains all network security-related resources: security groups, rules, and attachments.
+
+```terraform
+# SSH Security Group
+resource "aws_security_group" "ssh" {
+  name   = var.ssh_sg_name
+  vpc_id = var.vpc_id
+
+  tags = {
+    Project = var.project_tag
+  }
+}
+
+# SSH Security Group Rules
+resource "aws_security_group_rule" "ssh_ingress_ssh" {
+  type              = "ingress"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  cidr_blocks       = var.allowed_ip_range
+  security_group_id = aws_security_group.ssh.id
+}
+
+resource "aws_security_group_rule" "ssh_ingress_icmp" {
+  type              = "ingress"
+  from_port         = -1
+  to_port           = -1
+  protocol          = "icmp"
+  cidr_blocks       = var.allowed_ip_range
+  security_group_id = aws_security_group.ssh.id
+}
+
+# Public HTTP Security Group
+resource "aws_security_group" "public_http" {
+  name   = var.public_http_sg_name
+  vpc_id = var.vpc_id
+
+  tags = {
+    Project = var.project_tag
+  }
+}
+
+# Public HTTP Security Group Rules
+resource "aws_security_group_rule" "public_http_ingress_http" {
+  type              = "ingress"
+  from_port         = 80
+  to_port           = 80
+  protocol          = "tcp"
+  cidr_blocks       = var.allowed_ip_range
+  security_group_id = aws_security_group.public_http.id
+}
+
+resource "aws_security_group_rule" "public_http_ingress_icmp" {
+  type              = "ingress"
+  from_port         = -1
+  to_port           = -1
+  protocol          = "icmp"
+  cidr_blocks       = var.allowed_ip_range
+  security_group_id = aws_security_group.public_http.id
+}
+
+# Private HTTP Security Group
+resource "aws_security_group" "private_http" {
+  name   = var.private_http_sg_name
+  vpc_id = var.vpc_id
+
+  tags = {
+    Project = var.project_tag
+  }
+}
+
+# Private HTTP Security Group Rules (using source_security_group_id)
+resource "aws_security_group_rule" "private_http_ingress_http" {
+  type                     = "ingress"
+  from_port                = 8080
+  to_port                  = 8080
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.public_http.id
+  security_group_id        = aws_security_group.private_http.id
+}
+
+resource "aws_security_group_rule" "private_http_ingress_icmp" {
+  type                     = "ingress"
+  from_port                = -1
+  to_port                  = -1
+  protocol                 = "icmp"
+  source_security_group_id = aws_security_group.public_http.id
+  security_group_id        = aws_security_group.private_http.id
+}
+
+# Security Group Attachments for Public Instance
+resource "aws_network_interface_sg_attachment" "public_ssh" {
+  security_group_id    = aws_security_group.ssh.id
+  network_interface_id = data.aws_instance.public.network_interface_id
+}
+
+resource "aws_network_interface_sg_attachment" "public_http" {
+  security_group_id    = aws_security_group.public_http.id
+  network_interface_id = data.aws_instance.public.network_interface_id
+}
+
+# Security Group Attachments for Private Instance
+resource "aws_network_interface_sg_attachment" "private_ssh" {
+  security_group_id    = aws_security_group.ssh.id
+  network_interface_id = data.aws_instance.private.network_interface_id
+}
+
+resource "aws_network_interface_sg_attachment" "private_http" {
+  security_group_id    = aws_security_group.private_http.id
+  network_interface_id = data.aws_instance.private.network_interface_id
+}
+```
+
+#### `outputs.tf`
+This file declares the outputs for all created security groups.
+
+```terraform
+output "ssh_security_group_id" {
+  description = "The ID of the SSH security group."
+  value       = aws_security_group.ssh.id
+}
+
+output "public_http_security_group_id" {
+  description = "The ID of the public HTTP security group."
+  value       = aws_security_group.public_http.id
+}
+
+output "private_http_security_group_id" {
+  description = "The ID of the private HTTP security group."
+  value       = aws_security_group.private_http.id
+}
+
+output "ssh_security_group_name" {
+  description = "The name of the SSH security group."
+  value       = aws_security_group.ssh.name
+}
+
+output "public_http_security_group_name" {
+  description = "The name of the public HTTP security group."
+  value       = aws_security_group.public_http.name
+}
+
+output "private_http_security_group_name" {
+  description = "The name of the private HTTP security group."
+  value       = aws_security_group.private_http.name
+}
+```
+
+### Step 4: IP Address Configuration
+
+Before deployment, you must configure your public IP address:
+
+1.  **Find your public IP**: Use one of these methods:
+    ```bash
+    # Method 1: Using curl
+    curl ifconfig.me
+    
+    # Method 2: Using PowerShell
+    Invoke-RestMethod -Uri "https://ifconfig.me/ip"
+    ```
+
+2.  **Update terraform.tfvars**: Replace `YOUR_PUBLIC_IP` with your actual public IP address:
+    ```terraform
+    allowed_ip_range = ["18.153.146.156/32", "203.0.113.25/32"]  # Example
+    ```
+
+### Step 5: Deployment and Verification
+
+1.  **Configure AWS Credentials**: Ensure your AWS credentials are configured in your terminal environment.
+    ```powershell
+    $env:AWS_ACCESS_KEY_ID="************"
+    $env:AWS_SECRET_ACCESS_KEY="************"
+    ```
+
+2.  **Initialize and Deploy**: Navigate to the `terraform-tasks/task_5` directory and run the standard Terraform workflow.
+    ```bash
+    terraform init
+    terraform fmt
+    terraform validate
+    terraform plan
+    terraform apply --auto-approve
+    ```
+
+3.  **Verify in AWS Console**:
+    *   Navigate to the **EC2** dashboard in the `us-east-1` region.
+    *   Go to **Security Groups** and verify the creation of:
+        -   `cmtr-zdv1y551-ssh-sg` with 2 ingress rules (SSH port 22/tcp and ICMP)
+        -   `cmtr-zdv1y551-public-http-sg` with 2 ingress rules (HTTP port 80/tcp and ICMP)
+        -   `cmtr-zdv1y551-private-http-sg` with 2 ingress rules using source security group references
+    *   Go to **Instances** and verify:
+        -   Public instance has SSH and Public HTTP security groups attached
+        -   Private instance has SSH and Private HTTP security groups attached
+    *   Verify all security groups have the `Project=cmtr-zdv1y551` tag
+
+4.  **Test Connectivity** (after 60-second initialization):
+    *   Public instance should serve Nginx welcome page via HTTP
+    *   Private instance should only be accessible from the public instance
+    *   SSH access should work from allowed IP ranges
+
+### Key Features of This Implementation:
+
+**Security Best Practices:**
+- **Principle of Least Privilege**: Each security group has only the minimum required permissions
+- **Source Security Group References**: Private HTTP security group uses `source_security_group_id` instead of CIDR blocks for internal communication
+- **Granular Rule Management**: Individual `aws_security_group_rule` resources for better control and visibility
+- **Proper IP Range Configuration**: External access limited to specific allowed IP addresses
+
+**Infrastructure as Code Best Practices:**
+- **No Hardcoded Values**: All resource names and configurations defined via variables
+- **Comprehensive Variable Definitions**: All variables include proper descriptions and type definitions
+- **Proper Resource Organization**: Security-related resources grouped in `network_security.tf`
+- **Detailed Outputs**: Complete information about created security groups available as outputs
+
+**AWS Resource Management:**
+- **Data Sources**: Existing infrastructure referenced via data sources rather than hardcoded IDs
+- **Network Interface Attachments**: Proper use of `aws_network_interface_sg_attachment` for associating security groups with instances
+- **Consistent Tagging**: All resources tagged with project identifier for organization and cost tracking
+
+---
+
+## Task: AWS IaC with Terraform: Form TF Output
+
+*The primary objective of this lab is to create a foundational network stack for your virtual infrastructure in AWS using Terraform with a critical focus on generating comprehensive and well-structured outputs. This includes setting up a customized Virtual Private Cloud (VPC), public subnets in multiple availability zones, an internet gateway, and a routing table, while ensuring that essential resource identifiers and configurations are easily retrievable through detailed output definitions.*
+
+### Step 1: Task Analysis & Strategy
+
+The objective is to create a comprehensive network infrastructure with particular emphasis on **Terraform Outputs**. This task extends beyond basic resource creation to focus on:
+
+1.  **Output-Driven Development**: Designing infrastructure with outputs as first-class citizens
+2.  **Resource Reference Management**: Ensuring all critical resource information is accessible post-deployment
+3.  **Infrastructure Introspection**: Providing detailed insights into created resources through structured outputs
+
+The strategy emphasizes the importance of outputs.tf as a crucial component for:
+- **Cross-Stack References**: Enabling other Terraform configurations to reference these resources
+- **Operational Visibility**: Providing clear visibility into deployed infrastructure
+- **Integration Support**: Facilitating integration with external tools and systems
+
+### Step 2: Terraform Configuration
+
+Create the following files in your `terraform-tasks/task_6` directory.
+
+#### `versions.tf`
+This file defines the required Terraform version and AWS provider version.
+
+```terraform
+terraform {
+  required_version = ">= 1.5.7"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+```
+
+#### `variables.tf`
+This file declares all variables required for the VPC infrastructure, ensuring modularity and reusability.
+
+```terraform
+variable "aws_region" {
+  description = "The AWS region to create resources in."
+  type        = string
+}
+
+variable "vpc_name" {
+  description = "The name of the VPC."
+  type        = string
+}
+
+variable "vpc_cidr" {
+  description = "The CIDR block for the VPC."
+  type        = string
+}
+
+variable "public_subnets" {
+  description = "A map of public subnets to create. Each object contains the name, availability zone, and CIDR block."
+  type = map(object({
+    name = string
+    az   = string
+    cidr = string
+  }))
+}
+
+variable "igw_name" {
+  description = "The name for the Internet Gateway."
+  type        = string
+}
+
+variable "rt_name" {
+  description = "The name for the Route Table."
+  type        = string
+}
+```
+
+#### `terraform.tfvars`
+This file provides the actual values for all variables with the specific naming convention required.
+
+```terraform
+aws_region = "us-east-1"
+
+vpc_name = "cmtr-zdv1y551-01-vpc"
+vpc_cidr = "10.10.0.0/16"
+
+public_subnets = {
+  "a" = {
+    name = "cmtr-zdv1y551-01-subnet-public-a"
+    az   = "us-east-1a"
+    cidr = "10.10.1.0/24"
+  },
+  "b" = {
+    name = "cmtr-zdv1y551-01-subnet-public-b"
+    az   = "us-east-1b"
+    cidr = "10.10.3.0/24"
+  },
+  "c" = {
+    name = "cmtr-zdv1y551-01-subnet-public-c"
+    az   = "us-east-1c"
+    cidr = "10.10.5.0/24"
+  }
+}
+
+igw_name = "cmtr-zdv1y551-01-igw"
+rt_name  = "cmtr-zdv1y551-01-rt"
+```
+
+#### `main.tf`
+This file contains the AWS provider configuration.
+
+```terraform
+provider "aws" {
+  region = var.aws_region
+}
+```
+
+#### `vpc.tf`
+This file contains all the network infrastructure resources with proper dependencies and associations.
+
+```terraform
+resource "aws_vpc" "main" {
+  cidr_block = var.vpc_cidr
+  
+  tags = {
+    Name = var.vpc_name
+  }
+}
+
+resource "aws_subnet" "public" {
+  for_each = var.public_subnets
+
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = each.value.cidr
+  availability_zone = each.value.az
+
+  tags = {
+    Name = each.value.name
+  }
+}
+
+resource "aws_internet_gateway" "main" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name = var.igw_name
+  }
+}
+
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.main.id
+  }
+
+  tags = {
+    Name = var.rt_name
+  }
+}
+
+resource "aws_route_table_association" "public" {
+  for_each = aws_subnet.public
+
+  subnet_id      = each.value.id
+  route_table_id = aws_route_table.public.id
+}
+```
+
+#### `outputs.tf`
+This file defines comprehensive outputs to capture and display detailed resource information upon deployment.
+
+```terraform
+output "vpc_id" {
+  description = "The ID of the created VPC."
+  value       = aws_vpc.main.id
+}
+
+output "vpc_cidr" {
+  description = "The CIDR block of the VPC."
+  value       = aws_vpc.main.cidr_block
+}
+
+output "public_subnet_ids" {
+  description = "A set of IDs for all public subnets."
+  value       = toset([for subnet in aws_subnet.public : subnet.id])
+}
+
+output "public_subnet_cidr_block" {
+  description = "A set of CIDR blocks for all public subnets."
+  value       = toset([for subnet in aws_subnet.public : subnet.cidr_block])
+}
+
+output "public_subnet_availability_zone" {
+  description = "A set of availability zones for all public subnets."
+  value       = toset([for subnet in aws_subnet.public : subnet.availability_zone])
+}
+
+output "internet_gateway_id" {
+  description = "The ID of the Internet Gateway."
+  value       = aws_internet_gateway.main.id
+}
+
+output "routing_table_id" {
+  description = "The ID of the routing table."
+  value       = aws_route_table.public.id
+}
+```
+
+### Step 3: Deployment and Verification
+
+1.  **Configure AWS Credentials**: Ensure your AWS credentials are configured in your terminal environment.
+    ```bash
+    export AWS_ACCESS_KEY_ID="************"
+    export AWS_SECRET_ACCESS_KEY="************"
+    ```
+
+2.  **Complete Terraform Workflow**: Navigate to the `terraform-tasks/task_6` directory and execute the full workflow.
+    ```bash
+    terraform init
+    terraform fmt
+    terraform validate
+    terraform plan
+    terraform apply --auto-approve
+    ```
+
+3.  **Verify Outputs**: After successful deployment, examine the console output to confirm all required outputs are displayed:
+    ```bash
+    Outputs:
+
+    internet_gateway_id = "igw-xxxxxxxxx"
+    public_subnet_availability_zone = toset([
+      "us-east-1a",
+      "us-east-1b", 
+      "us-east-1c",
+    ])
+    public_subnet_cidr_block = toset([
+      "10.10.1.0/24",
+      "10.10.3.0/24",
+      "10.10.5.0/24",
+    ])
+    public_subnet_ids = toset([
+      "subnet-xxxxxxxxx",
+      "subnet-yyyyyyyyy",
+      "subnet-zzzzzzzzz",
+    ])
+    routing_table_id = "rtb-xxxxxxxxx"
+    vpc_cidr = "10.10.0.0/16"
+    vpc_id = "vpc-xxxxxxxxx"
+    ```
+
+4.  **AWS Console Verification**:
+    *   Navigate to the **VPC** dashboard in the `us-east-1` region.
+    *   **VPC**: Verify `cmtr-zdv1y551-01-vpc` exists with CIDR `10.10.0.0/16`
+    *   **Subnets**: Confirm three public subnets with correct names, CIDRs, and AZs
+    *   **Internet Gateways**: Check `cmtr-zdv1y551-01-igw` is attached to the VPC
+    *   **Route Tables**: Verify `cmtr-zdv1y551-01-rt` has the correct routes and subnet associations
+
+### Step 4: Understanding Terraform Outputs
+
+#### Output Types and Functions
+
+**Basic Outputs:**
+```hcl
+output "vpc_id" {
+  value = aws_vpc.main.id
+}
+```
+
+**Set Outputs with Transformation:**
+```hcl
+output "public_subnet_ids" {
+  value = toset([for subnet in aws_subnet.public : subnet.id])
+}
+```
+
+**Why Use `toset()`:**
+- **Consistency**: Converts list to set for consistent output format
+- **Deduplication**: Automatically removes duplicates (if any)
+- **Type Safety**: Ensures proper typing for downstream usage
+
+#### Cross-Stack Reference Patterns
+
+**Referencing from Another Configuration:**
+```hcl
+# In another Terraform configuration
+data "terraform_remote_state" "network" {
+  backend = "local"
+  config = {
+    path = "../task_6/terraform.tfstate"
+  }
+}
+
+# Use the outputs
+resource "aws_instance" "app" {
+  subnet_id = tolist(data.terraform_remote_state.network.outputs.public_subnet_ids)[0]
+  vpc_security_group_ids = [aws_security_group.app.id]
+}
+```
+
+### Key Features of This Implementation:
+
+**Output Design Patterns:**
+- **Descriptive Names**: Clear, consistent naming that explains what each output represents
+- **Type Conversion**: Using `toset()` for collection outputs to ensure proper data types
+- **Comprehensive Coverage**: Every major resource has corresponding outputs
+- **Documentation**: Each output includes detailed descriptions for clarity
+
+**Infrastructure as Code Best Practices:**
+- **Separation of Concerns**: Clean separation between resource definition and output declaration
+- **Reusability**: Outputs enable easy reference by other configurations
+- **Operational Excellence**: Detailed outputs support monitoring and management operations
+- **Integration Ready**: Structured outputs facilitate integration with external systems
+
+**AWS Network Architecture:**
+- **Multi-AZ Design**: Subnets distributed across multiple availability zones for high availability
+- **Internet Connectivity**: Proper routing configuration for internet access
+- **Scalable Foundation**: Infrastructure ready for additional resources and services
+
+This implementation demonstrates advanced Terraform output patterns that are essential for building maintainable and reusable infrastructure as code.
+
