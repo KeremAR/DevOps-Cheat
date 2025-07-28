@@ -148,6 +148,93 @@ resource "aws_instance" "web_server" {
 }
 ```
 
+### Cross-Referencing & Resource Dependencies
+- **What it is**: How Terraform resources, data sources, variables, and local values reference each other to create dependencies and pass data.
+- **Purpose**: Enables building complex infrastructure where resources depend on each other's attributes.
+
+#### Reference Types:
+
+**1. Variable References (`var.xxx`)**
+- **Source**: `variables.tf` file
+- **Usage**: Input parameters from terraform.tfvars or command line
+```hcl
+# variables.tf
+variable "instance_type" {
+  type = string
+}
+
+# main.tf
+resource "aws_instance" "web" {
+  instance_type = var.instance_type  # Reference to variable
+}
+```
+
+**2. Data Source References (`data.xxx.yyy.zzz`)**
+- **Source**: External data fetched from APIs
+- **Usage**: Access existing resources not managed by current Terraform config
+```hcl
+# Fetch existing VPC
+data "aws_vpc" "existing" {
+  default = true
+}
+
+# Use in new resource
+resource "aws_subnet" "app" {
+  vpc_id = data.aws_vpc.existing.id  # Reference to data source
+}
+```
+
+**3. Resource References (`resource_type.name.attribute`)**
+- **Source**: Resources created by current Terraform config
+- **Usage**: Use outputs from one resource as inputs to another
+```hcl
+# Create key pair
+resource "aws_key_pair" "deployer" {
+  key_name   = "deployer-key"
+  public_key = var.ssh_public_key
+}
+
+# Reference it in EC2 instance
+resource "aws_instance" "web" {
+  ami      = "ami-12345678"
+  key_name = aws_key_pair.deployer.key_name  # Reference to resource
+}
+```
+
+**4. Local Value References (`local.xxx`)**
+- **Source**: `locals` block for computed/combined values
+- **Usage**: Reusable calculated values or complex expressions
+```hcl
+locals {
+  common_tags = {
+    Environment = var.environment
+    Project     = var.project_name
+  }
+  
+  instance_name = "${var.project_name}-${var.environment}-web"
+}
+
+resource "aws_instance" "web" {
+  tags = local.common_tags           # Reference to local value
+  
+  tags = merge(local.common_tags, {  # Combining local with additional tags
+    Name = local.instance_name
+  })
+}
+```
+
+#### Dependency Graph:
+- Terraform automatically creates a dependency graph based on these references
+- Resources are created/destroyed in the correct order
+- Example: VPC → Subnet → Security Group → EC2 Instance
+
+#### Best Practices:
+- Use **variables** for user inputs
+- Use **data sources** for existing infrastructure
+- Use **resource references** for dependencies between new resources  
+- Use **locals** for computed values and reducing repetition
+- Avoid circular dependencies (A depends on B, B depends on A)
+
 ### Modules
 - **What they are**: Reusable containers for multiple resources that are used together. They are the primary way to package and reuse resource configurations.
 - **How it works**: You call a module and provide variables to it.
