@@ -14,6 +14,15 @@ Git is a distributed version control system that tracks changes in files and coo
 - **HEAD^:** Parent of HEAD (previous commit)
 - **HEAD~4:** 4 commits before HEAD
 
+### File Status Lifecycle
+<img src="/Media/files-lifecycle.png" alt="files-lifecycle" width="500"/>
+
+**Four main states:**
+- **Untracked:** File exists but Git doesn't track it
+- **Unmodified:** File tracked, no changes since last commit  
+- **Modified:** File tracked, has changes since last commit
+- **Staged:** File marked to be included in next commit
+
 ### Git Object Types
 <img src="/Media/object-tree.png" alt="git" width="500"/>
 
@@ -22,15 +31,6 @@ Git is a distributed version control system that tracks changes in files and coo
 3. **Commit:** Snapshot of entire project with metadata
 4. **Tag:** Marks specific commits as important
 
-### Fork vs Clone
-
-| Feature         | Clone                                  | Fork                                       |
-|-----------------|----------------------------------------|--------------------------------------------|
-| **What it does**| Copies a repo to your **local** machine | Copies a repo to **your GitHub account**   |
-| **Ownership**   | You don't own the original repo        | You own the copied repo (the fork)         |
-| **Connection**  | Directly linked to the original (`origin`) | Linked to the original (`upstream`), but independent |
-| **Purpose**     | Get a local working copy               | Contribute to original, start own project  |
-| **Location**    | Local machine                          | Server-side (e.g., GitHub)                 |
 
 ## SSH Key Setup
 
@@ -74,17 +74,19 @@ $ git branch -M main            # Rename branch to main
 $ git remote add origin <url>   # Connect to remote repo
 $ git push -u origin main      # Push and set upstream
 ```
+### Fork vs Clone
+
+| Feature         | Clone                                  | Fork                                       |
+|-----------------|----------------------------------------|--------------------------------------------|
+| **What it does**| Copies a repo to your **local** machine | Copies a repo to **your GitHub account**   |
+| **Ownership**   | You don't own the original repo        | You own the copied repo (the fork)         |
+| **Connection**  | Directly linked to the original (`origin`) | Linked to the original (`upstream`), but independent |
+| **Purpose**     | Get a local working copy               | Contribute to original, start own project  |
+| **Location**    | Local machine                          | Server-side (e.g., GitHub)                 |
 
 ## Basic Git Workflow
 
-### File Status Lifecycle
-<img src="/Media/files-lifecycle.png" alt="files-lifecycle" width="500"/>
 
-**Four main states:**
-- **Untracked:** File exists but Git doesn't track it
-- **Unmodified:** File tracked, no changes since last commit  
-- **Modified:** File tracked, has changes since last commit
-- **Staged:** File marked to be included in next commit
 
 ### Adding and Committing Changes
 ```bash
