@@ -4,6 +4,47 @@
 
 Git is a distributed version control system that tracks changes in files and coordinates work among multiple people.
 
+## Key Git Concepts
+
+### Basic Concepts
+- **main/master:** Default development branch
+- **origin:** Default name for remote repository
+- **upstream:** Original repository (when working with forks)
+- **HEAD:** Pointer to current branch/commit
+- **HEAD^:** Parent of HEAD (previous commit)
+- **HEAD~4:** 4 commits before HEAD
+
+### Git Object Types
+<img src="/Media/object-tree.png" alt="git" width="500"/>
+
+1. **Blob:** Stores file content (no metadata)
+2. **Tree:** Represents directory structure
+3. **Commit:** Snapshot of entire project with metadata
+4. **Tag:** Marks specific commits as important
+
+### Fork vs Clone
+
+| Feature         | Clone                                  | Fork                                       |
+|-----------------|----------------------------------------|--------------------------------------------|
+| **What it does**| Copies a repo to your **local** machine | Copies a repo to **your GitHub account**   |
+| **Ownership**   | You don't own the original repo        | You own the copied repo (the fork)         |
+| **Connection**  | Directly linked to the original (`origin`) | Linked to the original (`upstream`), but independent |
+| **Purpose**     | Get a local working copy               | Contribute to original, start own project  |
+| **Location**    | Local machine                          | Server-side (e.g., GitHub)                 |
+
+## SSH Key Setup
+
+SSH keys provide secure authentication without passwords:
+
+1. **Generate SSH key:**
+```bash
+$ ssh-keygen -t rsa -C "your.email@example.com"
+```
+
+2. **Add public key to GitHub/GitLab** (copy content of `~/.ssh/id_rsa.pub`)
+
+**Why SSH keys?** More secure than passwords, no need to enter credentials repeatedly.
+
 ## Initial Setup
 Set your identity for commits:
 ```bash
@@ -83,6 +124,11 @@ $ git reset HEAD~2             # Go back 2 commits
 - **--mixed:** Removes commit and unstages changes, keeps working directory
 - **--hard:** Removes commit, staging, and working directory changes completely
 
+**Important:** Reset modifies commit history (changes timeline)
+
+<img src="/Media/revertreset.png" alt="revertreset" width="500"/>
+
+
 ## Remote Undo Changes
 
 ### Safe Undo for Shared Repositories
@@ -90,6 +136,8 @@ $ git reset HEAD~2             # Go back 2 commits
 $ git revert <commit_id>        # Create new commit that undoes specified commit
 $ git revert HEAD               # Undo last commit safely
 ```
+
+**Important:** Revert preserves commit history, adds new "undo" commit
 
 ## Branches
 
@@ -100,7 +148,9 @@ $ git branch -r                 # List remote branches
 $ git branch -a                 # List all branches
 $ git branch <new-branch>       # Create new branch
 $ git checkout <branch>         # Switch to branch
+$ git switch <branch>           # Switch to branch (newer command)
 $ git checkout -b <new-branch>  # Create and switch to new branch
+$ git switch -c <new-branch>    # Create and switch to new branch (newer command)
 $ git branch -m <old> <new>     # Rename branch
 $ git branch -d <branch>        # Delete merged branch
 $ git branch -D <branch>        # Force delete branch
@@ -110,7 +160,7 @@ $ git branch -D <branch>        # Force delete branch
 
 ### Fast-Forward vs Non-Fast-Forward Merge
 
-**Fast-Forward Merge:** When target branch hasn't diverged, Git simply moves pointer forward
+**Fast-Forward Merge:** When a branch can be directly appended to the tip of the target branch. No merge commit is created.
 
 <table width="100%">
 <tr>
@@ -127,7 +177,7 @@ $ git branch -D <branch>        # Force delete branch
 $ git merge <branch>            # Fast-forward if possible
 ```
 
-**Non-Fast-Forward Merge:** When both branches have new commits, creates merge commit
+**Non-Fast-Forward Merge:** When both branches have new commits, creates merge commit. Conflicts may occur during merge.
 
 <table width="100%">
 <tr>
@@ -146,9 +196,11 @@ $ git merge --squash <branch>   # Combine all commits into one
 ```
 
 **Conflict Resolution:** When merge fails due to conflicts:
-1. Edit conflicted files manually
-2. Stage resolved files: `git add <file>`
-3. Complete merge: `git commit`
+1. Open conflicted files
+2. Look for conflict markers: `<<<<<<<`, `=======`, `>>>>>>>`
+3. Edit to resolve conflicts
+4. Stage resolved files: `git add <file>`
+5. Complete merge: `git commit`
 
 ## Rebase
 
@@ -210,6 +262,8 @@ $ git checkout <commit_id>      # Enter detached HEAD state
 $ git checkout <tag_name>       # Also creates detached HEAD
 ```
 
+**Why is Detached HEAD needed?** Detached HEAD is used when you want to temporarily view, test, or start a new branch from a past commit's content.
+
 **Saving Changes in Detached HEAD:**
 ```bash
 $ git checkout -b <new-branch>  # Create new branch from current state
@@ -246,18 +300,6 @@ $ git push origin --delete <tag-name>  # Delete remote tag
 
 ## Remote Operations
 
-### SSH Key Setup
-SSH keys provide secure authentication without passwords:
-
-1. **Generate SSH key:**
-```bash
-$ ssh-keygen -t rsa -C "your.email@example.com"
-```
-
-2. **Add public key to GitHub/GitLab** (copy content of `~/.ssh/id_rsa.pub`)
-
-**Why SSH keys?** More secure than passwords, no need to enter credentials repeatedly.
-
 ### Remote Repository Management
 ```bash
 $ git remote                    # List remote connections
@@ -291,36 +333,6 @@ $ git push origin --delete <branch>  # Delete remote branch
 $ git push --force             # Force push (dangerous, overwrites remote)
 ```
 
-
-
-## Key Git Concepts
-
-### Basic Concepts
-- **main/master:** Default development branch
-- **origin:** Default name for remote repository
-- **upstream:** Original repository (when working with forks)
-- **HEAD:** Pointer to current branch/commit
-- **HEAD^:** Parent of HEAD (previous commit)
-- **HEAD~4:** 4 commits before HEAD
-
-### Git Object Types
-<img src="/Media/object-tree.png" alt="git" width="500"/>
-
-1. **Blob:** Stores file content (no metadata)
-2. **Tree:** Represents directory structure
-3. **Commit:** Snapshot of entire project with metadata
-4. **Tag:** Marks specific commits as important
-
-### Fork vs Clone
-
-| Feature         | Clone                                  | Fork                                       |
-|-----------------|----------------------------------------|--------------------------------------------|
-| **What it does**| Copies a repo to your **local** machine | Copies a repo to **your GitHub account**   |
-| **Ownership**   | You don't own the original repo        | You own the copied repo (the fork)         |
-| **Connection**  | Directly linked to the original (`origin`) | Linked to the original (`upstream`), but independent |
-| **Purpose**     | Get a local working copy               | Contribute to original, start own project  |
-| **Location**    | Local machine                          | Server-side (e.g., GitHub)                 |
-
 ## Review and Inspection
 
 ### Checking Status and History
@@ -334,24 +346,6 @@ $ git diff <commit1> <commit2>  # Compare two commits
 $ git ls-files -s              # List staged files with details
 ```
 
-## Advanced Operations
-
-### Interactive Rebase Commands
-When using `git rebase -i`:
-- **pick:** Use commit as-is
-- **reword:** Change commit message
-- **edit:** Stop to modify commit
-- **squash:** Combine with previous commit
-- **drop:** Remove commit entirely
-
-### Conflict Resolution
-During merge/rebase conflicts:
-1. Open conflicted files
-2. Look for conflict markers: `<<<<<<<`, `=======`, `>>>>>>>`
-3. Edit to resolve conflicts
-4. Stage resolved files: `git add <file>`
-5. Continue operation: `git rebase --continue` or `git commit`
-
 ## Best Practices
 
 ### Safe Operations for Shared Repositories
@@ -363,8 +357,8 @@ During merge/rebase conflicts:
 ### When to Use What
 
 **Revert vs Reset:**
-- **Revert:** Safe for shared branches, creates new commit
-- **Reset:** Only for local changes, rewrites history
+- **Revert:** Safe for shared branches, creates new commit, preserves commit history
+- **Reset:** Only for local changes, rewrites history, modifies commit timeline
 
 **Merge vs Rebase:**
 - **Merge:** Preserves true history, good for feature integration
