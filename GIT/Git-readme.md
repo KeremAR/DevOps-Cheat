@@ -97,6 +97,67 @@ $ git commit -am "message"      # Stage tracked files and commit in one step
 $ git commit --amend -m "new message"  # Modify last commit message/content
 ```
 
+### .gitignore File
+
+**.gitignore** tells Git which files to ignore. Create a `.gitignore` file in your project root:
+
+```bash
+# Ignore specific files
+config.txt
+secret.key
+
+# Ignore all files with specific extension
+*.log
+*.tmp
+*.bak
+
+# Ignore directories
+node_modules/
+build/
+dist/
+
+# Ignore files in any directory
+**/temp
+**/cache
+
+# Ignore except specific files
+*.env
+!.env.example
+
+# Ignore files only in root directory
+/debug.log
+
+```
+
+**Common .gitignore patterns:**
+```bash
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+dist/
+build/
+target/
+
+# Environment files
+.env
+.env.local
+
+# Log files
+*.log
+logs/
+```
+
 ## Local Undo Changes
 
 ### Unstaging Files (Remove from Staging Area)
