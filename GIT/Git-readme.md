@@ -2,283 +2,339 @@
 
 # Git Cheat Sheet
 
-## Setup
-Set the name and email that will be attached to your commits and tags
+Git is a distributed version control system that tracks changes in files and coordinates work among multiple people.
+
+## Initial Setup
+Set your identity for commits:
 ```bash
-$ git config --global user.name "Danny Adams"
-$ git config --global user.email "my-email@gmail.com"
+$ git config --global user.name "Your Name"
+$ git config --global user.email "your.email@example.com"
 ```
 
-## Start a Project
-Create a local repo (omit <directory> to initialise the current directory as a git repo)
+## Creating Repositories
+
+### Start a New Local Repository
 ```bash
-$ git init <directory>
-```
-Download a remote repo
-```bash
-$ git clone <url>
+$ git init <directory>          # Create new repo in directory
+$ git init                      # Initialize current directory as repo
 ```
 
-## Make a Change
-Add a file to staging
+### Clone an Existing Repository
 ```bash
-$ git add <file>
-```
-Stage all files
-```bash
-$ git add .
-```
-Commit all staged files to git
-```bash
-$ git commit -m "commit message"
-```
-Add all changes made to tracked files & commit
-```bash
-$ git commit -am "commit message"
+$ git clone <url>               # Download remote repo to local machine
 ```
 
-## File Status Lifecycle
+### Create Local Repo and Push to New Remote
+```bash
+$ git init                      # Initialize local repo
+$ git add .                     # Stage all files
+$ git commit -m "Initial commit"   # First commit
+$ git branch -M main            # Rename branch to main
+$ git remote add origin <url>   # Connect to remote repo
+$ git push -u origin main      # Push and set upstream
+```
 
+## Basic Git Workflow
+
+### File Status Lifecycle
 <img src="/Media/files-lifecycle.png" alt="files-lifecycle" width="500"/>
 
-Files in your Git working directory can be in one of four main states:
+**Four main states:**
+- **Untracked:** File exists but Git doesn't track it
+- **Unmodified:** File tracked, no changes since last commit  
+- **Modified:** File tracked, has changes since last commit
+- **Staged:** File marked to be included in next commit
 
--   **Untracked:** The file exists in your working directory but hasn't been added to the Git repository yet (`git add` has not been run). Git is not tracking changes to this file.
--   **Unmodified:** The file is tracked by Git and matches the version in the last commit. No changes have been made since the last snapshot.
--   **Modified:** The file is tracked by Git, but you've made changes to it since the last commit. These changes haven't been staged yet.
--   **Staged:** You have marked the current version of a modified file to go into your next commit snapshot by using `git add`. The file is now in the staging area.
+### Adding and Committing Changes
+```bash
+$ git add <file>                # Stage specific file
+$ git add .                     # Stage all files
+$ git commit -m "message"       # Commit staged files
+$ git commit -am "message"      # Stage tracked files and commit in one step
+$ git commit --amend -m "new message"  # Modify last commit message/content
+```
 
-These states help you understand what `git status` reports and which files will be included when you run `git commit`.
+## Local Undo Changes
 
-## Basic Concepts
--   **main**: default development branch
--   **origin**: default upstream repo
--   **HEAD**: current branch
--   **HEAD^**: parent of HEAD
--   **HEAD~4**: great-great grandparent of HEAD
+### Unstaging Files (Remove from Staging Area)
+```bash
+$ git restore --staged <file>   # Unstage file (preferred method)
+$ git reset HEAD <file>         # Unstage file (older method)
+```
 
-## Git Object Types
+### Discard Working Directory Changes
+```bash
+$ git restore <file>            # Discard changes to file
+$ git checkout -- <file>       # Discard changes (older method)
+$ git clean -f                  # Remove untracked files
+$ git clean -fd                 # Remove untracked files and directories
+```
 
-Git stores its data as objects in its object database. There are four main types:
+### Undoing Commits with Reset
+```bash
+$ git reset --soft HEAD^       # Undo last commit, keep changes staged
+$ git reset --mixed HEAD^      # Undo last commit, unstage changes (default)
+$ git reset --hard HEAD^       # Undo last commit, discard all changes
+$ git reset HEAD~2             # Go back 2 commits
+```
 
-1.  **Blob (Binary Large Object):**
-    *   **What it is:** Stores the raw content of a file (just the bytes).
-    *   **Key Feature:** Identified by a SHA-1 hash of its content. Identical file content results in the same blob object, regardless of filename or location.
-    *   **Metadata:** Contains *no* file metadata (like name or path). That information is stored in tree objects.
+**Reset Types:**
+- **--soft:** Only removes commit record, keeps changes staged
+- **--mixed:** Removes commit and unstages changes, keeps working directory
+- **--hard:** Removes commit, staging, and working directory changes completely
 
-2.  **Tree:**
-    *   **What it is:** Represents a directory structure; a snapshot of a folder.
-    *   **Key Feature:** Contains a list of entries, each pointing to a blob (file) or another tree (subdirectory) via their SHA-1 hash.
-    *   **Metadata:** Stores mode (permissions), type (blob/tree), SHA-1 hash, and filename/directory name for each entry.
+## Remote Undo Changes
 
-3.  **Commit:**
-    *   **What it is:** Represents a snapshot of the entire project at a point in time.
-    *   **Key Feature:** Points to a single top-level `tree` object representing the project's root directory for that snapshot. Links to parent commit(s) to form the history.
-    *   **Metadata:** Contains the top-level tree hash, parent commit hash(es), author info, committer info, and the commit message.
-
-4.  **Tag:**
-    *   **What it is:** Marks a specific commit as important (e.g., for releases like `v1.0`).
-    *   **Types:**
-        *   **Lightweight Tag:** A simple pointer (reference) directly to a commit. No extra metadata.
-        *   **Annotated Tag:** A full Git object. Points to a commit but also stores tagger info, date, message, and optionally a GPG signature. Recommended for releases.
-
-**How they relate:** Commits point to Trees, Trees point to other Trees or Blobs. Tags point to Commits.
-
-<img src="/Media/object-tree.png" alt="git" width="500"/>
+### Safe Undo for Shared Repositories
+```bash
+$ git revert <commit_id>        # Create new commit that undoes specified commit
+$ git revert HEAD               # Undo last commit safely
+```
 
 ## Branches
-List all local branches. Add -r flag to show all remote branches. -a flag for all branches.
+
+### Basic Branch Operations
 ```bash
-$ git branch
-```
-Create a new branch
-```bash
-$ git branch <new-branch>
-```
-Switch to a branch & update the working directory
-```bash
-$ git checkout <branch>
-```
-Create a new branch and switch to it
-```bash
-$ git checkout -b <new-branch>
-```
-Delete a merged branch
-```bash
-$ git branch -d <branch>
-```
-Delete a branch, whether merged or not
-```bash
-$ git branch -D <branch>
-```
-Add a tag to current commit (often used for new version releases)
-```bash
-$ git tag <tag-name>
+$ git branch                    # List local branches
+$ git branch -r                 # List remote branches  
+$ git branch -a                 # List all branches
+$ git branch <new-branch>       # Create new branch
+$ git checkout <branch>         # Switch to branch
+$ git checkout -b <new-branch>  # Create and switch to new branch
+$ git branch -m <old> <new>     # Rename branch
+$ git branch -d <branch>        # Delete merged branch
+$ git branch -D <branch>        # Force delete branch
 ```
 
 ## Merging
-Merge branch a into branch b. Add --no-ff option for no-fast-forward merge
-```bash
-$ git checkout b
-$ git merge a
+
+### Fast-Forward vs Non-Fast-Forward Merge
+
+```mermaid
+graph TD
+    subgraph "Fast-Forward Merge"
+        A1["main"] --> B1["Commit A"]
+        B1 --> C1["Commit B"]
+        
+        C1 --> D1["feature branch"]
+        D1 --> E1["Commit X"]
+        E1 --> F1["Commit Y"]
+        
+        G1["After merge:<br/>main simply moves to Y"] --> F1
+    end
+    
+    subgraph "Non-Fast-Forward Merge"
+        A2["main"] --> B2["Commit A"]
+        B2 --> C2["Commit B"]
+        C2 --> D2["Commit C"]
+        
+        B2 --> E2["feature branch"]
+        E2 --> F2["Commit X"]
+        F2 --> G2["Commit Y"]
+        
+        D2 --> H2["Merge Commit"]
+        G2 --> H2
+        
+        I2["Creates merge commit<br/>combining both branches"] --> H2
+    end
 ```
-Merge & squash all commits into one new commit
+
+**Fast-Forward Merge:** When target branch hasn't diverged, Git simply moves pointer forward
 ```bash
-$ git merge --squash a
+$ git merge <branch>            # Fast-forward if possible
 ```
+
+**Non-Fast-Forward Merge:** When both branches have new commits, creates merge commit
+```bash
+$ git merge --no-ff <branch>    # Force create merge commit
+$ git merge --squash <branch>   # Combine all commits into one
+```
+
+**Conflict Resolution:** When merge fails due to conflicts:
+1. Edit conflicted files manually
+2. Stage resolved files: `git add <file>`
+3. Complete merge: `git commit`
 
 ## Rebase
-Rebase feature branch onto main (to incorporate new changes made to main). Prevents unnecessary merge commits into feature, keeping history clean.
-```bash
-$ git checkout feature
-$ git rebase main
-```
-Interactively clean up a branches commits before rebasing onto main
-```bash
-$ git rebase -i main
-```
-Interactively rebase the last 3 commits on current branch
-```bash
-$ git rebase -i HEAD~3
+
+### When to Use Rebase
+Rebase is used to create a linear history by moving your branch commits on top of another branch.
+
+```mermaid
+graph TD
+    A["main branch"] --> B["Commit A"]
+    B --> C["Commit B"] 
+    C --> D["Commit C"]
+    
+    B --> E["Feature branch"]
+    E --> F["Commit X"]
+    F --> G["Commit Y"]
+    
+    subgraph "Before Rebase"
+        A
+        B
+        C
+        D
+        E
+        F
+        G
+    end
+    
+    H["main branch"] --> I["Commit A"]
+    I --> J["Commit B"] 
+    J --> K["Commit C"]
+    K --> L["Commit X'"]
+    L --> M["Commit Y'"]
+    
+    subgraph "After Rebase"
+        H
+        I
+        J
+        K
+        L
+        M
+    end
+    
+    N[Feature commits moved<br/>on top of main] --> L
+    N --> M
 ```
 
-## Undoing Things
-Move (&/or rename) a file & stage move
+**Use rebase when:**
+- Cleaning up feature branch history before merging
+- Incorporating main branch updates into feature branch
+- Making project history linear and easier to follow
+
 ```bash
-$ git mv <existing_path> <new_path>
-```
-Remove a file from working directory & staging area, then stage the removal
-```bash
-$ git rm <file>
-```
-Remove from staging area only
-```bash
-$ git rm --cached <file>
-```
-View a previous commit (READ only)
-```bash
-$ git checkout <commit_ID>
-```
-Create a new commit, reverting the changes from a specified commit
-```bash
-$ git revert <commit_ID>
-```
-Go back to a previous commit & delete all commits ahead of it (revert is safer). Add --hard flag to also delete workspace changes (BE VERY CAREFUL)
-```bash
-$ git reset <commit_ID>
-$ git reset --hard <commit_ID>
+$ git checkout feature          # Switch to feature branch
+$ git rebase main              # Replay feature commits on top of main
+$ git rebase -i HEAD~3         # Interactive rebase last 3 commits
 ```
 
-## Review your Repo
-List new or modified files not yet committed
+**Rebase vs Merge:**
+- **Merge:** Preserves branch history, creates merge commits
+- **Rebase:** Creates linear history, rewrites commit history
+
+## Cherry Pick
+
+Cherry pick applies specific commits from one branch to another without merging entire branch:
 ```bash
-$ git status
-```
-List commit history, with respective IDs
-```bash
-$ git log --oneline
-```
-Show changes to unstaged files. For changes to staged files, add --cached option
-```bash
-$ git diff
-```
-Show changes between two commits
-```bash
-$ git diff <commit1_ID> <commit2_ID>
+$ git cherry-pick <commit_id>   # Apply specific commit to current branch
+$ git cherry-pick <commit1>..<commit2>  # Apply range of commits
 ```
 
-List files in the staging area (index) with mode, SHA-1, and stage number
+## Detached HEAD
+
+**What is Detached HEAD?** When you checkout a specific commit or tag instead of a branch.
+
 ```bash
-$ git ls-files -s
+$ git checkout <commit_id>      # Enter detached HEAD state
+$ git checkout <tag_name>       # Also creates detached HEAD
+```
+
+**Saving Changes in Detached HEAD:**
+```bash
+$ git checkout -b <new-branch>  # Create new branch from current state
+$ git branch <new-branch>       # Create branch, then checkout
+$ git checkout <existing-branch>
 ```
 
 ## Stashing
-Store modified & staged changes. To include untracked files, add -u flag. For untracked & ignored files, add -a flag.
+
+Temporarily save changes without committing:
 ```bash
-$ git stash
-```
-As above, but add a comment.
-```bash
-$ git stash save "comment"
-```
-Partial stash. Stash just a single file, a collection of files, or individual changes from within files
-```bash
-$ git stash -p
-```
-List all stashes
-```bash
-$ git stash list
-```
-Re-apply the stash without deleting it
-```bash
-$ git stash apply
-```
-Delete stash at index 1. Omit stash@{#} to delete last stash made
-```bash
-$ git stash drop stash@{1}
-```
-Delete all stashes
-```bash
-$ git stash clear
-```
-Re-apply the stash at index 2, then delete it from the stash list. Omit stash@{#} to pop the most recent stash.
-```bash
-$ git stash pop stash@{2}
-```
-Show the diff summary of stash 1. Pass the -p flag to see the full diff.
-```bash
-$ git stash show stash@{1}
+$ git stash                     # Stash current changes
+$ git stash save "message"      # Stash with custom message
+$ git stash list                # List all stashes
+$ git stash apply               # Apply most recent stash (stash@{0})
+$ git stash apply stash@{1}     # Apply specific stash
+$ git stash pop                 # Apply and delete most recent stash
+$ git stash drop stash@{1}      # Delete specific stash
+$ git stash clear               # Delete all stashes
 ```
 
-## Synchronizing
-Add a remote repo
+## Tags
+
+Tags mark important points in history (like releases):
 ```bash
-$ git remote add <alias> <url>
+$ git tag                       # List all tags
+$ git tag <tag-name>           # Create lightweight tag
+$ git tag -a <tag-name> -m "message"  # Create annotated tag
+$ git push origin <tag-name>    # Push specific tag
+$ git push origin --tags       # Push all tags
+$ git tag -d <tag-name>        # Delete local tag
+$ git push origin --delete <tag-name>  # Delete remote tag
 ```
-View all remote connections. Add -v flag to view urls.
+
+## Remote Operations
+
+### SSH Key Setup
+SSH keys provide secure authentication without passwords:
+
+1. **Generate SSH key:**
 ```bash
-$ git remote
+$ ssh-keygen -t rsa -C "your.email@example.com"
 ```
-Remove a connection
+
+2. **Add to SSH agent:**
 ```bash
-$ git remote remove <alias>
+$ eval "$(ssh-agent -s)"
+$ ssh-add ~/.ssh/id_rsa
 ```
-Rename a connection
+
+3. **Add public key to GitHub/GitLab** (copy content of `~/.ssh/id_rsa.pub`)
+
+**Why SSH keys?** More secure than passwords, no need to enter credentials repeatedly.
+
+### Remote Repository Management
 ```bash
-$ git remote rename <old> <new>
+$ git remote                    # List remote connections
+$ git remote -v                 # List with URLs
+$ git remote add <alias> <url>  # Add remote repository
+$ git remote set-url origin <new-url>  # Change remote URL
+$ git remote remove <alias>     # Remove remote connection
+$ git remote rename <old> <new> # Rename remote connection
 ```
-Fetch all branches from remote repo (no merge)
+
+### Fetching and Pulling
 ```bash
-$ git fetch <alias>
+$ git fetch <remote>            # Download changes without merging
+$ git fetch origin <branch>     # Fetch specific branch
+$ git pull                      # Fetch and merge remote changes
+$ git pull --rebase origin main # Fetch and rebase instead of merge
 ```
-Fetch a specific branch
+
+**Fetch vs Pull:**
+- **Fetch:** Downloads changes but doesn't integrate them (safer)
+- **Pull:** Downloads and automatically merges changes (convenient)
+
+### Pushing Changes
 ```bash
-$ git fetch <alias> <branch>
-```
-Fetch the remote repo's copy of the current branch, then merge
-```bash
-$ git pull
-```
-Move (rebase) your local changes onto the top of new changes made to the remote repo (for clean, linear history)
-```bash
-$ git pull --rebase <alias>
-```
-Upload local content to remote repo
-```bash
-$ git push <alias>
-```
-Upload to a branch (can then pull request)
-```bash
-$ git push <alias> <branch>
+$ git push origin <branch>      # Push specific branch
+$ git push -u origin <branch>   # Push and set upstream tracking
+$ git push --all origin         # Push all branches
+$ git push origin --delete <branch>  # Delete remote branch
+$ git push --force             # Force push (dangerous, overwrites remote)
 ```
 
 <img src="/Media/gitpull.png" alt="GITPULL" width="500"/>
 
-## Key Git Concepts Compared
-## Managing Remote Repositories
-- **Remote Types**:
-  - `origin`: typically refers to your fork
-  - `upstream`: typically refers to the original repository
+## Key Git Concepts
+
+### Basic Concepts
+- **main/master:** Default development branch
+- **origin:** Default name for remote repository
+- **upstream:** Original repository (when working with forks)
+- **HEAD:** Pointer to current branch/commit
+- **HEAD^:** Parent of HEAD (previous commit)
+- **HEAD~4:** 4 commits before HEAD
+
+### Git Object Types
+<img src="/Media/object-tree.png" alt="git" width="500"/>
+
+1. **Blob:** Stores file content (no metadata)
+2. **Tree:** Represents directory structure
+3. **Commit:** Snapshot of entire project with metadata
+4. **Tag:** Marks specific commits as important
 
 ### Fork vs Clone
 
@@ -290,91 +346,55 @@ $ git push <alias> <branch>
 | **Purpose**     | Get a local working copy               | Contribute to original, start own project  |
 | **Location**    | Local machine                          | Server-side (e.g., GitHub)                 |
 
-- **Cloning** directly creates a local copy of an existing remote repository. You usually clone repositories you have write access to, or your own forks.
-- **Forking** creates a *server-side* copy of someone else's repository under your own account. This allows you to experiment freely. You typically *clone your fork* locally to make changes, and then propose changes back to the original repository (upstream) via Pull Requests.
+## Review and Inspection
 
-### Fetch vs Pull
-**Git Fetch:**
-- Downloads changes from remote repository but **doesn't integrate** them into your working files
-- Safer option as it allows you to review changes before merging
-- Updates your remote-tracking branches
+### Checking Status and History
 ```bash
-$ git fetch origin
-```
-- After fetching, you can see the exact code differences before merging:
-```bash
-# Compare your current branch (HEAD) with the fetched remote branch
-$ git diff HEAD origin/main
+$ git status                    # Show working directory status
+$ git log --oneline            # Show commit history
+$ git log --graph --oneline    # Show history with branch visualization
+$ git diff                     # Show unstaged changes
+$ git diff --staged            # Show staged changes
+$ git diff <commit1> <commit2>  # Compare two commits
+$ git ls-files -s              # List staged files with details
 ```
 
-**Git Pull:**
-- Essentially does a `git fetch` followed by a `git merge`
-- Automatically integrates remote changes into your working files
-- More convenient but less control
-```bash
-$ git pull origin master
-# Equivalent to:
-$ git fetch origin
-$ git merge origin/master
-```
+## Advanced Operations
 
-### Revert vs Reset
-<img src="/Media/revertreset.png" alt="GITrevertreset" width="500"/>
-**Git Revert:**
-- Creates a **new commit** that undoes changes from a previous commit
-- Safe for shared branches as it doesn't alter history
-- Preserves the project history
-```bash
-# Creates new commit that undoes commit_id
-$ git revert <commit_id>
-```
+### Interactive Rebase Commands
+When using `git rebase -i`:
+- **pick:** Use commit as-is
+- **reword:** Change commit message
+- **edit:** Stop to modify commit
+- **squash:** Combine with previous commit
+- **drop:** Remove commit entirely
 
-**Git Reset:**
-- **Moves** the branch pointer to a previous commit
-- **Rewrites** git history by removing commits after the specified point
-- Three modes:
-  - `--soft`: Keeps changes staged
-  - `--mixed` (default): Unstages changes
-  - `--hard`: Discards all changes
-```bash
-# BE CAREFUL with reset, especially --hard
-$ git reset --soft <commit_id>   # Keep changes staged
-$ git reset <commit_id>          # Keep changes unstaged
-$ git reset --hard <commit_id>   # Discard all changes
-```
+### Conflict Resolution
+During merge/rebase conflicts:
+1. Open conflicted files
+2. Look for conflict markers: `<<<<<<<`, `=======`, `>>>>>>>`
+3. Edit to resolve conflicts
+4. Stage resolved files: `git add <file>`
+5. Continue operation: `git rebase --continue` or `git commit`
 
-### Merge vs Rebase
-**Git Merge:**
-- Creates a new "merge commit" that combines changes from both branches
-- Preserves complete history and chronological order
-- Results in a branch structure that shows parallel development
-```bash
-$ git checkout main
-$ git merge feature
-# Creates a merge commit combining main and feature
-```
+## Best Practices
 
-**Git Rebase:**
-- Moves the entire feature branch to begin on the tip of the main branch
-- Creates linear project history
-- Makes it look as if you created your branch from the latest commit
-```bash
-$ git checkout feature
-$ git rebase main
-# Replays feature branch commits on top of main
-```
+### Safe Operations for Shared Repositories
+- Use `revert` instead of `reset` for published commits
+- Use `fetch` before `pull` to review changes
+- Create feature branches for new development
+- Use `--no-ff` merges to preserve branch context
 
-**When to Use What:**
-1. **Fetch vs Pull:**
-   - Use `fetch` when you want to review changes before integrating
-   - Use `pull` when you're confident about directly integrating changes
+### When to Use What
 
-2. **Revert vs Reset:**
-   - Use `revert` for shared branches (safer)
-   - Use `reset` only for local changes or when you really need to clean history
+**Revert vs Reset:**
+- **Revert:** Safe for shared branches, creates new commit
+- **Reset:** Only for local changes, rewrites history
 
-3. **Merge vs Rebase:**
-   - Use `merge` for public/shared branches
-   - Use `rebase` for local feature branches to maintain clean history
+**Merge vs Rebase:**
+- **Merge:** Preserves true history, good for feature integration
+- **Rebase:** Creates linear history, good for cleaning up branches
 
-**Best Practice Tip:** When in doubt, prefer the safer options (`fetch`, `revert`, `merge`) for shared repositories, and use the history-altering options (`reset`, `rebase`) only for local changes.
+**Stash vs Commit:**
+- **Stash:** Temporary save for incomplete work
+- **Commit:** Permanent save for complete features
