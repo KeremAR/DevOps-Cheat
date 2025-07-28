@@ -206,8 +206,9 @@ $ git merge --squash <branch>   # Combine all commits into one
 
 ## Rebase
 
-### When to Use Rebase
-Rebase is used to create a linear history by moving your branch commits on top of another branch.
+git rebase means taking a branch and rewriting it on top of another branch's latest commit.
+
+It's like saying "show these changes as if they were made after that point".
 
 <table width="100%">
 <tr>
@@ -255,23 +256,6 @@ $ git cherry-pick <commit_id>   # Apply specific commit to current branch
 $ git cherry-pick <commit1>..<commit2>  # Apply range of commits
 ```
 
-## Detached HEAD
-
-**What is Detached HEAD?** When you checkout a specific commit or tag instead of a branch.
-
-```bash
-$ git checkout <commit_id>      # Enter detached HEAD state
-$ git checkout <tag_name>       # Also creates detached HEAD
-```
-
-**Why is Detached HEAD needed?** Detached HEAD is used when you want to temporarily view, test, or start a new branch from a past commit's content.
-
-**Saving Changes in Detached HEAD:**
-```bash
-$ git checkout -b <new-branch>  # Create new branch from current state
-$ git branch <new-branch>       # Create branch, then checkout
-$ git checkout <existing-branch>
-```
 
 ## Stashing
 
@@ -333,6 +317,24 @@ $ git push -u origin <branch>   # Push and set upstream tracking
 $ git push --all origin         # Push all branches
 $ git push origin --delete <branch>  # Delete remote branch
 $ git push --force             # Force push (dangerous, overwrites remote)
+```
+
+## Detached HEAD
+
+**What is Detached HEAD?** When you checkout a specific commit or tag instead of a branch.
+
+```bash
+$ git checkout <commit_id>      # Enter detached HEAD state
+$ git checkout <tag_name>       # Also creates detached HEAD
+```
+
+**Why is Detached HEAD needed?** Detached HEAD is used when you want to temporarily view, test, or start a new branch from a past commit's content.
+
+**Saving Changes in Detached HEAD:**
+```bash
+$ git checkout -b <new-branch>  # Create new branch from current state
+$ git branch <new-branch>       # Create branch, then checkout
+$ git checkout <existing-branch>
 ```
 
 ## Review and Inspection
