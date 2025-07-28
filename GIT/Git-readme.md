@@ -112,8 +112,16 @@ $ git branch -D <branch>        # Force delete branch
 
 **Fast-Forward Merge:** When target branch hasn't diverged, Git simply moves pointer forward
 
-<img src="/Media/fast-forward1.png" alt="Fast-Forward Before" width="400"/>
-<img src="/Media/fast-forward2.png" alt="Fast-Forward After" width="400"/>
+<table>
+<tr>
+<td><img src="/Media/fast-forward1.png" alt="Fast-Forward Before" width="400"/></td>
+<td><img src="/Media/fast-forward2.png" alt="Fast-Forward After" width="400"/></td>
+</tr>
+<tr>
+<td align="center"><b>Before Merge</b></td>
+<td align="center"><b>After Merge</b></td>
+</tr>
+</table>
 
 ```bash
 $ git merge <branch>            # Fast-forward if possible
@@ -121,8 +129,16 @@ $ git merge <branch>            # Fast-forward if possible
 
 **Non-Fast-Forward Merge:** When both branches have new commits, creates merge commit
 
-<img src="/Media/non-fast-forward1.png" alt="Non-Fast-Forward Before" width="400"/>
-<img src="/Media/non-fast-forward2.png" alt="Non-Fast-Forward After" width="400"/>
+<table>
+<tr>
+<td><img src="/Media/non-fast-forward1.png" alt="Non-Fast-Forward Before" width="400"/></td>
+<td><img src="/Media/non-fast-forward2.png" alt="Non-Fast-Forward After" width="400"/></td>
+</tr>
+<tr>
+<td align="center"><b>Before Merge</b></td>
+<td align="center"><b>After Merge</b></td>
+</tr>
+</table>
 
 ```bash
 $ git merge --no-ff <branch>    # Force create merge commit
@@ -139,8 +155,16 @@ $ git merge --squash <branch>   # Combine all commits into one
 ### When to Use Rebase
 Rebase is used to create a linear history by moving your branch commits on top of another branch.
 
-<img src="/Media/rebase1.png" alt="Rebase Before" width="400"/>
-<img src="/Media/rebase2.png" alt="Rebase After" width="400"/>
+<table>
+<tr>
+<td><img src="/Media/rebase1.png" alt="Rebase Before" width="400"/></td>
+<td><img src="/Media/rebase2.png" alt="Rebase After" width="400"/></td>
+</tr>
+<tr>
+<td align="center"><b>Before Rebase</b></td>
+<td align="center"><b>After Rebase</b></td>
+</tr>
+</table>
 
 **Use rebase when:**
 - Cleaning up feature branch history before merging
@@ -161,8 +185,16 @@ $ git rebase -i HEAD~3         # Interactive rebase last 3 commits
 
 Cherry pick applies specific commits from one branch to another without merging entire branch:
 
-<img src="/Media/cherry-pick1.png" alt="Cherry Pick Before" width="400"/>
-<img src="/Media/cherry-pick2.png" alt="Cherry Pick After" width="400"/>
+<table>
+<tr>
+<td><img src="/Media/cherry-pick1.png" alt="Cherry Pick Before" width="400"/></td>
+<td><img src="/Media/cherry-pick2.png" alt="Cherry Pick After" width="400"/></td>
+</tr>
+<tr>
+<td align="center"><b>Before Cherry Pick</b></td>
+<td align="center"><b>After Cherry Pick</b></td>
+</tr>
+</table>
 
 ```bash
 $ git cherry-pick <commit_id>   # Apply specific commit to current branch
