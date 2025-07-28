@@ -110,41 +110,20 @@ $ git branch -D <branch>        # Force delete branch
 
 ### Fast-Forward vs Non-Fast-Forward Merge
 
-```mermaid
-graph TD
-    subgraph "Fast-Forward Merge"
-        A1["main"] --> B1["Commit A"]
-        B1 --> C1["Commit B"]
-        
-        C1 --> D1["feature branch"]
-        D1 --> E1["Commit X"]
-        E1 --> F1["Commit Y"]
-        
-        G1["After merge:<br/>main simply moves to Y"] --> F1
-    end
-    
-    subgraph "Non-Fast-Forward Merge"
-        A2["main"] --> B2["Commit A"]
-        B2 --> C2["Commit B"]
-        C2 --> D2["Commit C"]
-        
-        B2 --> E2["feature branch"]
-        E2 --> F2["Commit X"]
-        F2 --> G2["Commit Y"]
-        
-        D2 --> H2["Merge Commit"]
-        G2 --> H2
-        
-        I2["Creates merge commit<br/>combining both branches"] --> H2
-    end
-```
-
 **Fast-Forward Merge:** When target branch hasn't diverged, Git simply moves pointer forward
+
+<img src="/Media/fast-forward1.png" alt="Fast-Forward Before" width="400"/>
+<img src="/Media/fast-forward2.png" alt="Fast-Forward After" width="400"/>
+
 ```bash
 $ git merge <branch>            # Fast-forward if possible
 ```
 
 **Non-Fast-Forward Merge:** When both branches have new commits, creates merge commit
+
+<img src="/Media/non-fast-forward1.png" alt="Non-Fast-Forward Before" width="400"/>
+<img src="/Media/non-fast-forward2.png" alt="Non-Fast-Forward After" width="400"/>
+
 ```bash
 $ git merge --no-ff <branch>    # Force create merge commit
 $ git merge --squash <branch>   # Combine all commits into one
@@ -160,44 +139,8 @@ $ git merge --squash <branch>   # Combine all commits into one
 ### When to Use Rebase
 Rebase is used to create a linear history by moving your branch commits on top of another branch.
 
-```mermaid
-graph TD
-    A["main branch"] --> B["Commit A"]
-    B --> C["Commit B"] 
-    C --> D["Commit C"]
-    
-    B --> E["Feature branch"]
-    E --> F["Commit X"]
-    F --> G["Commit Y"]
-    
-    subgraph "Before Rebase"
-        A
-        B
-        C
-        D
-        E
-        F
-        G
-    end
-    
-    H["main branch"] --> I["Commit A"]
-    I --> J["Commit B"] 
-    J --> K["Commit C"]
-    K --> L["Commit X'"]
-    L --> M["Commit Y'"]
-    
-    subgraph "After Rebase"
-        H
-        I
-        J
-        K
-        L
-        M
-    end
-    
-    N[Feature commits moved<br/>on top of main] --> L
-    N --> M
-```
+<img src="/Media/rebase1.png" alt="Rebase Before" width="400"/>
+<img src="/Media/rebase2.png" alt="Rebase After" width="400"/>
 
 **Use rebase when:**
 - Cleaning up feature branch history before merging
@@ -217,6 +160,10 @@ $ git rebase -i HEAD~3         # Interactive rebase last 3 commits
 ## Cherry Pick
 
 Cherry pick applies specific commits from one branch to another without merging entire branch:
+
+<img src="/Media/cherry-pick1.png" alt="Cherry Pick Before" width="400"/>
+<img src="/Media/cherry-pick2.png" alt="Cherry Pick After" width="400"/>
+
 ```bash
 $ git cherry-pick <commit_id>   # Apply specific commit to current branch
 $ git cherry-pick <commit1>..<commit2>  # Apply range of commits
@@ -275,13 +222,7 @@ SSH keys provide secure authentication without passwords:
 $ ssh-keygen -t rsa -C "your.email@example.com"
 ```
 
-2. **Add to SSH agent:**
-```bash
-$ eval "$(ssh-agent -s)"
-$ ssh-add ~/.ssh/id_rsa
-```
-
-3. **Add public key to GitHub/GitLab** (copy content of `~/.ssh/id_rsa.pub`)
+2. **Add public key to GitHub/GitLab** (copy content of `~/.ssh/id_rsa.pub`)
 
 **Why SSH keys?** More secure than passwords, no need to enter credentials repeatedly.
 
@@ -307,6 +248,8 @@ $ git pull --rebase origin main # Fetch and rebase instead of merge
 - **Fetch:** Downloads changes but doesn't integrate them (safer)
 - **Pull:** Downloads and automatically merges changes (convenient)
 
+<img src="/Media/gitpull.png" alt="GITPULL" width="500"/>
+
 ### Pushing Changes
 ```bash
 $ git push origin <branch>      # Push specific branch
@@ -316,7 +259,7 @@ $ git push origin --delete <branch>  # Delete remote branch
 $ git push --force             # Force push (dangerous, overwrites remote)
 ```
 
-<img src="/Media/gitpull.png" alt="GITPULL" width="500"/>
+
 
 ## Key Git Concepts
 
