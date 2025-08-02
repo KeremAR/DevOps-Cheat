@@ -2,7 +2,86 @@
 
 A collection of Bash shell concepts, commands, and techniques organized for learning.
 
-## 1. Variables
+## Script Execution and Setup
+
+### Creating and Running Scripts
+
+**Creating a script:**
+```bash
+# Create a new script file
+touch my_script.sh
+
+# Add execute permission
+chmod +x my_script.sh
+```
+
+**Script execution methods:**
+There are two main ways to run a script:
+
+1. **Direct execution** (`./script.sh`): Uses the shebang line to determine which interpreter to use
+2. **Shell interpretation** (`sh script.sh`): Forces the script to run with the specified shell
+
+```bash
+# With shebang (#!/bin/bash)
+./my_script.sh     # Uses bash interpreter
+
+# Force different shell
+sh my_script.sh    # Uses sh interpreter regardless of shebang
+bash my_script.sh  # Uses bash interpreter
+```
+
+The **shebang** (`#!/bin/bash`) tells the system which interpreter to use when executing the script directly.
+
+### Debugging Options
+
+Use `set` commands to help debug your scripts:
+
+```bash
+#!/bin/bash
+
+# Exit immediately if any command fails
+set -e
+
+# Print each command before executing it
+set -x
+
+# Both options together (recommended for debugging)
+set -ex
+
+echo "This command will be printed before execution"
+ls /some/directory
+echo "Script continues only if ls succeeds"
+```
+
+**Individual debugging:**
+- `set -e`: Exit on error - script stops if any command returns non-zero
+- `set -x`: Debug mode - prints each command before executing
+- `set +x`: Turn off debug mode
+- `set +e`: Turn off exit-on-error mode
+
+## User Input
+
+### Reading User Input
+
+The `read` command accepts various flags for different input scenarios:
+
+```bash
+# Basic usage with prompt
+read -p "Enter your name: " name
+echo "Hello, $name"
+
+# Read multiple variables
+read -p "Enter command and argument: " cmd arg
+echo "Command: $cmd, Argument: $arg"
+
+# Common read flags:
+read -s password          # Silent input (for passwords)
+read -t 5 response       # Timeout after 5 seconds
+read -n 1 key            # Read only 1 character
+read -r line             # Raw input (don't interpret backslashes)
+```
+
+## Variables
 
 Variables are used to store data. Think of them as a labeled box where you put a piece of information that you can use later by calling its name.
 
@@ -20,6 +99,47 @@ Put a `$` in front of the variable name to get its value.
 ```bash
 echo $GREETING
 # Output: Hello World
+```
+
+### Variable Syntax: $VAR vs ${VAR}
+
+Both `$VAR` and `${VAR}` access the variable's value, but `${VAR}` is more explicit and safer:
+
+```bash
+NAME="John"
+
+# Both work the same for simple cases
+echo $NAME        # Output: John
+echo ${NAME}      # Output: John
+
+# But ${} is required for complex cases
+echo "$NAMEs"     # Error: looks for variable NAMEs
+echo "${NAME}s"   # Output: Johns
+
+# Required for arrays and special expansions
+echo ${ARRAY[0]}  # Array element access
+echo ${#NAME}     # String length
+```
+
+**Best practice:** Always use `${VAR}` for consistency and safety.
+
+### Variable Quoting Rules
+
+**Always quote variables that contain file paths, user input, or spaces:**
+
+```bash
+# WRONG - Can break with spaces in filenames
+FILE=my file.txt
+cat $FILE              # Error: cat tries to read "my" and "file.txt"
+
+# CORRECT - Always quote variables
+FILE="my file.txt"
+cat "$FILE"            # Works correctly
+
+# Examples of when to quote
+USERNAME="$1"          # User input
+cp "$SOURCE" "$DEST"   # File paths
+echo "Hello $NAME"     # String interpolation
 ```
 
 ### Variable "Types"
@@ -42,6 +162,24 @@ echo ${USERS[1]}
 # Get all elements
 echo ${USERS[@]}
 # Output: Alice Bob Charlie
+```
+
+### Indirect Variable Expansion
+
+Use `${!VAR}` to use a variable's value as another variable name:
+
+```bash
+ARG_COUNT=3
+ARG3="hello world"
+
+# Get the value of ARG3 using ARG_COUNT
+VALUE=${!ARG_COUNT}    # Same as: VALUE=${ARG3}
+echo "$VALUE"          # Output: hello world
+
+# Practical example
+LAST_ARG_NUM=$#
+LAST_ARG=${!LAST_ARG_NUM}  # Gets the last argument
+echo "Last argument: $LAST_ARG"
 ```
 
 ### Sourcing Variables
@@ -68,7 +206,7 @@ echo "The admin user is: $ADMIN_USER"
 
 Run the script: `./my_script.sh` will output `The admin user is: admin`.
 
-## 2. Environment Variables ⚙️
+## Environment Variables ⚙️
 
 These are special, system-wide variables available to all programs and scripts. They define your shell's environment.
 
@@ -101,15 +239,19 @@ env | grep MY_SURNAME
 ### The PATH Variable
 `PATH` is a crucial environment variable that holds a colon-separated list of directories. When you type a command, the shell looks for it in these directories.
 
-**Example:** To run a script from anywhere without typing its full path, add its folder to PATH.
+**Example:** Add homework folder to PATH permanently.
 
 ```bash
-# Add your personal scripts folder to the existing PATH
-# $PATH refers to the current value of the PATH variable
-export PATH="$PATH:/home/user/my_scripts"
+# Add homework folder to PATH permanently
+echo 'export PATH="$HOME/homework:$PATH"' >> ~/.bashrc
 ```
 
-## 3. Special Variables
+This command:
+- Adds `~/homework` directory to PATH
+- Writes it to `.bashrc` file (makes it permanent)
+- Now you can run scripts from homework folder by just typing their name
+
+## Special Variables
 
 Bash has special, reserved variables that are automatically set and provide useful information.
 
@@ -155,7 +297,7 @@ echo "The exit code of the second 'ls' was: $?" # Will print 0
 # The exit code of the second 'ls' was: 0
 ```
 
-## 4. Conditional Operators
+## Conditional Operators
 
 These operators are used inside if statements to test conditions. They return an exit code: `0` for true and `1` for false.
 
@@ -184,21 +326,34 @@ These use "flag-style" operators.
 
 **Example:**
 ```bash
-VAR1="hello"
-VAR2="world"
-NUM1=10
-NUM2=20
+export TEST=123
 
-# String comparison
-[[ "$VAR1" == "hello" ]]
-echo $? # Output: 0 (true)
+#!/bin/bash
 
-# Integer comparison
-[[ "$NUM1" -lt "$NUM2" ]]
-echo $? # Output: 0 (true)
+# 1. String karşılaştırma (eşit mi)
+[[ "$1" == "$2" ]]
+echo $?
+
+# 2. String uzunluk karşılaştırması
+[[ ${#1} -gt ${#2} ]]
+echo $?
+
+# 3. TEST environment değişkeni tanımlı mı (boş değil mi)
+[[ -n "$TEST" ]]
+echo $?
+
+# 4. Sayısal karşılaştırma (eşit değil mi)
+[[ $3 -ne $4 ]]
+echo $?
+
+# 5. Sayısal karşılaştırma (büyük veya eşit mi)
+[[ $3 -ge $4 ]]
+echo $?
+
+# Usage: my_conditions.sh hi world 7 9
 ```
 
-## 5. The if Statement 🚦
+## The if Statement 🚦
 
 The `if` statement lets your script make decisions by running commands only if a condition is true.
 
@@ -254,7 +409,7 @@ fi
 ./my_script.sh a b c d               # -> Invalid number of arguments
 ```
 
-## 6. case Statement 🚦
+## case Statement 🚦
 
 When you have a long `if-elif-else` chain checking a single variable, the `case` statement is often a cleaner and more readable alternative. It compares a variable against a series of patterns and executes the commands for the first match it finds.
 
@@ -266,32 +421,45 @@ When you have a long `if-elif-else` chain checking a single variable, the `case`
 - The `*)` pattern is a wildcard that acts as a default "catch-all" if no other patterns match.
 
 ### Example
-A classic use case is a script that accepts different commands as arguments.
+A service management script that demonstrates background processes and process finding:
 
 ```bash
-# my_service.sh
-COMMAND=$1
+#!/bin/bash
 
-case "$COMMAND" in
-  "start")
-    echo "Service is starting..."
-    # Logic to start the service
+case "$1" in
+  start)
+    echo "Service is started"
+    sleep 9999
     ;;
-  "stop")
-    echo "Service is stopping..."
-    # Logic to stop the service
+  stop)
+    # my_service.sh process PID'sini al ve öldür
+    PID=$(pgrep -f "my_service.sh start")
+    if [[ -n "$PID" ]]; then
+      kill "$PID"
+      echo "Service is stopped"
+    else
+      echo "Service is not running"
+    fi
     ;;
-  "restart")
-    echo "Service is restarting..."
+  restart)
+    # restart = stop + start
+    "$0" stop
+    "$0" start &
     ;;
-  *) # Default case for unknown arguments
-    echo "Usage: $0 {start|stop|restart}"
-    exit 1
+  *)
+    echo "usage: my_service.sh [start|stop|restart]"
     ;;
 esac
+
+# Usage: my_service.sh start &
 ```
 
-## 7. Pipelines & Logical Operators 🔗
+**Key concepts in this example:**
+- `pgrep -f`: Searches the full command line (command + arguments) to find processes
+- `&`: Runs the command in the background, allowing the script to exit while the process continues
+- `"$0"`: References the script name itself for recursive calls
+
+## Pipelines & Logical Operators 🔗
 
 These are powerful tools for chaining commands together conditionally and efficiently.
 
@@ -322,7 +490,26 @@ This operator runs the command on its right **only if** the command on its left 
 rm important_file.txt || echo "Error: Could not remove the file."
 ```
 
-## 8. for Loop 🔁
+### Background Processes
+
+Use `&` to run commands in the background:
+
+```bash
+# Run command in background
+long_running_command &
+
+# Get the PID of the background process
+BG_PID=$!
+echo "Background process PID: $BG_PID"
+
+# Continue with other commands while it runs
+echo "This runs immediately"
+
+# Wait for background process to finish
+wait $BG_PID
+```
+
+## for Loop 🔁
 
 A `for` loop is used to execute a block of code for each item in a given list or sequence.
 
@@ -369,7 +556,7 @@ done
 # Output: 1 2 4 5 6
 ```
 
-## 9. while Loop 🔄
+## while Loop 🔄
 
 A `while` loop executes a block of code repeatedly as long as its control condition remains true. The condition is checked before each iteration begins.
 
@@ -412,7 +599,7 @@ while read -r line; do
 done < "$FILENAME"
 ```
 
-## 10. until Loop ⏳
+## until Loop ⏳
 
 The `until` loop is the logical opposite of the `while` loop. It executes a block of code repeatedly as long as its control condition remains false. The loop stops once the condition becomes true.
 
@@ -438,7 +625,7 @@ done
 echo "Service is now online!"
 ```
 
-## 11. Positional Arguments 👉
+## Positional Arguments 👉
 
 These are the arguments (or parameters) passed to your script from the command line. They are accessed using special variables.
 
@@ -476,7 +663,7 @@ Argument processed: my friend
 Argument processed: 123
 ```
 
-## 12. Input/Output (I/O) Redirection ↔️
+## Input/Output (I/O) Redirection ↔️
 
 In Linux, everything is treated like a file, including the data streams for a program. You can redirect these streams.
 
@@ -524,7 +711,7 @@ The variable USER is $USER.
 EOF
 ```
 
-## 13. Functions 📦
+## Functions 📦
 
 Functions are reusable blocks of code within a script. They help organize your code, reduce repetition, and make scripts easier to read and maintain.
 
@@ -570,6 +757,25 @@ echo "5 squared is $SQUARED_VALUE"
 ```
 
 ## Process Management
+
+### Finding Processes
+
+**pgrep - Find Process IDs by Name:**
+
+```bash
+# Find PID of processes named "nginx"
+pgrep nginx
+
+# Use -f to search the full command line (command + arguments)
+pgrep -f "python my_script.py"
+
+# Combine with other commands
+if pgrep -f "my_service" > /dev/null; then
+    echo "Service is running"
+else
+    echo "Service is not running"
+fi
+```
 
 ### Stopping Processes
 To stop a process in a Unix-like system, you typically use one of the following commands:
