@@ -206,6 +206,45 @@ echo "The admin user is: $ADMIN_USER"
 
 Run the script: `./my_script.sh` will output `The admin user is: admin`.
 
+### Variable Deletion
+
+Use the `unset` command to delete a variable from memory. Once unset, the variable becomes undefined and will return an empty value.
+
+```bash
+# Create a variable
+MY_VAR="Hello World"
+echo "$MY_VAR"        # Output: Hello World
+
+# Delete the variable
+unset MY_VAR
+echo "$MY_VAR"        # Output: (empty/nothing)
+
+# Check if variable is set using conditional
+if [[ -n "$MY_VAR" ]]; then
+    echo "Variable is set"
+else
+    echo "Variable is not set"  # This will be output
+fi
+```
+
+**Important notes:**
+- `unset` removes the variable completely from the shell's memory
+- Unsetting a variable is different from setting it to an empty string (`VAR=""`)
+- You can unset multiple variables at once: `unset VAR1 VAR2 VAR3`
+- Cannot unset readonly variables or special variables (like `$1`, `$@`, etc.)
+
+```bash
+# Example: Cleanup temporary variables
+TEMP_FILE="/tmp/myfile"
+TEMP_DIR="/tmp/mydir"
+
+# Use the variables...
+echo "Working with $TEMP_FILE"
+
+# Clean up when done
+unset TEMP_FILE TEMP_DIR
+```
+
 ## Environment Variables ⚙️
 
 These are special, system-wide variables available to all programs and scripts. They define your shell's environment.
