@@ -217,6 +217,11 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.serviceAccountName
+  # Init containers run to completion in order before main containers start
+  initContainers:
+  - name: wait-for-db
+    image: busybox:1.28
+    command: ['sh', '-c', "echo 'Waiting for database...' && sleep 5 && echo 'Database ready!'"]
 ```
 Manage Pods
 -   `--dry-run=client`: Quick, local syntax check and template generation.
