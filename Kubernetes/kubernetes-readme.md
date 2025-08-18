@@ -555,6 +555,7 @@ Taints and tolerations are used to control which pods can be scheduled on which 
 **Common Taint Patterns:**
 - Control-plane nodes: `node-role.kubernetes.io/control-plane:NoSchedule`
 - Worker nodes: `node-role.kubernetes.io/worker:NoSchedule`
+- Taint keys can be arbitrary; you are not required to follow common patterns like `node-role.kubernetes.io/worker`.
 
 **Tolerations:**
 - Applied to pods to allow them to be scheduled on tainted nodes
@@ -1539,6 +1540,12 @@ Kubernetes RBAC is built around four main API objects:
     kubectl create clusterrolebinding read-secrets-global --clusterrole=secret-reader --group=developers
     # For a User: kubectl create clusterrolebinding <binding-name> --clusterrole=<clusterrole-name> --user=<user-name>
     ```
+
+#### RBAC Combinations Summary
+
+-   **`Role` + `RoleBinding`**: Grants permissions within a *single namespace*. This is the most common combination for application-specific permissions.
+-   **`ClusterRole` + `ClusterRoleBinding`**: Grants permissions *cluster-wide*, across all namespaces. Used for administrators or cluster-wide components.
+-   **`ClusterRole` + `RoleBinding`**: Grants permissions from a cluster-wide `ClusterRole` but only *within a single namespace*. This is a powerful, reusable pattern: define a role once (e.g., "view") and apply it to different users/services in different namespaces.
 
 #### Subjects
 
