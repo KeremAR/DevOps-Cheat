@@ -625,7 +625,7 @@ Pods are frequently created and destroyed, causing their IP addresses to change.
     *   **No Load Balancing, No Single IP:** Kubernetes does not allocate a cluster IP for a headless service and does not perform load balancing or proxying for it.
     *   **Direct Pod Discovery:** Instead, the DNS system is configured to return the IP addresses of all Pods selected by the Service. This allows clients to connect directly to a specific Pod if needed.
     *   **Use Cases:** Often used with StatefulSets, where each Pod has a unique, stable network identity and clients might need to connect to a specific instance (e.g., a primary database replica). Also useful for peer-to-peer discovery mechanisms.
-2.  **`NodePort`:** Exposes the service on each Node's IP at a static port. Routes traffic to the `ClusterIP` service automatically. Allows external access but is often not recommended for production security.
+2.  **`NodePort`:** Allows external access by exposing the service on a static port on each Node's IP, but this method is often not recommended for production security. It operates at Layer 4 (TCP/UDP), making it suitable for any kind of network traffic (e.g., databases, message brokers). Routes traffic to the `ClusterIP` service automatically.
 3.  **`LoadBalancer`:** Exposes the service externally using a cloud provider's load balancer. Automatically creates `NodePort` and `ClusterIP` services. Provides an external IP address.
 4.  **`ExternalName`:** Maps the service to an external DNS name (using a CNAME record) instead of using selectors. Useful for accessing external services from within the cluster.
 
@@ -667,11 +667,12 @@ Pods are frequently created and destroyed, causing their IP addresses to change.
 
 ### Ingress
 
-Ingress is a Kubernetes API object that manages external access to services within a cluster, typically for HTTP and HTTPS traffic. It acts as a smart router or an entry point, allowing you to define rules for how incoming traffic should be directed to backend services based on hostnames or URL paths. This provides a way to consolidate routing rules into a single resource.
+Ingress is a Kubernetes API object that manages external access to services within a cluster, typically for Layer 7 (HTTP/HTTPS) traffic. It acts as a smart router or an entry point, allowing you to define rules for how incoming traffic should be directed to backend services based on hostnames or URL paths. This provides a way to consolidate routing rules into a single resource.
 
 **Benefits:**
--   **Load Balancing:** Distributes incoming traffic across appropriate backend services, managed by the Ingress controller.
+-   **Load Balancing:** Distributes incoming traffic across appropriate backend service's `ClusterIP` port (the `targetPort`), managed by the Ingress controller.
 -   **Cost-Effectiveness:** Can reduce the need for multiple external `LoadBalancer` services by exposing many services through a single Ingress point, potentially lowering cloud provider costs.
+
 
 #### Key Concepts and Components
 
