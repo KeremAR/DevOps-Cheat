@@ -71,17 +71,24 @@ Every cluster has at least one worker node and one master node, which runs the *
 The Control Plane components act as the brain of the cluster. They are the core services that manage the cluster's state, make global decisions (like scheduling), and detect and respond to cluster events. These components typically run on the master node(s).
 
 -   **kube-apiserver (API Server):**
-    The API Server is the heart of the control plane and the central management point for the entire cluster. It exposes the Kubernetes API, processing all requests from `kubectl`, other components, and external clients, and is the only component that communicates directly with etcd to manage the cluster's state.
+    - Central management point for the entire cluster. 
+    - It exposes the Kubernetes API which is the main entry point for all cluster operations, processing all requests from `kubectl`, other components, and external clients.
     -   Validates and processes requests: performs authentication, authorization, and admission control (e.g., applying security policies, resource quotas) before persisting objects to etcd.
+    -   The only component that directly interacts with `etcd` to store and retrieve cluster state and configuration.
     -   Coordinates actions between other control plane components (like kube-scheduler, kube-controller-manager) and worker node agents (kubelets) by serving as their primary interface to the cluster state.
     -   Designed to scale horizontally for high availability (can run multiple instances).
 -   **etcd:**
-    etcd is the primary datastore for Kubernetes, acting as the single source of truth for the entire cluster. It's a consistent and highly-available key-value store that holds all cluster data, including the configuration, state, and desired state of all objects.
+    -   Stores all cluster data and represents the desired state of the cluster.
     -   Backup and restore of the entire cluster state is made from etcd snapshots.
+    -   A consistent and highly-available distributed key-value store.
 -   **kube-scheduler (Scheduler):**
-    The Scheduler is responsible for assigning newly created Pods to a suitable Node. It watches the API Server for unscheduled Pods and, based on constraints like resource requirements, affinity rules, and taints, decides which worker node is the best fit for that Pod.
+    -   Assigns newly created Pods (which it discovers via the kube-apiserver) to available Nodes.
+    -   Considers various factors for scheduling decisions: resource requirements, affinity/anti-affinity rules, taints/tolerations, Pod priority, and other policies/constraints.
 -   **kube-controller-manager (Controller Manager):**
-    The Controller Manager is the core control loop of Kubernetes, working to make the current cluster state match the desired state. It runs multiple controller processes (like the Node controller and Replication controller) that watch for changes and take corrective action.
+    -   Runs controller processes that monitor the cluster state.
+    -   Works to make the current cluster state match the desired state stored in etcd.
+    
+    -   Examples: Node controller, Replication controller.
 -   **cloud-controller-manager (Cloud Controller Manager):**
     -   Runs controllers that interact with the underlying cloud provider's API.
     -   Allows Kubernetes to be cloud-agnostic by separating cloud-specific logic.
@@ -91,17 +98,21 @@ The Control Plane components act as the brain of the cluster. They are the core 
 Worker Node components are the services that run on every node. Their primary job is to run and maintain the pods assigned to them and provide the Kubernetes runtime environment.
 
 -   **kubelet:**
-    The Kubelet is the primary agent that runs on every worker node in the cluster. Its main job is to communicate with the control plane and ensure that the containers described in Pod specs are running and healthy on its node.
+    -   Reports node and pod health/status back to the control plane (kube-apiserver).
     -   Its startup parameters (environment variables) can be found in `/var/lib/kubelet/kubeadm-flags.env`, which is useful for debugging node configuration issues.
 -   **Container Runtime:**
     -   The software responsible for running containers (e.g., downloading images, starting/stopping containers).
     -   Kubernetes supports various runtimes via the Container Runtime Interface (CRI).
     -   Examples: Docker, containerd, CRI-O.
 -   **kube-proxy:**
-    Kube-proxy is a network proxy that runs on every node and is responsible for implementing the Kubernetes Service concept. It maintains network rules on nodes that allow network communication to your Pods from inside or outside the cluster, effectively handling traffic routing and load balancing for Services.
+    -   Responsible for implementing the Kubernetes Service concept.
+    -   Maintains network rules on nodes to route traffic to a Service's IP address and port to the correct backend Pods (load balancing).
+    -   Enables network communication to Pods from network sessions inside or outside of the cluster.
 -   **Pods:**
     -   The **smallest deployable unit** in Kubernetes.
     -   Represents a single instance of a running process in the cluster. 
+    -   Contains **one or more containers** (like Docker containers).
+    -   Containers within a Pod share the same network namespace, IP address, and storage volumes.
 
 ## Kubernetes Objects
 
@@ -150,8 +161,6 @@ Kubernetes objects are persistent entities within the Kubernetes system represen
 
 #### Default Namespaces
 
-When you create or update resources using `kubectl` without specifying a namespace, Kubernetes uses the `default` namespace.
-
 After a Kubernetes cluster is created, you can find these pre-created namespaces:
 
 -   `default`: The default namespace for objects with no other namespace specified.
@@ -166,6 +175,9 @@ After a Kubernetes cluster is created, you can find these pre-created namespaces
 -   Usually wraps one or more containers.
 -   Can be replicated (scaled horizontally) using higher-level objects like ReplicaSets or Deployments.
 -   **Priority & Preemption:** A `priorityClassName` can be assigned to a Pod. If a high-priority pod cannot be scheduled, the scheduler can evict a lower-priority pod to make room. This ensures critical workloads can always run.
+
+-   `--dry-run=client`: Quick, local syntax check and template generation.
+-   `--dry-run=server`: More thorough validation against the actual API server and its logic, good for pre-flight checks and understanding server-side mutations.
 
 A basic Pod manifest can be generated with `kubectl run`:
 ```bash
@@ -221,8 +233,7 @@ spec:
     command: ['sh', '-c', "echo 'Waiting for database...' && sleep 5 && echo 'Database ready!'"]
 ```
 Manage Pods
--   `--dry-run=client`: Quick, local syntax check and template generation.
--   `--dry-run=server`: More thorough validation against the actual API server and its logic, good for pre-flight checks and understanding server-side mutations.
+
 
 1.  **List Pods:**
     ```bash
@@ -303,8 +314,6 @@ spec:
 
 #### Scaling a ReplicaSet
 
-To change the number of replicas managed by a ReplicaSet, you can use the `kubectl scale` command.
-
 For example, to scale a ReplicaSet named `frontend` to 2 replicas:
 ```bash
 kubectl scale --replicas=2 rs/frontend
@@ -312,7 +321,6 @@ kubectl scale --replicas=2 rs/frontend
 
 ### Deployment
 
--   A higher-level object that manages ReplicaSets and provides declarative updates for Pods.
 -   Manages the application lifecycle through ReplicaSets, handling rolling updates (by creating a new ReplicaSet and gradually scaling it up while scaling down the old one), rollbacks (by reverting to a previous ReplicaSet's state), and ensuring zero-downtime deployments.
 -   Suitable for stateless applications (does not store any data or state between requests.).
 -   Defines the desired state (e.g., number of replicas, container image, template) and the Deployment controller changes the actual state to match.
@@ -361,16 +369,12 @@ spec:
 
 #### Setting a New Deployment Image
 
-To update the image for a container within a Deployment, you can use the `kubectl set image` command.
-
 For example, to set the `nginx` container in the Deployment named `my-dep` to use the `nginx:1.9.1` image:
 ```bash
 kubectl set image deployment/my-dep nginx=nginx:1.9.1
 ```
 
 #### Scaling a Deployment
-
-To change the number of replicas for a Deployment, you can use the `kubectl scale` command.
 
 For example, to scale the Deployment named `my-dep` to 5 replicas:
 ```bash
@@ -457,16 +461,12 @@ Deploying a StatefulSet
 
 #### Setting a New StatefulSet Image
 
-To update the image for a container within a StatefulSet, you can use the `kubectl set image` command.
-
 For example, to set the `nginx` container in the StatefulSet named `nginx` to use the `nginx:1.9.1` image:
 ```bash
 kubectl set image statefulset/nginx nginx=nginx:1.9.1
 ```
 
 #### Scaling a StatefulSet
-
-To change the number of replicas for a StatefulSet, you can use the `kubectl scale` command.
 
 For example, to scale the StatefulSet named `nginx` to 1 replica:
 ```bash
@@ -550,6 +550,18 @@ Taints and tolerations are used to control which pods can be scheduled on which 
 - Worker nodes: `node-role.kubernetes.io/worker:NoSchedule`
 - Taint keys can be arbitrary; you are not required to follow common patterns like `node-role.kubernetes.io/worker`.
 
+**Commands:**
+```bash
+# Add a taint
+kubectl taint nodes <node-name> node-role.kubernetes.io/worker:NoSchedule
+
+# Remove a taint
+kubectl taint nodes <node-name> node-role.kubernetes.io/worker:NoSchedule-
+
+# List node taints
+kubectl describe node <node-name> | grep Taints
+```
+
 **Tolerations:**
 - Applied to pods to allow them to be scheduled on tainted nodes
 - Can be specific to a taint or general:
@@ -571,17 +583,7 @@ Taints and tolerations are used to control which pods can be scheduled on which 
 - Creating specialized worker nodes for specific workloads
 - Ensuring DaemonSets can run on all nodes regardless of taints
 
-**Commands:**
-```bash
-# Add a taint
-kubectl taint nodes <node-name> node-role.kubernetes.io/worker:NoSchedule
 
-# Remove a taint
-kubectl taint nodes <node-name> node-role.kubernetes.io/worker:NoSchedule-
-
-# List node taints
-kubectl describe node <node-name> | grep Taints
-```
 
 #### Node Affinity
 
@@ -878,16 +880,16 @@ Secrets can be created in a few ways:
 1.  **Using `kubectl` (Imperative Commands):**
     -   **From literal values:**
         ```bash
-        kubectl create secret generic my-secret --from-literal=username='admin' --from-literal=password='s3cr3t'
+        kubectl create secret generic <secret-name> --from-literal=username='admin' --from-literal=password='s3cr3t'
         ```
     -   **From files:**
         Create files, e.g., `username.txt` containing `admin` and `password.txt` containing `s3cr3t`.
         ```bash
-        kubectl create secret generic my-secret-from-file --from-file=./username.txt --from-file=./password.txt
+        kubectl create secret generic <secret-name> --from-file=./username.txt --from-file=./password.txt
         ```
     -   **For Docker registry credentials (image pull secrets):**
         ```bash
-        kubectl create secret docker-registry my-docker-secret --docker-server=<your-registry-server> --docker-username=<your-username> --docker-password=<your-password> --docker-email=<your-email>
+        kubectl create secret docker-registry <secret-name> --docker-server=<your-registry-server> --docker-username=<your-username> --docker-password=<your-password> --docker-email=<your-email>
         ```
 
 2.  **Manually (Declarative - YAML manifest):**
@@ -990,7 +992,13 @@ In general, for single, discrete sensitive values, environment variables are oft
 
 ### ConfigMap
 
-A ConfigMap is a Kubernetes object used to store non-confidential configuration data as key-value pairs. It allows you to decouple configuration from your application code, making your applications more portable and easier to manage across different environments.
+ConfigMaps are Kubernetes objects used to store non-confidential configuration data in key-value pairs. Pods can consume ConfigMaps as environment variables, command-line arguments, or as configuration files in a volume.
+
+
+#### ConfigMaps Overview
+
+-   Store configuration data that Pods can use.
+-   Allow you to separate configuration from your application code.
 -   Data is stored as key-value pairs.
 -   Can be used to store entire configuration files or individual property values.
 -   Not designed for sensitive data (use Secrets for that).
@@ -1153,7 +1161,7 @@ Kubernetes uses PersistentVolumes (PV), PersistentVolumeClaims (PVC), and Storag
 
 ##### PersistentVolume (PV)
 
--   A **PersistentVolume (PV)** is a cluster-wide piece of pre-provisioned storage, managed by an administrator or dynamically via StorageClasses. It's a resource in the cluster, like a node, with a lifecycle independent of any Pod.
+-   A **PersistentVolume (PV)** is a cluster-wide piece of pre-provisioned storage, managed by an administrator or dynamically via StorageClasses. -   It's a resource in the cluster, like a node, with a lifecycle independent of any Pod.
 -   PVs define the actual storage details (NFS, iSCSI, cloud storage) and its capacity, access modes (e.g., RWO, RWX), and reclaim policy.
 
 **Example PersistentVolume YAML (NFS):**
@@ -1365,35 +1373,6 @@ kubectl create job <new-job-name> --from=cronjob/<your-cronjob-name> -n <namespa
     *   Using the `--kubeconfig` flag with `kubectl` commands (e.g., `kubectl --kubeconfig=/path/to/custom/config get pods`).
 *   Used to deploy applications, inspect and manage cluster resources, view logs, etc.
 
-### Kubectl Command Structure
-
-```
-kubectl [command] [type] [name] [flags]
-```
-
--   **`[command]`**: The operation to perform (e.g., `create`, `get`, `apply`, `delete`).
--   **`[type]`**: The resource type (e.g., `pod`, `deployment`, `replicaset`, `service`).
--   **`[name]`**: The name of the specific resource (if applicable).
--   **`[flags]`**: Special options or modifiers (e.g., `-n` for namespace, `-o` for output format).
-
-### Command Types
-
-1.  **Imperative Commands:**
-    -   Operate directly on live objects in the cluster (e.g., `kubectl run my-pod --image=nginx`, `kubectl create deployment ...`, `kubectl expose ...`).
-    -   Easy to learn and use for simple tasks or development/testing.
-    -   **Cons:** No audit trail, less flexible, doesn't use configuration files/templates, hard to replicate.
-
-2.  **Imperative Object Configuration:**
-    -   Uses a specific command (`create`, `replace`, `delete`) along with a configuration file (`-f file.yaml`).
-    -   Requires a full object definition in YAML/JSON.
-    -   Stored in source control (Git), provides audit trail, uses templates.
-    -   **Cons:** Requires understanding the object schema, still requires specifying the *operation* (create vs. replace). Changes made outside the file can be lost.
-
-3.  **Declarative Object Configuration:**
-    -   Uses the `kubectl apply -f <file_or_directory>` command.
-    -   Defines the *desired state* in configuration files (YAML/JSON).
-    -   `kubectl` determines the necessary operations (create, patch, delete) to reach the desired state.
-    -   Configuration stored in source control, ideal for production systems, tracks changes effectively.
 
 ### Common Kubectl Commands (Examples)
 
@@ -1443,7 +1422,7 @@ When you run `kubectl get pods`, the `STATUS` column gives you a quick insight.
 
 ### Role-Based Access Control (RBAC)
 
-Role-Based Access Control (RBAC) is a method of regulating access to computer or network resources based on the roles of individual users within an organization. In Kubernetes, RBAC allows administrators to precisely define who can perform what actions on which resources, adhering to the principle of least privilege and enhancing cluster security.
+It is a method of regulating access to computer or network resources based on the roles of individual users within an organization. In Kubernetes, RBAC allows administrators to precisely define who can perform what actions on which resources, adhering to the principle of least privilege and enhancing cluster security.
 
 #### Why RBAC is Important
 
@@ -1459,7 +1438,8 @@ Kubernetes RBAC is built around four main API objects:
     *   Defines permissions *within a specific namespace*. 
     *   A Role contains rules that represent a set of permissions. Permissions are purely additive (there are no "deny" rules).
     *   Each rule specifies `apiGroups`, `resources`, and `verbs`. Common verbs include `get`, `list`, `watch`, `create`, `update`, `patch`, `delete`, and `deletecollection`.
-    *   Example: Allow reading Pods in the "default" namespace.
+
+    **Example:** Allow reading Pods in the "default" namespace.
 
     ```yaml
     apiVersion: rbac.authorization.k8s.io/v1
@@ -1500,7 +1480,7 @@ Kubernetes RBAC is built around four main API objects:
     ```
 
 3.  **`RoleBinding`** (Namespaced)
-    *   Grants the permissions defined in a `Role` to a user, group, or `ServiceAccount` *within a specific namespace*.
+    *   Grants the permissions defined in a `Role` to a user, group, or ServiceAccount *within a specific namespace*.
     *   It links a `Role` to a subject (user, group, or ServiceAccount).
 
     ```yaml
@@ -1570,6 +1550,10 @@ Subjects are the entities that are being granted permissions. They can be:
 
 **Example: Creating a ServiceAccount and binding it to a Role:**
 
+  ```bash
+   
+     kubectl create serviceaccount my-app-sa -n my-namespace
+    ```
 1.  **Create a ServiceAccount:**
     ```yaml
     apiVersion: v1
@@ -1578,11 +1562,7 @@ Subjects are the entities that are being granted permissions. They can be:
       name: my-app-sa
       namespace: my-namespace
     ```
-    ```bash
-    kubectl apply -f my-app-sa.yaml
-    # Or create imperatively:
-    # kubectl create serviceaccount my-app-sa -n my-namespace
-    ```
+  
 
 2.  **Assume a Role exists (e.g., `configmap-reader` in `my-namespace` as defined previously).**
 
