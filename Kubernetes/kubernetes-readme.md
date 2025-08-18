@@ -1381,21 +1381,6 @@ kubectl create job <new-job-name> --from=cronjob/<your-cronjob-name> -n <namespa
 # kubectl create job manual-run-1 --from=cronjob/hello -n default
 ```
 
-## Kubectl (Kubernetes CLI)
-
-`kubectl` (kube control) is the primary command-line interface (CLI) tool for interacting with a Kubernetes cluster.
-
-*   It uses a configuration file, commonly called `kubeconfig`, to find and authenticate to a cluster.
-*   **Default `kubeconfig` location**:
-    *   Linux/macOS: `~/.kube/config`
-    *   Windows: `%USERPROFILE%\.kube\config`
-*   You can specify a different `kubeconfig` file by:
-    *   Setting the `KUBECONFIG` environment variable.
-    *   Using the `--kubeconfig` flag with `kubectl` commands (e.g., `kubectl --kubeconfig=/path/to/custom/config get pods`).
-*   Used to deploy applications, inspect and manage cluster resources, view logs, etc.
-
-
-
 
 
 ### Troubleshooting in Kubernetes
@@ -1549,9 +1534,8 @@ A ServiceAccount provides a dedicated identity for processes that run inside a P
 **Example: Creating a ServiceAccount and binding it to a Role:**
 
    ```bash
-    
-      kubectl create serviceaccount my-app-sa -n my-namespace
-  ```
+    kubectl create serviceaccount my-app-sa -n my-namespace
+   ```
 
 1.  **Create a ServiceAccount:**
     ```yaml
