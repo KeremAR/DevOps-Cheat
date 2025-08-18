@@ -587,7 +587,8 @@ kubectl describe node <node-name> | grep Taints
 
 #### Node Affinity
 
-Node affinity is another mechanism to control pod placement, working with node labels. Unlike taints (which repel pods), affinity rules attract pods to nodes with specific labels.
+Node Affinity is a Pod scheduling feature that attracts Pods to a specific set of nodes based on their labels. It allows you to constrain which nodes your Pod can be scheduled on for example, to ensure a Pod runs on a node with specialized hardware like a GPU or SSD.
+It comes in two forms: 
 
 -   **`requiredDuringSchedulingIgnoredDuringExecution`**: The pod will *only* be scheduled on a node if the label condition is met. If the node's labels change later, the pod continues to run.
 -   **`preferredDuringSchedulingIgnoredDuringExecution`**: The scheduler *tries* to find a node matching the label condition. If not found, the pod can still be scheduled on other nodes.
@@ -627,10 +628,7 @@ Pods are frequently created and destroyed, causing their IP addresses to change.
 **Service Types:**
 
 1.  **`ClusterIP`:** (Default) Exposes the service on an internal IP within the cluster. Makes the service reachable only *from within* the cluster. Used for inter-service communication (e.g., frontend to backend).
-     **`Headless Service`:** A variation of `ClusterIP` where `clusterIP` is explicitly set to `None`.
-    *   **No Load Balancing, No Single IP:** Kubernetes does not allocate a cluster IP for a headless service and does not perform load balancing or proxying for it.
-    *   **Direct Pod Discovery:** Instead, the DNS system is configured to return the IP addresses of all Pods selected by the Service. This allows clients to connect directly to a specific Pod if needed.
-    *   **Use Cases:** Often used with StatefulSets, where each Pod has a unique, stable network identity and clients might need to connect to a specific instance (e.g., a primary database replica). Also useful for peer-to-peer discovery mechanisms.
+     **`Headless Service`:** A Headless Service is a type of Service used for direct Pod discovery without providing a stable IP or load balancing. By setting `clusterIP` to `None`, the DNS system is configured to return the IP addresses of all individual Pods backing the service. This is primarily used with StatefulSets, where stateful applications like databases need to discover and communicate with their peers directly.
 2.  **`NodePort`:** Allows external access by exposing the service on a static port on each Node's IP, but this method is often not recommended for production security. It operates at Layer 4 (TCP/UDP), making it suitable for any kind of network traffic (e.g., databases, message brokers). Routes traffic to the `ClusterIP` service automatically.
 3.  **`LoadBalancer`:** Exposes the service externally using a cloud provider's load balancer. Automatically creates `NodePort` and `ClusterIP` services. Provides an external IP address.
 4.  **`ExternalName`:** Maps the service to an external DNS name (using a CNAME record) instead of using selectors. Useful for accessing external services from within the cluster.
@@ -1543,16 +1541,13 @@ Subjects are the entities that are being granted permissions. They can be:
 
 #### ServiceAccounts
 
--   Provide an identity for processes that run in a Pod.
--   When a Pod is created, if a ServiceAccount is not specified, it is automatically assigned the `default` ServiceAccount in that namespace.
--   ServiceAccounts can be associated with Roles or ClusterRoles via RoleBindings or ClusterRoleBindings to grant specific permissions to the applications running in Pods.
--   API credentials for the ServiceAccount are automatically mounted into Pods (typically at `/var/run/secrets/kubernetes.io/serviceaccount/token`), allowing applications to interact with the Kubernetes API server securely.
+A ServiceAccount provides a dedicated identity for processes that run inside a Pod, allowing them to authenticate with the Kubernetes API server. Unlike user accounts, which are for humans, ServiceAccounts are for applications. When a Pod needs to interact with the cluster—for example, to list other Pods or read a ConfigMap—it uses the token from its associated ServiceAccount to do so. These permissions are granted by binding the ServiceAccount to a Role or ClusterRole.
 
 **Example: Creating a ServiceAccount and binding it to a Role:**
 
-  ```bash
-   
-     kubectl create serviceaccount my-app-sa -n my-namespace
+   ```bash
+    
+      kubectl create serviceaccount my-app-sa -n my-namespace
     ```
 1.  **Create a ServiceAccount:**
     ```yaml
@@ -1562,21 +1557,6 @@ Subjects are the entities that are being granted permissions. They can be:
       name: my-app-sa
       namespace: my-namespace
     ```
-  
-
-2.  **Assume a Role exists (e.g., `configmap-reader` in `my-namespace` as defined previously).**
-
-3.  **Bind the ServiceAccount to the Role using a RoleBinding:**
-    This grants the `my-app-sa` ServiceAccount the permissions defined in the `configmap-reader` Role within `my-namespace`.
-    ```bash
-    # Imperative command to create the RoleBinding:
-    kubectl create rolebinding my-app-sa-reads-configmaps --role=configmap-reader --serviceaccount=my-namespace:my-app-sa --namespace=my-namespace
-    
-    # Alternatively, if you had a YAML for the RoleBinding (as shown in the RoleBinding definition section):
-    # kubectl apply -f my-app-sa-rolebinding.yaml 
-    ```
-
-Now, any Pod in `my-namespace` configured to use the `my-app-sa` ServiceAccount will have read-only access to ConfigMaps within that namespace.
 
 #### Common `kubectl` RBAC Commands
 
@@ -1585,30 +1565,6 @@ Now, any Pod in `my-namespace` configured to use the `my-app-sa` ServiceAccount 
     kubectl auth can-i get pods --namespace=default
     kubectl auth can-i list nodes --as=jane # Check as another user
     kubectl auth can-i create deployments --namespace=myapp --as=system:serviceaccount:myapp:mysa
-    ```
-
--   **List RBAC resources:**
-    ```bash
-    kubectl get roles --all-namespaces
-    kubectl get rolebindings -n <namespace>
-    kubectl get clusterroles
-    kubectl get clusterrolebindings
-    ```
-
--   **Describe RBAC resources (to see rules and subjects):**
-    ```bash
-    kubectl describe role <role-name> -n <namespace>
-    kubectl describe clusterrole <clusterrole-name>
-    kubectl describe rolebinding <rolebinding-name> -n <namespace>
-    kubectl describe clusterrolebinding <clusterrolebinding-name>
-    ```
-
--   **Create RBAC resources imperatively (useful for quick tests):**
-    ```bash
-    kubectl create role pod-reader --verb=get,list,watch --resource=pods -n my-namespace
-    kubectl create rolebinding pod-reader-binding --role=pod-reader --user=jane -n my-namespace
-    kubectl create clusterrole node-lister --verb=get,list --resource=nodes
-    kubectl create clusterrolebinding node-lister-binding --clusterrole=node-lister --group=system:serviceaccounts:my-namespace
     ```
 
 
