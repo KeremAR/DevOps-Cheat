@@ -176,6 +176,7 @@ After a Kubernetes cluster is created, you can find these pre-created namespaces
 -   Represents a single instance of an application/process running in the cluster.
 -   Usually wraps one or more containers.
 -   Can be replicated (scaled horizontally) using higher-level objects like ReplicaSets or Deployments.
+-   **Priority & Preemption:** A `priorityClassName` can be assigned to a Pod. If a high-priority pod cannot be scheduled, the scheduler can evict a lower-priority pod to make room. This ensures critical workloads can always run.
 
 **Example Pod YAML:**
 ```yaml
@@ -187,6 +188,7 @@ metadata:
   labels:
     app: nginx
 spec:
+  priorityClassName: high-priority # Assigns a pre-defined PriorityClass
   containers:
   - name: main
     image: busybox:1.34
@@ -610,6 +612,15 @@ spec:
             values:
             - "true"
 ```
+#### Pod Affinity and Anti-Affinity
+Pod Affinity and Anti-Affinity schedule pods based on the labels of other pods already running on a node.
+
+
+-   **Pod Affinity vs. Node Affinity (Scenarios):**
+    -   **Node Affinity** answers: "*Which nodes should this pod run on?*" (e.g., "Run this pod on a node with an SSD disk").
+    -   **Pod Affinity** answers: "*Which other pods should this pod run near?*" (e.g., "Run this web server pod on the same node as the redis cache pod for low latency").
+    -   **Pod Anti-Affinity** answers: "*Which other pods should this pod stay away from?*" (e.g., "Ensure that replicas of my database pod run on different nodes for high availability").
+    
 ### Service
 
 Pods are frequently created and destroyed, causing their IP addresses to change. A Service provides a stable, virtual IP address (ClusterIP) and a consistent DNS name, ensuring reliable access to the application even as individual Pods come and go.
