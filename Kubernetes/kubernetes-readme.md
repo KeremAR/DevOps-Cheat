@@ -548,7 +548,7 @@ kubectl scale statefulsets.apps nginx --replicas=1
 Taints and tolerations are used to control which pods can be scheduled on which nodes.
 
 **Taints:**
-- Applied to nodes to repel pods that don't have matching tolerations
+- Applied to nodes to **prevent** pods from being scheduled on them if they don't have a matching toleration.
 - Three effects:
   - `NoSchedule`: Pods without matching toleration won't be scheduled
   - `PreferNoSchedule`: System will try to avoid scheduling pods without matching toleration
