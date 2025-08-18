@@ -680,6 +680,7 @@ Ingress is a Kubernetes API object that manages external access to services with
     -   The Ingress resource itself doesn't do anything on its own. It's a set of rules. An Ingress controller is an application (typically a reverse proxy like NGINX, Traefik, or HAProxy) that runs in the cluster and is responsible for fulfilling the Ingress rules by watching the API server for Ingress resources.
     -   When an Ingress resource is created, the Ingress controller configures itself (e.g., updates its NGINX configuration) to route traffic according to those rules.
     -   You need to have an Ingress controller deployed in your cluster for Ingress resources to work. Common controllers include NGINX Ingress Controller, Traefik Kubernetes Ingress provider, and HAProxy Ingress. Cloud providers often offer their own managed Ingress controllers.
+-   **IngressClass:** A resource that specifies which Ingress controller should handle the Ingress. It's necessary when you have multiple controllers in your cluster (e.g., one for internal traffic, another for external). An Ingress object requests a class using the `spec.ingressClassName` field.
 -   **Rules:** Define how traffic is routed. Rules can be based on:
     -   **Host:** Direct traffic based on the requested hostname (e.g., `api.example.com`, `blog.example.com`). This is also known as virtual hosting.
     -   **Path:** Direct traffic based on the requested URL path (e.g., `example.com/api`, `example.com/ui`).
@@ -702,8 +703,8 @@ metadata:
     # For example, with an NGINX Ingress controller:
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
-  # Optional: Specify an IngressClass if you have multiple Ingress controllers
-  # ingressClassName: "nginx-example"
+  # Specify an IngressClass to choose which controller implements the rules.
+  ingressClassName: "nginx-example"
   tls: # Optional: For TLS termination
   - hosts:
     - myapp.example.com
