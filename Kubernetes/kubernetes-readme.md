@@ -644,6 +644,13 @@ Pods are frequently created and destroyed, causing their IP addresses to change.
 3.  **`LoadBalancer`:** Exposes the service externally using a cloud provider's load balancer. Automatically creates `NodePort` and `ClusterIP` services. Provides an external IP address.
 4.  **`ExternalName`:** Maps the service to an external DNS name (using a CNAME record) instead of using selectors. Useful for accessing external services from within the cluster.
 
+
+  A basic Service manifest can be generated with `kubectl create`:
+    ```bash
+    # This creates a manifest for a NodePort service, exposing the service on port 80
+    kubectl create service nodeport hello-hello-service --tcp=80:80 --node-port=30300 --dry-run=client -o yaml
+    ```
+    **Example NodePort Service YAML:**
     ```yaml
     apiVersion: v1
     kind: Service
@@ -706,6 +713,10 @@ Ingress is a Kubernetes API object that manages external access to services with
 -   **TLS/SSL Termination:** Ingress can terminate SSL/TLS connections. You can specify a Kubernetes Secret (containing a TLS certificate and private key) in your Ingress resource. The Ingress controller will use this certificate to secure traffic from clients, and then forward traffic to backend services, possibly unencrypted (HTTP).
 
 #### Example Ingress YAML
+A basic Ingress manifest with rules can be generated with `kubectl create`:
+    ```bash
+    kubectl create ingress my-ingress-example --rule="myapp.com/user=user-service:80" --class=nginx --dry-run=client -o yaml
+    ```
 
 This example shows an Ingress that routes traffic based on host and path.
 
