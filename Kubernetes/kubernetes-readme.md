@@ -99,6 +99,7 @@ These components run on every node, maintaining running pods and providing the K
     -   Reports node and pod health/status back to the control plane.
     -   An agent that runs on each node in the cluster.
     -   Communicates with the kube-apiserver to ensure containers described in PodSpecs are running and healthy.
+    -   Its startup parameters (environment variables) can be found in `/var/lib/kubelet/kubeadm-flags.env`, which is useful for debugging node configuration issues.
 -   **Container Runtime:**
     -   The software responsible for running containers (e.g., downloading images, starting/stopping containers).
     -   Kubernetes supports various runtimes via the Container Runtime Interface (CRI).
