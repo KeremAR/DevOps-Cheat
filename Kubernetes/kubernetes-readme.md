@@ -1551,7 +1551,8 @@ A ServiceAccount provides a dedicated identity for processes that run inside a P
    ```bash
     
       kubectl create serviceaccount my-app-sa -n my-namespace
-    ```
+  ```
+
 1.  **Create a ServiceAccount:**
     ```yaml
     apiVersion: v1
