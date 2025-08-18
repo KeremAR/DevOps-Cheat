@@ -798,6 +798,55 @@ spec:
     kubectl delete ingress my-ingress-example
     ```
 
+### NetworkPolicy
+
+A `NetworkPolicy` acts as a firewall for Pods in Kubernetes. It defines rules to specify which Pods can communicate with each other and other network endpoints, which is crucial for security and creating isolated environments. By default, all pods in a cluster can communicate freely with each other
+
+**Example Ingress Policy:**
+This policy selects pods with `app: backend` and only allows incoming traffic from pods with the label `role: frontend`.
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-ingress-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: backend
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          role: frontend
+```
+
+**Example Egress Policy:**
+This policy selects pods with `role: frontend` and only allows outgoing traffic to pods with the label `app: backend` on port 80.
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend-egress-policy
+spec:
+  podSelector:
+    matchLabels:
+      role: frontend
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: backend
+    ports:
+    - protocol: TCP
+      port: 80
+```
+
 ### Secrets
 
 Secrets are Kubernetes objects used to store and manage sensitive information, such as passwords, OAuth tokens, and SSH keys. Storing this information in a Secret is more secure than putting it verbatim in a Pod definition or in a container image.
