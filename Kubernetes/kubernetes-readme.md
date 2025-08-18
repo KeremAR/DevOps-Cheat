@@ -1011,12 +1011,12 @@ ConfigMaps can be created from directories, files, or literal values:
     ```
     Then create the ConfigMap:
     ```bash
-    kubectl create configmap app-settings-from-file --from-file=app-config.properties
+    kubectl create configmap <configmap-name> --from-file=app-config.properties
     # This creates a ConfigMap with one key 'app-config.properties',
     # and its value is the content of the file.
     #
     # To create a key for each file with file content as value:
-    kubectl create configmap app-settings-from-file-keys --from-file=path/to/config1.conf --from-file=path/to/config2.conf
+    kubectl create configmap <configmap-name> --from-file=path/to/config1.conf --from-file=path/to/config2.conf
     # This creates keys like 'config1.conf' and 'config2.conf'
     ```
 
@@ -1024,14 +1024,14 @@ ConfigMaps can be created from directories, files, or literal values:
     If you have a directory with multiple configuration files:
     ```bash
     # Assume 'my-configs/' directory contains 'game.properties' and 'ui.properties'
-    kubectl create configmap app-settings-from-dir --from-file=./my-configs/
+    kubectl create configmap <configmap-name> --from-file=./my-configs/
     # This creates a ConfigMap where each file in 'my-configs/' becomes a key,
     # and the file content is its value.
     ```
 
 3.  **From Literal Values:**
     ```bash
-    kubectl create configmap app-settings-literal \
+    kubectl create configmap <configmap-name> \
       --from-literal=app.mode=test \
       --from-literal=app.retries=5
     ```
