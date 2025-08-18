@@ -68,7 +68,7 @@ Every cluster has at least one worker node and one master node, which runs the *
 
 ### Control Plane Components
 
-The Control Plane components act as the brain of the cluster. They are the core services that manage the cluster's state, make global decisions (like scheduling), and detect and respond to cluster events. These components typically run on the master node(s).
+The Control Plane components act as the brain of the cluster. They are the core services that manage the cluster's state, make global decisions (like scheduling), and detect and respond to cluster events. In a typical `kubeadm` setup, they run as **static pods**, which are managed directly by the kubelet on the control-plane node and defined by manifest files in `/etc/kubernetes/manifests/`.
 
 -   **kube-apiserver (API Server):**
     - Central management point for the entire cluster. 
@@ -99,6 +99,7 @@ Worker Node components are the services that run on every node. Their primary jo
 
 -   **kubelet:**
     -   Reports node and pod health/status back to the control plane (kube-apiserver).
+    -   It is the primary agent that runs on **every node** in the cluster (both control-plane and worker).
     -   Its startup parameters (environment variables) can be found in `/var/lib/kubelet/kubeadm-flags.env`, which is useful for debugging node configuration issues.
 -   **Container Runtime:**
     -   The software responsible for running containers (e.g., downloading images, starting/stopping containers).
