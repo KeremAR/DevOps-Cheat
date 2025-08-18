@@ -233,31 +233,34 @@ spec:
     image: busybox:1.28
     command: ['sh', '-c', "echo 'Waiting for database...' && sleep 5 && echo 'Database ready!'"]
 ```
-Manage Pods
+#### Common Pod Commands
 
-
-1.  **List Pods:**
+-   **List Pods:**
     ```bash
-    kubectl get pods
+    kubectl get pods # In current namespace
+    kubectl get pods -A # In all namespaces
     ```
-2.  **Show Pod Labels:**
+-   **Get Detailed Information:**
     ```bash
-    # Replace <pod-name> with the actual pod name
+    kubectl describe pod <pod-name>
+    ```
+-   **View Pod Logs:**
+    ```bash
+    kubectl logs <pod-name>
+    ```
+-   **Execute a Command in a Pod:**
+    ```bash
+    kubectl exec -it <pod-name> -- /bin/bash
+    ```
+-   **Manage Pod Labels:**
+    ```bash
     kubectl get pod <pod-name> --show-labels
-    ```
-3.  **Label a Pod:**
-    ```bash
-    # Replace <pod-name> with the actual pod name
     kubectl label pods <pod-name> environment=deployment
     ```
-4.  **Run a Temporary Pod (for testing/debugging):**
+-   **Delete Pods:**
     ```bash
-    kubectl run my-test-pod --image=nginx --restart=Never
-    ```
-5.  **View Pod Logs:**
-    ```bash
-    # Replace <pod-name> with the actual pod name
-    kubectl logs <pod-name>
+    kubectl delete pod <pod-name>
+    kubectl delete pods --all -n <namespace-name> # Delete all pods in a namespace
     ```
 
 ### ReplicaSet
@@ -381,6 +384,25 @@ For example, to scale the Deployment named `my-dep` to 5 replicas:
 ```bash
 kubectl scale deployments.apps my-dep --replicas=5
 ```
+
+#### Common Deployment Commands
+
+-   **Get Deployment Details:**
+    ```bash
+    kubectl get deployment my-dep
+    ```
+-   **Check Rollout Status:**
+    ```bash
+    kubectl rollout status deployment <deployment-name>
+    ```
+-   **Edit a Live Deployment:**
+    ```bash
+    kubectl edit deployment <deployment-name>
+    ```
+-   **Create a HorizontalPodAutoscaler:**
+    ```bash
+    kubectl autoscale deployment my-dep --min=2 --max=10 --cpu-percent=80
+    ```
 
 
 
@@ -1373,27 +1395,7 @@ kubectl create job <new-job-name> --from=cronjob/<your-cronjob-name> -n <namespa
 *   Used to deploy applications, inspect and manage cluster resources, view logs, etc.
 
 
-### Common Kubectl Commands (Examples)
 
--   `kubectl run nginx-pod --image=nginx:alpine --dry-run=client -o yaml > nginx_pod.yaml`: Generates the YAML manifest for a new pod without creating it in the cluster, saving it to `nginx_pod.yaml`. Useful for quickly creating a template for declarative configuration.
-
--   `kubectl get pods`: List pods in the current namespace.
--   `kubectl get pods -A` or `kubectl get pods --all-namespaces`: List pods in all namespaces.
--   `kubectl get deployment my-dep`: Get details of a specific deployment.
--   `kubectl get services`: List services in the current namespace.
--   `kubectl create -f my-resource.yaml`: Create resources defined in a file (imperative object config).
--   `kubectl apply -f my-resource.yaml` or `kubectl apply -f ./configs/`: Apply configuration from file(s) or directory (declarative).
--   `kubectl delete pod my-pod`: Delete a specific pod.
--   `kubectl delete -f my-resource.yaml`: Delete resources defined in a file.
--   `kubectl scale deployment my-dep --replicas=5`: Scale a deployment.
--   `kubectl autoscale deployment my-dep --min=2 --max=10 --cpu-percent=80`: Create a HorizontalPodAutoscaler.
--   `kubectl logs my-pod`: View logs from a pod.
--   `kubectl describe pod my-pod`: Get detailed information about a pod.
--   `kubectl exec -it my-pod -- /bin/bash`: Execute a command (like a shell) inside a pod's container.
--   `kubectl logs <pod_name>`: View logs from a specific pod (alternative to `kubectl logs my-pod`).
--   `kubectl delete pods --all -n <namespace_name>`: Delete all pods in a specific namespace.
--   `kubectl rollout status deployment <deploy-name> -n <namespace-name>`: Check the status of a deployment rollout in a specific namespace.
--   `kubectl edit deployment <deployment-name> -n <namespace-name>`: Edit a deployment in a specific namespace using the default editor.
 
 
 ### Troubleshooting in Kubernetes
