@@ -178,6 +178,11 @@ After a Kubernetes cluster is created, you can find these pre-created namespaces
 -   Can be replicated (scaled horizontally) using higher-level objects like ReplicaSets or Deployments.
 -   **Priority & Preemption:** A `priorityClassName` can be assigned to a Pod. If a high-priority pod cannot be scheduled, the scheduler can evict a lower-priority pod to make room. This ensures critical workloads can always run.
 
+A basic Pod manifest can be generated with `kubectl run`:
+```bash
+kubectl run i-know-who-i-am --image=busybox:1.34 --dry-run=client -o yaml
+```
+
 **Example Pod YAML:**
 ```yaml
 apiVersion: v1
@@ -330,6 +335,11 @@ A Deployment itself (which manages Pods) is not directly accessible from outside
 *   Allow other services or Pods within the cluster to communicate with it.
 *   Allow users or systems outside the cluster to access your application (e.g., a website or an API), often via an Ingress controller in conjunction with a Service.
 
+A basic Deployment manifest can be generated with `kubectl create`:
+```bash
+kubectl create deployment nginx-deployment --image=nginx:1.7.9 --replicas=3 --dry-run=client -o yaml
+```
+
 **Example Deployment YAML:**
 ```yaml
 apiVersion: apps/v1
@@ -355,17 +365,9 @@ spec:
         - containerPort: 80
 ```
 
-1.  **Create Deployment:**
-    ```bash
-    kubectl create deployment my-deployment1 --image=nginx
-    ```
 2.  **Expose Deployment as NodePort Service:**
     ```bash
-    kubectl expose deployment my-deployment1 --port=80 --type=NodePort --name=my-service1
-    ```
-3.  **List Services:**
-    ```bash
-    kubectl get services
+    kubectl expose deployment my-deployment1 --port=80 --type=NodePort --name=my-service1 --target-port=80
     ```
 
 #### Setting a New Deployment Image
