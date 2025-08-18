@@ -1352,6 +1352,30 @@ kubectl [command] [type] [name] [flags]
 -   `kubectl rollout status deployment <deploy-name> -n <namespace-name>`: Check the status of a deployment rollout in a specific namespace.
 -   `kubectl edit deployment <deployment-name> -n <namespace-name>`: Edit a deployment in a specific namespace using the default editor.
 
+
+### Troubleshooting in Kubernetes
+
+#### Understanding Pod Status
+
+When you run `kubectl get pods`, the `STATUS` column gives you a quick insight.
+
+-   **`Running`**: The Pod is bound to a node, and all of its containers have been created. At least one container is still running, or is in the process of starting or restarting.
+-   **`Pending`**: The Pod has been accepted by the cluster, but one or more of its container images have not been created. This can be due to scheduling delays (no available nodes), image pull issues, or pending volume mounts.
+-   **`Succeeded`**: All containers in the Pod have terminated in success, and will not be restarted. (Common for Jobs).
+-   **`Failed`**: All containers in the Pod have terminated, and at least one container has terminated in failure.
+-   **`CrashLoopBackOff`**: This is not a status, but a state. It means a container is repeatedly starting and crashing. Kubernetes waits for an increasing amount of time (`back-off`) before restarting it. To debug, you must check the container's logs.
+-   **`ImagePullBackOff` / `ErrImagePull`**: Kubernetes could not pull the container image from the registry. This could be due to an incorrect image name/tag, a private registry requiring credentials, or network issues.
+
+#### Core Troubleshooting Commands
+
+-   **`kubectl describe pod <pod-name>`**: The most important command for debugging. Shows a Pod's configuration, status, and most importantly, a list of recent **Events**. Events will often tell you exactly why a Pod is `Pending` or failing (e.g., "FailedScheduling", "FailedMount").
+-   **`kubectl logs <pod-name>`**: Essential for `CrashLoopBackOff`. This command prints the logs from the application running inside the container, which usually reveals the cause of the crash (e.g., a configuration error, a bug in the code).
+    -   Use `kubectl logs <pod-name> --previous` to see logs from a previously crashed instance of the container.
+-   **`kubectl get pods -l app=<label>`**: The most practical way to find all Pods belonging to a specific deployment or service is by using its labels.
+-   **Node-level debugging**: If `kubectl` is not enough, you may need to SSH into the node to investigate.
+    -   **Log files**: Check `/var/log/pods/` and `/var/log/containers/`.
+    -   **Container runtime**: Use `crictl ps` to list containers and `crictl logs <container-ID>` to get logs directly from the runtime (or use `docker` equivalents if applicable).
+
 ### Role-Based Access Control (RBAC)
 
 Role-Based Access Control (RBAC) is a method of regulating access to computer or network resources based on the roles of individual users within an organization. In Kubernetes, RBAC allows administrators to precisely define who can perform what actions on which resources, adhering to the principle of least privilege and enhancing cluster security.
