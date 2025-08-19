@@ -219,6 +219,22 @@ $ git branch -d <branch>        # Delete merged branch
 $ git branch -D <branch>        # Force delete branch
 ```
 
+### Recovering a Deleted Branch
+
+If you accidentally delete a branch, you can recover it using `git reflog`, which shows a history of where `HEAD` has been.
+
+1.  **Find the last commit of the deleted branch:**
+    ```bash
+    git reflog
+    ```
+    Look for the commit hash where your branch's tip was before deletion.
+
+2.  **Restore the branch:**
+    Create a new branch from that commit hash:
+    ```bash
+    git checkout -b <branch-name> <commit_hash>
+    ```
+
 ## Merging
 
 ### Fast-Forward vs Non-Fast-Forward Merge
