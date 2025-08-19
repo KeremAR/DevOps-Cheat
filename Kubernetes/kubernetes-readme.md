@@ -662,7 +662,7 @@ Pods are frequently created and destroyed, causing their IP addresses to change.
     # This creates a manifest for a NodePort service, exposing the service on port 80
     kubectl create service nodeport hello-hello-service --tcp=80:80 --node-port=30300 --dry-run=client -o yaml
   ```
-    **Example NodePort Service YAML:**
+  **Example NodePort Service YAML:**
   ```yaml
     apiVersion: v1
     kind: Service
