@@ -62,6 +62,40 @@ A **Docker container** is a **runnable instance** of a Docker image.
 - You **can** create multiple containers from the **same** Docker image.
 - Each container runs **independently**, is well **isolated** from other containers and the host machine, and can have its own configuration, environment variables, and mounted volumes.
 
+### Managing Images
+- `docker images` → Lists all available Docker images.
+- `docker rmi [image_id_or_name]` → Removes a specific Docker image. You might need to use `-f` (force) if the image is used by stopped containers.
+- `docker rmi -f $(docker images -q)` → Removes *all* Docker images forcefully. Use with caution!
+- `docker run --rm <image_name> cat /etc/os-release` → Checks the OS version inside an image by running a command in a temporary container (`--rm` cleans up afterwards).
+- `docker build -t my-app:v1 .` → Builds a Docker image from a Dockerfile in the current directory.
+
+### Managing Containers
+- `docker run [image_name]:[tag]` → Creates and starts a new container from an image.
+- `docker run -d -e MYSQL_ROOT_PASSWORD=db_pass123 --name mysql-db mysql` → Runs a MySQL container in the background, setting the root password via an environment variable (`-e`) and giving it a specific name (`--name`).
+- `docker run -d ... [image_name]`: Runs the container in **detached mode** (in the background).
+    - **Note:** For a detached container to stay running, the command specified in the image (`CMD`/`ENTRYPOINT`) must be a long-running process. If it's not (e.g., a basic `alpine` image), you often need to provide a command that doesn't exit, like `sleep infinity` or `tail -f /dev/null`.
+    ```bash
+    docker run -d --name my-alpine alpine:latest sleep infinity
+    ```
+- `docker run -it -w /myfiles [image_name] [command]` → Creates a new container from `[image_name]`, starts an interactive TTY session (`-it`), sets the working directory inside the container to `/myfiles` (`-w`), and then runs `[command]` (or the image's default command if none is provided) from within that directory.
+- `docker ps` → Lists currently running containers.
+- `docker ps -a` → Shows all containers that have been run previously.
+- `docker container stop [container_id]` → Stops a running container.
+- `docker stop $(docker ps -q)` → Stops all running containers at once by passing the IDs of running containers (`docker ps -q`) to the stop command.
+- `docker container start [container_id]` → Restarts a stopped container.
+- `docker rm [container_id_or_name]` → Removes a *specific* stopped container.
+- `docker rm -f [container_id_or_name]` → Forcefully removes a *specific* running container. Use with caution.
+- `docker container prune` → Cleans up *all* stopped containers (bulk removal).
+- `docker exec -it [container_id_or_name] [command]` → Executes a command inside a *running* container. `-it` provides an interactive TTY (shell access).
+    ```bash
+    # Get an interactive shell inside a container
+    docker exec -it my-container /bin/sh
+    # Run a non-interactive command
+    docker exec my-container ls /app
+    ```
+- `docker logs [container_name_or_id]` → Fetches the logs (stdout/stderr) of a container.
+- `docker logs -f [container_name_or_id]` or `docker logs --follow [container_name_or_id]` → Follows the log output in real-time, similar to `tail -f`.
+- `docker inspect [container_name_or_id]` → Displays detailed low-level information about a container in JSON format. Useful for finding IP addresses, checking environment variables, and **inspecting mounts**. Look for the `"Mounts"` array to see volumes and bind mounts.
 
 ## Dockerfile
 
@@ -138,18 +172,7 @@ CMD ["echo", "Hello World"]
 - `docker run myimage` → Runs `echo "Hello World"` and prints "Hello World". ✅
 - `docker run myimage "Hi"` → This attempts to run `"Hi"` as a command, which fails because `"Hi"` is not an executable. The arguments provided to `docker run` replace the entire `CMD` instruction. ❌
 
-**Example Build and Run Commands:**
 
-```bash
-# Build the Docker image from the Dockerfile in the current directory (.)
-# Tag the image as 'myphpapp' with the tag 'web'
-$ docker build -t myphpapp:web .
-
-# Run a container from the built image
-# Map port 8080 on the host to port 8000 inside the container
-# (Port 8000 is exposed by the Dockerfile and used by the CMD)
-$ docker run -p 8080:8000 myphpapp:web
-```
 
 ### Optimizing the Build Cache
 
@@ -261,7 +284,7 @@ By default, data generated within a container **does not persist** when the cont
 #### Bind Mounts
 *   **How they work:** A file or directory on the **host machine** is mounted directly into a container. The path on the host machine is specified. Changes made in the container are reflected on the host, and vice-versa.
 *   **Use Cases:** Useful for sharing configuration files, source code during development, or accessing host resources. Performance can be lower than volumes, especially on Docker Desktop (macOS/Windows).
-*   **Persistence Example (`-v /<host_path>:<container_path>`):** Consider `docker run -d -v /opt/host_data:/app/data my_image`. Data written to `/app/data` inside the container is stored in `/opt/host_data` on the host. If the container is removed, `/opt/host_data` remains.
+*   **Example:** `docker run -v /opt/data:/var/lib/mysql -d --name mysql-db -e MYSQL_ROOT_PASSWORD=db_pass123 mysql` → Runs MySQL, **mounting the host directory `/opt/data` to the container's `/var/lib/mysql` (`-v`) for persistent database storage**.
 *   **Warning:** Bind mounts rely on the host's directory structure and can have permission issues if the UID/GID inside the container doesn't match the host path's ownership.
 
 #### Tmpfs Mounts
@@ -277,6 +300,28 @@ By default, data generated within a container **does not persist** when the cont
 
 #### Storage Plugins
 Docker also supports **storage plugins** that allow containers to connect to external storage platforms (e.g., NFS, cloud storage).
+
+#### Managing Volumes
+- `docker volume create [volume_name]` → Creates a new named Docker volume.
+- `docker volume ls` → Lists all Docker volumes (named and anonymous).
+- `docker volume inspect [volume_name]` → Displays detailed low-level information about a specific Docker volume. The `"Mountpoint"` field shows the actual path on the host where the data is stored.
+- `docker volume rm [volume_name...]` → Removes one or more specified volumes. The volume must not be in use by any container.
+- `docker volume prune` → Removes all unused local volumes (not attached to any container).
+- **Example:** `docker run -v my_volume:/var/lib/mysql -d --name mysql-db mysql` → Mounts a **named volume** `my_volume` to the container's data directory for persistent storage.
+
+#### Sharing Volumes Between Containers (`--volumes-from`)
+The `--volumes-from [container_name_or_id]` flag mounts all volumes from a source container into a new container. This is a less common pattern now; using the same named volume (`-v my_volume:/path`) in multiple containers is preferred.
+
+```bash  
+# Create a container with a data volume
+docker create -v /app/data --name my-data-container busybox
+
+# Run an app container using the data volume from the source container
+docker run -d --volumes-from my-data-container --name my-app my_app_image
+
+# Run a temporary backup container accessing the same volume to create a backup
+docker run --rm --volumes-from my-data-container -v $(pwd):/backup busybox tar cvf /backup/data-backup.tar /app/data
+```
 
 ### Storage Drivers
 
@@ -343,6 +388,7 @@ When you run a service inside a container (e.g., a web server listening on port 
         *   Nginx inside the container listens on its default **Container Port** `80`.
         *   Docker maps the **Host Port** `8080` on your host machine to the container's port `80`.
         *   You can now access the Nginx server from your browser using `http://<your-host-ip>:8080` or `http://localhost:8080`.
+    *   `docker run -dp 8080:8080 myimage:v1` → A shorthand to run a container in detached mode (`-d`) and publish a port (`-p`).
     *   If you only specify the container port (`-p 80`), Docker will automatically map it to a random available high port number on the host. You can see the assigned port using `docker ps`.
 
 ### Network Connection (`--network`)
@@ -352,7 +398,7 @@ This flag connects a container to a specific Docker network, controlling how it 
 *   **Purpose:** Attaches the container to a network (e.g., `bridge`, `host`, `none`, or a user-defined network).
 *   **Function:** Determines which other containers it can communicate with directly (often using container names for DNS resolution on user-defined networks) and its overall network environment.
 *   **Default:** If omitted, containers connect to the default `bridge` network.
-*   **Example:** `--network my-custom-bridge` connects the container to the network named `my-custom-bridge`.
+*   **Example:** `docker run -d --name mysql-db --network my-custom-network -e MYSQL_ROOT_PASSWORD=db_pass123 mysql:5.6` → Runs a MySQL container and connects it specifically to the user-defined network `my-custom-network` for isolated communication.
 
 ### `--network` vs. `-p`
 
@@ -364,8 +410,14 @@ This flag connects a container to a specific Docker network, controlling how it 
 
 *   **Purpose:** A legacy method to connect containers, allowing one container to discover the IP address of another by name.
 *   **Function:** Adds an entry to the `/etc/hosts` file of the recipient container (e.g., `--link mysql-db:db` adds a host entry mapping `db` to the `mysql-db` container's IP).
+*   **Example:** `docker run --network=wp-mysql-network --link mysql-db:mysql-db -d kodekloud/simple-webapp-mysql` → Runs a webapp, connecting it to a network and using a (now redundant) legacy link to connect to the `mysql-db` container.
 *   **Status:** Generally **discouraged** and considered legacy. **User-defined networks (created with `docker network create`) are the preferred modern approach** as they provide cleaner isolation and use Docker's built-in DNS for service discovery by container name.
 *   **Redundancy:** Using `--link` is redundant if containers are already connected to the same user-defined network.
+
+### Managing Networks
+- `docker network ls` → Lists all Docker networks on the host.
+- `docker network create [network_name]` → Creates a new user-defined network (default driver is bridge).
+- `docker network create --driver bridge --subnet 182.18.0.0/24 --gateway 182.18.0.1 my-custom-network` → Creates a custom bridge network with a specific IP subnet and gateway.
 
 ## Docker Engine and System
 
@@ -381,86 +433,8 @@ By default on Linux systems, Docker stores all its data, including images, conta
 -   Manages images, containers, namespaces, networks, storage volumes, plugins, and add-ons.
 -   Docker daemons can also communicate with other daemons to manage Docker services.
 
-## Docker Commands
-
-
-
-
-### Container Management
-- `docker ps` → Lists currently running containers.
-- `docker ps -a` → Shows all containers that have been run previously.
-- `docker container stop [container_id]` → Stops a running container.
-- `docker stop $(docker ps -q)` → Stops all running containers at once by passing the IDs of running containers (`docker ps -q`) to the stop command.
-- `docker container start [container_id]` → Restarts a stopped container.
-- `docker rm [container_id_or_name]` → Removes a *specific* stopped container.
-- `docker rm -f [container_id_or_name]` → Forcefully removes a *specific* running container. Use with caution.
-- `docker container prune` → Cleans up *all* stopped containers (bulk removal).
-- `docker run [image_name]:[tag]` → Creates and starts a new container from an image.
-- `docker run -d ... [image_name]`: Runs the container in **detached mode** (in the background).
-    - **Note:** For a detached container to stay running, the command specified in the image (`CMD`/`ENTRYPOINT`) must be a long-running process. If it's not (e.g., a basic `alpine` image), you often need to provide a command that doesn't exit, like `sleep infinity` or `tail -f /dev/null`.
-    ```bash
-    docker run -d --name my-alpine alpine:latest sleep infinity
-    ```
-- `docker exec -it [container_id_or_name] [command]` → Executes a command inside a *running* container. `-it` provides an interactive TTY (shell access).
-    ```bash
-    # Get an interactive shell inside a container
-    docker exec -it my-container /bin/sh
-    # Run a non-interactive command
-    docker exec my-container ls /app
-    ```
-- `docker run -it -w /myfiles [image_name] [command]` → Creates a new container from `[image_name]`, starts an interactive TTY session (`-it`), sets the working directory inside the container to `/myfiles` (`-w`), and then runs `[command]` (or the image's default command if none is provided) from within that directory.
-
-### Running Ubuntu Inside Docker
-- `docker run -dit ubuntu sleep infinity` → Runs an Ubuntu container in detached (`d`), interactive (`i`), TTY (`t`) mode, kept alive by `sleep infinity`.
-- `docker container exec -it [container_id] bash` → Opens a bash shell inside the running container.
-
-### Volume Management
-- `docker volume create [volume_name]` → Creates a new named Docker volume.
-- `docker volume ls` → Lists all Docker volumes (named and anonymous).
-- `docker volume rm [volume_name...]` → Removes one or more specified volumes. Volume must not be in use by any container.
-- `docker volume prune` → Removes all unused local volumes (not attached to any container).
-- `--volumes-from [container_name_or_id]` (Option for `docker run`): Mounts all the volumes defined in another container into the new container. Useful for sharing persistent data (e.g., databases) or for backup/restore scenarios. **Note:** This is less common now; using the same named volume (`-v my_volume:/path`) in multiple containers is often preferred.
-    ```bash  
-    # Run a data container (might exit, doesn't matter)
-    docker create -v /app/data --name my-data-container busybox
-    # Run an app container using the data volume
-    docker run -d --volumes-from my-data-container --name my-app my_app_image
-    # Run a backup container accessing the same volume
-    docker run --rm --volumes-from my-data-container -v $(pwd):/backup busybox tar cvf /backup/data-backup.tar /app/data
-    ```
-    - *(Conceptual) Sidecar Pattern:* Sharing volumes (`-v my_volume:/path` in both containers, or `--volumes-from`) allows containers to collaborate. One common pattern is a "sidecar" where one container writes data (e.g., logs) into a volume, and another container reads from that same volume (e.g., to ship logs elsewhere), without the two containers needing direct network communication.
-
-### Container/Volume Inspection
-- `docker inspect [container_name_or_id]` → Displays detailed low-level information about a container in JSON format. Useful for finding IP addresses, checking environment variables, and **inspecting mounts**. Look for the `"Mounts"` array to see volumes and bind mounts, including their type, source (host path or volume name), and destination (container path).
-- `docker inspect [volume_name]` → Displays detailed low-level information about a specific Docker volume. Key field is `"Mountpoint"`, which shows the actual path on the host machine where the volume's data is stored (usually within `/var/lib/docker/volumes/`).
-
-### Container Logs
-- `docker logs [container_name_or_id]` → Fetches the logs (stdout/stderr) of a container.
-- `docker logs -f [container_name_or_id]` or `docker logs --follow [container_name_or_id]` → Follows the log output in real-time, similar to `tail -f`.
-
-### Network Management
-- `docker network ls` → Lists all Docker networks on the host (showing ID, Name, Driver, Scope).
-- `docker network create [network_name]` → Creates a new user-defined network (default driver is bridge).
-- `docker network create --driver bridge --subnet 182.18.0.0/24 --gateway 182.18.0.1 wp-mysql-network` → Creates a custom bridge network named `wp-mysql-network` with a specific IP subnet and gateway.
-
-### Image and Build Process
-- `docker build -t [image_name]:v1 .` → Builds an image from the Dockerfile in the current directory.
-- `docker run [image_name]:v1` → Runs the created image.
-- `docker run -dp 8080:8080 myimage:v1` → Runs a container in detached mode (`-d`) and maps host port 8080 to container port 8080 (`-p`).
-- `docker run -d -e MYSQL_ROOT_PASSWORD=db_pass123 --name mysql-db mysql` → Runs a MySQL container named `mysql-db` in the background, setting the root password via an environment variable (`-e`).
-- `docker run -v /opt/data:/var/lib/mysql -d --name mysql-db -e MYSQL_ROOT_PASSWORD=db_pass123 mysql` → Runs MySQL, **mounting the host directory `/opt/data` to the container's `/var/lib/mysql` (`-v`) for persistent database storage**, setting the root password (`-e`), naming it (`--name`), and running in the background (`-d`).
-- `docker run -d -e MYSQL_ROOT_PASSWORD=db_pass123 --name mysql-db --network wp-mysql-network mysql:5.6` → Runs MySQL 5.6, setting password (`-e`), naming it (`--name`), running in background (`-d`), and **connecting it specifically to the user-defined network `wp-mysql-network` (`--network`)** for isolated communication with other containers on that network.
-- `docker run --network=wp-mysql-network -e DB_Host=mysql-db -e DB_Password=db_pass123 -p 38080:8080 --name webapp --link mysql-db:mysql-db -d kodekloud/simple-webapp-mysql` → Runs a webapp container, connecting it to `wp-mysql-network`, passing DB credentials (`-e`), exposing port (`-p`), naming it (`--name`), using a (redundant) legacy link (`--link`), and running in background (`-d`).
-- `docker images` → Lists all available Docker images.
-- `docker rmi [image_id_or_name]` → Removes a specific Docker image. You might need to use `-f` (force) if the image is used by stopped containers.
-- `docker rmi -f $(docker images -q)` → Removes *all* Docker images forcefully. Use with caution!
-- `docker run --rm <image_name> cat /etc/os-release` → Checks the OS version inside an image by running a command in a temporary container (`--rm` cleans up afterwards).
-- `docker run -v my_volume:/var/lib/mysql -d --name mysql-db ... mysql`: Example mounting a **named volume** `my_volume` to the container's data directory.
-
 ### System Information
 - `docker system df --v` → Shows detailed information on Docker disk usage.
-
-
 
 ## Docker Registry / Artifact Registry
 
