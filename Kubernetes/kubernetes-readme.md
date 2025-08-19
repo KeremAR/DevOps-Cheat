@@ -232,7 +232,26 @@ spec:
   - name: wait-for-db
     image: busybox:1.28
     command: ['sh', '-c', "echo 'Waiting for database...' && sleep 5 && echo 'Database ready!'"]
-```
+
+#### Health Checks (Probes)
+
+Probes are health checks performed by the kubelet to determine the status of a container. They are crucial for building reliable, self-healing applications.
+
+*   **`livenessProbe`**:
+    *   **Purpose:** To determine if a container is running correctly.
+    *   **Action:** If the liveness probe fails, the kubelet kills the container, and the container is restarted according to its `restartPolicy`.
+    *   **Use Case:** Use this to catch deadlocks or situations where an application is running but not serving requests, effectively restarting a broken container.
+
+*   **`readinessProbe`**:
+    *   **Purpose:** To determine if a container is ready to start accepting traffic.
+    *   **Action:** If the readiness probe fails, the container is not removed from service, but its Pod's IP address is removed from the endpoints of all Services that match the Pod. This stops traffic from being sent to it until it's ready.
+    *   **Use Case:** Use this to signal when a container has finished its startup process (e.g., loading data, warming up a cache) and is ready to serve traffic.
+
+*   **`startupProbe`**:
+    *   **Purpose:** To check if an application within a container has started successfully. It is primarily for applications that have a slow start-up time.
+    *   **Action:** If a startup probe is configured, all other probes are disabled until it succeeds. If the startup probe fails, the kubelet kills the container, and it is restarted according to its `restartPolicy`.
+    *   **Use Case:** Use this to allow slow-starting containers enough time to initialize before being subjected to liveness checks, preventing them from being killed prematurely.
+
 #### Common Pod Commands
 
 -   **List Pods:**
@@ -404,7 +423,20 @@ kubectl scale deployments.apps my-dep --replicas=5
     kubectl autoscale deployment my-dep --min=2 --max=10 --cpu-percent=80
     ```
 
+#### Rollback a Deployment
 
+You can revert a deployment to a previous revision if something goes wrong with a new version.
+
+```bash
+# See the history of revisions for a deployment
+kubectl rollout history deployment/<deployment-name>
+
+# Rollback to the previous deployment
+kubectl rollout undo deployment/<deployment-name>
+
+# Rollback to a specific revision
+kubectl rollout undo deployment/<deployment-name> --to-revision=2
+```
 
 ### StatefulSet
 
@@ -1405,6 +1437,27 @@ When you run `kubectl get pods`, the `STATUS` column gives you a quick insight.
 -   **Node-level debugging**: If `kubectl` is not enough, you may need to SSH into the node to investigate.
     -   **Log files**: Check `/var/log/pods/` and `/var/log/containers/`.
     -   **Container runtime**: Use `crictl ps` to list containers and `crictl logs <container-ID>` to get logs directly from the runtime (or use `docker` equivalents if applicable).
+
+#### Monitoring Resource Usage
+
+To effectively troubleshoot, you often need to check the resource consumption (CPU and memory) of your Pods and Nodes. This requires the **Metrics Server** to be installed in your cluster.
+
+-   **`kubectl top pod <pod-name>`**: Shows the current CPU and memory usage of a specific Pod and its containers.
+    ```bash
+    # See resource usage for a specific pod
+    kubectl top pod my-pod-12345 -n my-namespace
+
+    # See resource usage for all pods in the current namespace
+    kubectl top pod
+    ```
+-   **`kubectl top node <node-name>`**: Shows the CPU and memory usage of a specific Node.
+    ```bash
+    # See resource usage for a specific node
+    kubectl top node my-worker-node-1
+
+    # See resource usage for all nodes
+    kubectl top node
+    ```
 
 ### Role-Based Access Control (RBAC)
 
