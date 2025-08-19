@@ -62,6 +62,23 @@ A **Docker container** is a **runnable instance** of a Docker image.
 - You **can** create multiple containers from the **same** Docker image.
 - Each container runs **independently**, is well **isolated** from other containers and the host machine, and can have its own configuration, environment variables, and mounted volumes.
 
+### Understanding Image Layers and Disk Usage
+While `docker images` shows the size of an image, it's important to understand how Docker's layer system saves disk space. The size shown is the cumulative total of all its layers, but these layers are shared between images.
+
+**Example:**
+Imagine you start with a base image and build on it:
+1.  Base image `ubuntu:20.04` → **700MB**
+2.  You add a new layer by installing packages (`RUN apt-get install curl`) → **50MB** new layer
+3.  You add another layer by copying your app (`COPY app.py .`) → **200KB** new layer
+
+When you run `docker images`, you might see:
+- `myapp:v1` → **750MB**
+- `myapp:v2` → **750.2MB**
+
+However, this does not mean they consume 1.5GB on disk. The actual disk usage is the sum of the individual, shared layers: `700MB + 50MB + 200KB`.
+
+The size you see in `docker images` is the sum of the layers for that specific image, but Docker efficiently stores only one copy of each shared layer. The `docker system df` command provides a more accurate view of the actual disk space being used.
+
 ### Managing Images
 - `docker images` → Lists all available Docker images.
 - `docker rmi [image_id_or_name]` → Removes a specific Docker image. You might need to use `-f` (force) if the image is used by stopped containers.
