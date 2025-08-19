@@ -11,6 +11,16 @@
 - [Docker Commands](#docker-commands)
 - [Artifact Registry](#artifact-registry)
 
+### How Containerization Works on Linux
+
+In Linux, a "container" is an illusion created by isolating a process from the rest of the system. This is achieved with a few key Linux kernel features:
+ 
+1.  **Namespaces (Isolation):** Namespaces are the primary feature for isolation, controlling what a process can see. A new set of namespaces is created for a container (using system calls like `unshare`) to provide a private view of system resources like processes (PID), network interfaces (Net), and the filesystem (Mnt). A foundational concept for filesystem isolation is `chroot`, which changes a process's root directory, making it seem like it has its own dedicated filesystem.
+
+2.  **Control Groups (cgroups) (Resource Limiting):** Cgroups control how many system resources a process can use. This ensures a container cannot monopolize the host's CPU, memory, or I/O, allowing many containers to run on a single host without interfering with each other.
+
+In short, namespaces make a process *think* it's running alone on an operating system, while cgroups ensure it doesn't consume more than its fair share of resources.
+
 ## Docker Basics
 ![ROADMAP](/Media/container_proccess.png)
 Docker uses a **client-server architecture** consisting of three main components:
@@ -94,21 +104,17 @@ WORKDIR /myproject
 CMD [ "php", "-S", "0.0.0.0:8000" ]
 ```
 
-**Instruction Explanations:**
-
--   **`FROM`**: Specifies the base image to build upon (e.g., `node:14`). Must be the first instruction.
--   **`ENV`**: Sets persistent environment variables within the image (e.g., `NODE_ENV=production`).
--   **`WORKDIR`**: Sets the working directory for subsequent instructions (`RUN`, `CMD`, `ENTRYPOINT`, `COPY`, `ADD`) within the Dockerfile and when running the container.
--   **`COPY`**: Copies files or directories from the build context (your local machine) into the container's filesystem. It's generally preferred for simple file copying.
--   **`RUN`**: Executes commands in a new layer on top of the current image. Used for installing packages, compiling code, etc. Each `RUN` creates a layer.
--   **`ADD`**: Similar to `COPY`, but with additional features like handling remote URLs and automatically extracting compressed files (tar, gzip, bzip2) into the destination directory.
--   **`EXPOSE`**: Informs Docker that the container listens on the specified network ports at runtime. It doesn't actually publish the port; it functions as documentation between the image builder and the person running the container.
--   **`CMD`**: Provides defaults for an executing container. These defaults can include an executable, or they can omit the executable, in which case you must specify an `ENTRYPOINT` instruction as well. There can only be one `CMD` instruction. If you list more than one `CMD`, only the last `CMD` will take effect. The primary purpose of a `CMD` is to provide default execution parameters that can be easily overridden when running the container (`docker run image_name optional_command`).
--   **`LABEL`**: Adds metadata to an image, such as version, description, or maintainer information.
--   **`HEALTHCHECK`**: Defines a command to run inside the container to check if it's still working correctly. Docker can use this to determine the container's health status.
--   **`USER`**: Sets the user name (or UID) and optionally the user group (or GID) to use when running the image and for any `RUN`, `CMD`, and `ENTRYPOINT` instructions that follow it in the Dockerfile. Running containers as a non-root user is a security best practice.
 
 **Important Distinction:** Commands that install software or configure the *image* environment (e.g., `apt-get install`, `npm install`, `docker-php-ext-install`) belong in the **Dockerfile** using the `RUN` instruction. These commands define the image itself during the build process. **Docker Compose** files, on the other hand, define how to *run* containers based on existing images, specifying runtime configurations like ports, volumes, networks, and environment variables.
+
+## Key Differences between ENTRYPOINT and CMD  
+
+| Feature       | ENTRYPOINT                                      | CMD                                      |
+|--------------|------------------------------------------------|------------------------------------------|
+| **Purpose**   | Defines the main application that always runs  | Provides default arguments for execution |
+| **Overridable?** | ❌ No, unless `--entrypoint` is used        | ✅ Yes, by passing a command at runtime  |
+| **Flexibility** | Less flexible, ensures a specific executable always runs | More flexible, allows runtime overrides |
+| **Best Used For** | Scripts, services, daemons (e.g., Nginx, MySQL) | Default parameters, test commands |
 
 **Example Build and Run Commands:**
 
@@ -122,6 +128,91 @@ $ docker build -t myphpapp:web .
 # (Port 8000 is exposed by the Dockerfile and used by the CMD)
 $ docker run -p 8080:8000 myphpapp:web
 ```
+
+### Optimizing the Build Cache
+
+Docker reuses layers from previous builds to speed up the `docker build` process. This is the **build cache**. For an instruction's layer to be reused, the instruction itself must be unchanged, and all previous layers must also be cached.
+
+**Cache Invalidation:**
+- A cache miss (invalidation) occurs when an instruction is changed.
+- Crucially, when a layer is invalidated, **all subsequent layers are also rebuilt**, regardless of whether they changed.
+
+**Best Practices for Caching:**
+1.  **Order matters:** Place instructions that change less frequently (like installing dependencies) *before* instructions that change often (like copying source code).
+2.  **Be specific with `COPY`:** Only copy the files you need. For example, in a Node.js app, copy `package.json` and run `npm install` *before* copying the rest of your source code. This way, the dependency layer is only rebuilt when `package.json` changes, not every time you change a source file.
+
+**Example of Optimized Order:**
+```dockerfile
+FROM node:16-alpine
+
+WORKDIR /app
+
+# Copy dependency manifest first (less frequent changes)
+COPY package*.json ./
+
+# Install dependencies (this layer is cached if package*.json hasn't changed)
+RUN npm install
+
+# Copy source code last (most frequent changes)
+COPY . .
+
+EXPOSE 3000
+CMD [ "node", "app.js" ]
+```
+
+### Multi-Stage Builds
+
+Multi-stage builds are a powerful feature for creating smaller, more secure, and more efficient Docker images. They allow you to use multiple `FROM` instructions in a single Dockerfile. Each `FROM` instruction begins a new build "stage" that can have its own base image and dependencies.
+
+**Why Use Multi-Stage Builds?**
+
+The primary benefit is to separate the build-time environment from the runtime environment. For compiled languages (like Go, Java, or C++) or applications that require a build step (like transpiling JavaScript), you often need many tools and dependencies to build the final artifact. These tools are unnecessary in the final production image.
+
+By using a multi-stage build, you can:
+- **Build the application** in an early stage (the "builder" stage) with all the necessary SDKs and tools.
+- **Copy only the final build artifact** (e.g., the compiled binary, the `dist` folder) into a later, clean stage that is based on a minimal runtime image.
+- This results in a much smaller final image, as all the build-time dependencies are discarded.
+
+**Example of a Multi-Stage Build (Node.js):**
+
+```dockerfile
+# --- Build Stage ---
+# Use a full Node.js image to build the application
+FROM node:16 as builder
+
+WORKDIR /app
+
+# Copy dependency manifests and install all dependencies (including devDependencies)
+COPY package*.json ./
+RUN npm install
+
+# Copy the rest of the source code
+COPY . .
+
+# Run the build script to generate the production-ready 'dist' folder
+RUN npm run build
+
+# --- Production Stage ---
+# Start a new, clean stage from a minimal base image
+FROM node:16-alpine
+
+WORKDIR /app
+
+# Copy only the package.json and the production node_modules from the 'builder' stage
+# (You could also run 'npm prune --production' in the builder stage)
+COPY package*.json ./
+RUN npm install --production
+
+# Copy only the compiled application artifact from the 'builder' stage
+COPY --from=builder /app/dist ./dist
+
+EXPOSE 3000
+
+# The final command to run the application
+CMD [ "node", "dist/app.js" ]
+```
+
+In this example, the final image is based on the lightweight `node:16-alpine` and does not contain any of the `devDependencies` or source code needed for the build, only the final compiled assets.
 
 ## Docker Storage
 
@@ -268,33 +359,8 @@ By default on Linux systems, Docker stores all its data, including images, conta
 -   Manages images, containers, namespaces, networks, storage volumes, plugins, and add-ons.
 -   Docker daemons can also communicate with other daemons to manage Docker services.
 
-### Docker Engine cgroups
-Docker Engine uses the following cgroups:
-
-- **Memory cgroup** is used to manage accounting, limits, and notifications.
-- **HugeTBL cgroup** is utilized to account for the usage of huge pages by process group.
-- **CPU group** is used to manage user/system CPU time and usage.
-- **CPUSet cgroup** is used to bind a group to a specific CPU; recommended for real-time applications and NUMA systems with localized memory per CPU.
-- **BlkIO cgroup** is used to measure & limit the amount of blckIO by a group.
-- **net_cls and net_prio cgroup** is used to tag the traffic control.
-- **Devices cgroup** is used to read/write access devices.
-- **Freezer cgroup** is used to freeze a group; recommended for cluster batch scheduling, process migration, and debugging without affecting prtrace.
-
-### Namespaces
-PID namespace used in Docker Engine for process isolation.
-
-**net_cls** and **net_prio** cgroup used in Docker Engine for tagging the traffic control.
-
 ## Docker Commands
 
-## Key Differences between ENTRYPOINT and CMD  
-
-| Feature       | ENTRYPOINT                                      | CMD                                      |
-|--------------|------------------------------------------------|------------------------------------------|
-| **Purpose**   | Defines the main application that always runs  | Provides default arguments for execution |
-| **Overridable?** | ❌ No, unless `--entrypoint` is used        | ✅ Yes, by passing a command at runtime  |
-| **Flexibility** | Less flexible, ensures a specific executable always runs | More flexible, allows runtime overrides |
-| **Best Used For** | Scripts, services, daemons (e.g., Nginx, MySQL) | Default parameters, test commands |
 
 
 
