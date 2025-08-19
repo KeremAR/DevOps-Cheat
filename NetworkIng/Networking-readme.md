@@ -26,6 +26,13 @@ The handshake establishes a secure session in four main steps:
 3.  **Key Exchange:** Using the server's public key, the client and server securely generate and share a temporary **session key**.
 4.  **Secure Communication:** Both parties use this session key to encrypt all further communication for the duration of the session.
 
+### What is Mutual TLS (mTLS)?
+
+**Mutual TLS (mTLS)** is an extension of TLS where both client and server authenticate each other using certificates. It is a common practice for securing communication between microservices (east-west traffic). mTLS is often implemented as part of a service mesh, such as Istio, to enforce a Zero Trust security model within a cluster, ensuring that only trusted services can communicate with each other.
+
+#### Security Scenario: Containing a Compromised Service
+Imagine a microservices environment with a `user-service` and a `database-service`. With mTLS enabled, the `database-service` is configured to only accept connections from clients presenting a valid certificate. If the `user-service` is compromised by an attacker, the attacker cannot access the `database-service` because the compromised service lacks the trusted certificate needed to authenticate. The connection is rejected, containing the breach and preventing the attacker from moving laterally across the network.
+
 ### TLS Security Best Practices
 
 - **Automate Certificate Renewal:** Use tools like Let's Encrypt to prevent outages from expired certificates.
