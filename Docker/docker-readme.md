@@ -433,6 +433,19 @@ By default on Linux systems, Docker stores all its data, including images, conta
 -   Manages images, containers, namespaces, networks, storage volumes, plugins, and add-ons.
 -   Docker daemons can also communicate with other daemons to manage Docker services.
 
+### Cleaning Up Unused Objects (Pruning)
+
+**Dangling objects** are unused Docker resources, such as images, volumes, and networks, that are no longer referenced or used by any containers. They consume disk space and should be cleaned up periodically.
+
+-   **Dangling Images:** Images tagged as `<none>`. These are often created as intermediate layers during a build or when you rebuild an image without changing the tag.
+-   **Dangling Volumes:** Volumes that are not attached to any container.
+
+**Pruning Commands:**
+- `docker image prune` → Removes all dangling images.
+- `docker volume prune` → Removes all unused (dangling) volumes.
+- `docker container prune` → Removes all stopped containers.
+- `docker system prune` → A comprehensive command that removes all stopped containers, dangling images, unused networks, and build cache. Use `-a` to also remove unused images (not just dangling ones).
+
 ### System Information
 - `docker system df --v` → Shows detailed information on Docker disk usage.
 
