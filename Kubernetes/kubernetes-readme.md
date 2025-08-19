@@ -658,12 +658,12 @@ Pods are frequently created and destroyed, causing their IP addresses to change.
 
 
   A basic Service manifest can be generated with `kubectl create`:
-    ```bash
+  ```bash
     # This creates a manifest for a NodePort service, exposing the service on port 80
     kubectl create service nodeport hello-hello-service --tcp=80:80 --node-port=30300 --dry-run=client -o yaml
-    ```
+  ```
     **Example NodePort Service YAML:**
-    ```yaml
+  ```yaml
     apiVersion: v1
     kind: Service
     metadata:
@@ -678,7 +678,7 @@ Pods are frequently created and destroyed, causing their IP addresses to change.
           port: 80 # Port the service is available on within the cluster
           targetPort: 80 # Port on the Pods
           nodePort: 30300 # Static port on the Node
-    ```
+  ```
 
 #### Common Service Commands
 - **Expose a Deployment:** This is the quickest way to create a service for an existing deployment.
