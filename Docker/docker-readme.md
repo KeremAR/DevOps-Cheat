@@ -70,51 +70,73 @@ It is a special script (text file) for Docker that provides commands (instructio
 
 A Dockerfile must always begin with a `FROM` instruction that defines a base image, often sourced from a public repository (e.g., an OS like Ubuntu, or a language runtime like Node.js).
 
-### Key Dockerfile Instructions
-
-- **RUN** executes a command **during the image build process**.
-    - Each RUN instruction **creates a new layer** in the Docker image.
-    - This is typically used to install dependencies, update packages, or configure the system.
-- **CMD** defines the **default command** to be executed when a container starts from the image.
-    - A Dockerfile should only have **one CMD instruction**. If multiple are present, only the **last one takes effect**.
-    - See the `Docker Commands` section for comparison with `ENTRYPOINT`.
-
 ### Sample Dockerfile and Instructions
-
-Below is a sample Dockerfile followed by explanations of the commonly used instructions.
-
 ```dockerfile
-# Use the official PHP 7.2 CLI image as the base image
-FROM php:7.2-cli
+# FROM → Used to select a base image.
+FROM ubuntu:22.04
 
-# Inform Docker that the container listens on port 8000 at runtime
-EXPOSE 8000
+# RUN → Runs a command during the container build and creates a new layer.
+RUN apt-get update && apt-get install -y curl
 
-# Create a directory for the project inside the image
-RUN mkdir /myproject
+# COPY → Copies files from the host into the image.
+COPY . /app
 
-# Copy the index.php file from the build context to /myproject in the image
-COPY index.php /myproject
+# ADD → Works like COPY, but can also handle URLs or extract archive files.
+# For example, it can download and extract a tarball in one step.
+ADD https://example.com/archive.tar.gz /
 
-# Set the working directory for subsequent commands
-WORKDIR /myproject
+# WORKDIR → Sets the working directory inside the container for subsequent commands.
+WORKDIR /app
 
-# Specify the default command to run when the container starts
-# This starts the PHP built-in web server on port 8000, serving files from the current directory (WORKDIR)
-CMD [ "php", "-S", "0.0.0.0:8000" ]
+# ENV → Sets a persistent environment variable in the image.
+ENV PORT=8080
+
+# EXPOSE → Documents which port the container will listen on at runtime.
+EXPOSE 80
+
+# CMD → Provides the default command or arguments for a running container.
+# This entire command can be overridden when the container is run.
+CMD ["python", "app.py"]
+
+# ENTRYPOINT → The main command for the container. CMD can be used to provide default arguments.
+ENTRYPOINT ["python"]
+CMD ["app.py"]
+
+# VOLUME → Creates a mount point for persisting data, often used with Docker volumes.
+VOLUME /data
+
+# ARG → A build-time variable that can be passed during the build process.
+# It is not available in the final image, unlike ENV.
+ARG VERSION=1.0
+
+# LABEL → Adds metadata to the image, such as maintainer information.
+LABEL maintainer="me@example.com"
 ```
-
-
-**Important Distinction:** Commands that install software or configure the *image* environment (e.g., `apt-get install`, `npm install`, `docker-php-ext-install`) belong in the **Dockerfile** using the `RUN` instruction. These commands define the image itself during the build process. **Docker Compose** files, on the other hand, define how to *run* containers based on existing images, specifying runtime configurations like ports, volumes, networks, and environment variables.
 
 ## Key Differences between ENTRYPOINT and CMD  
 
-| Feature       | ENTRYPOINT                                      | CMD                                      |
-|--------------|------------------------------------------------|------------------------------------------|
-| **Purpose**   | Defines the main application that always runs  | Provides default arguments for execution |
-| **Overridable?** | ❌ No, unless `--entrypoint` is used        | ✅ Yes, by passing a command at runtime  |
-| **Flexibility** | Less flexible, ensures a specific executable always runs | More flexible, allows runtime overrides |
-| **Best Used For** | Scripts, services, daemons (e.g., Nginx, MySQL) | Default parameters, test commands |
+**ENTRYPOINT**
+
+Defines the main command that will always run when the container starts. When used with `CMD`, the `CMD` value provides default arguments to the `ENTRYPOINT`.
+
+*Example:*
+```dockerfile
+ENTRYPOINT ["echo"]
+CMD ["Hello World"]
+```
+- `docker run myimage` → Runs `echo "Hello World"` and prints "Hello World".
+- `docker run myimage "Hi"` → Runs `echo "Hi"` and prints "Hi" (the `CMD` value is overridden).
+
+**CMD**
+
+Provides the default command and/or parameters for a container. If no `ENTRYPOINT` is defined, the entire `CMD` instruction is the command that gets executed.
+
+*Example:*
+```dockerfile
+CMD ["echo", "Hello World"]
+```
+- `docker run myimage` → Runs `echo "Hello World"` and prints "Hello World". ✅
+- `docker run myimage "Hi"` → This attempts to run `"Hi"` as a command, which fails because `"Hi"` is not an executable. The arguments provided to `docker run` replace the entire `CMD` instruction. ❌
 
 **Example Build and Run Commands:**
 
