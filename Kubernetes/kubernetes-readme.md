@@ -232,7 +232,7 @@ spec:
   - name: wait-for-db
     image: busybox:1.28
     command: ['sh', '-c', "echo 'Waiting for database...' && sleep 5 && echo 'Database ready!'"]
-
+```
 #### Health Checks (Probes)
 
 Probes are health checks performed by the kubelet to determine the status of a container. They are crucial for building reliable, self-healing applications.
