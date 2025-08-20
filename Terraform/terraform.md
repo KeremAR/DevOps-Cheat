@@ -385,7 +385,11 @@ Instead of using `terraform destroy`, the **recommended approach** is to remove 
 - **Complete environment cleanup**: End-of-project infrastructure removal
 - **Troubleshooting**: When normal apply process fails
 
-### terraform state rm - Removing from State Only
+---
+
+## Advanced State Management
+
+### `terraform state rm` - Removing from State Only
 Sometimes you need to remove a resource from Terraform's state without destroying the actual infrastructure. This is useful when moving resources to different Terraform configurations or when a resource was created outside of Terraform.
 
 ```bash
@@ -404,10 +408,38 @@ terraform state rm aws_s3_bucket.data    # Remove from current state
 # terraform import aws_s3_bucket.data bucket-name
 ```
 
-⚠️ **Important**: `terraform state rm` only removes from state file, the actual cloud resource continues to exist and may cause conflicts if not properly managed.
+⚠️ **Important**: `terraform state rm` only removes from the state file; the actual cloud resource continues to exist and may cause conflicts if not properly managed.
 
+### `terraform import` - Managing Existing Infrastructure
+The `terraform import` command is used to bring existing, manually-created infrastructure under Terraform's management. It reads a real-world resource and writes its details into your state file.
 
+**When to use `import`:**
+- When you start using Terraform for a project that already has existing infrastructure.
+- When a resource was created outside of Terraform (e.g., via the console for an emergency) and you need to manage it with code.
+- As part of a recovery process if a state file is lost.
 
+**Important Note:** `import` **does not** generate the configuration code for you. You must write the `resource` block in your `.tf` file *before* you can import the resource into the state.
+
+**Example Workflow:**
+1.  An S3 bucket named `my-manually-created-bucket` already exists in your AWS account.
+
+2.  **Write the HCL code** for the resource in your `main.tf` file. The configuration can be minimal at first.
+    ```hcl
+    resource "aws_s3_bucket" "my_bucket" {
+      # The configuration inside can be empty for now.
+      # After importing, you'll run a plan to see the real configuration.
+    }
+    ```
+
+3.  **Run the `import` command** using the resource address (`<resource_type>.<name>`) and the real-world resource ID (for an S3 bucket, it's the bucket name).
+    ```bash
+    terraform import aws_s3_bucket.my_bucket my-manually-created-bucket
+    ```
+    Terraform will now populate the state file with the details of the existing bucket.
+
+4.  **Run `terraform plan`**. Terraform will now compare your (empty) HCL configuration with the state file (now populated with real values) and show you a plan to update your HCL code to match the imported resource.
+
+5.  **Update your HCL code** with the actual configuration attributes shown in the plan to achieve a clean state with no planned changes.
 
 ## Workspaces
 - **What they are**: Allow you to manage different environments (e.g., dev, staging, prod) with the same configuration but with different state files.
