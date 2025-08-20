@@ -220,3 +220,113 @@ DORA metrics measure DevOps performance. They include;
 
 
 
+## AWS
+
+### IAM
+#### What is the difference between assumerole and passrole?
+- AssumeRole means you take temporary permissions from another role.
+- PassRole means you allow a service to use a role you already have.
+
+---
+
+### Networking
+#### What is the difference between public and private subnet?
+- Public subnet has route to internet gateway. Resources inside can connect to internet.
+- Private subnet has no direct internet route. It is more secure for databases or backend services.
+
+---
+
+#### What are VPC Endpoints and their benefits?
+A VPC endpoint lets you connect your VPC to an AWS service without needing an internet gateway or NAT gateway. The benefits are improved security because traffic stays within the AWS network and better performance because it avoids the public internet.
+
+---
+
+#### How do you troubleshoot with VPC Flow Logs?
+I check logs for accepted/rejected connections to see if security group or NACL is blocking.
+
+---
+
+#### What is VPC Peering vs Direct Connect? When to use them?
+- VPC Peering connects two VPCs privately using AWS backbone.
+- Direct Connect is a physical connection between AWS and on-premise data center. Use it when you need low latency and stable bandwidth.
+
+---
+
+#### What is an Elastic IP?
+A static IPv4 address in AWS. It stays the same even if instance stops or restarts.
+
+---
+
+### Compute
+#### Load Balancers?
+- ALB (Application LB): layer 7, use for HTTP/HTTPS for web apps, path or host-based routing.
+- NLB (Network LB): layer 4, very fast, use for TCP/UDP or low latency.
+
+---
+
+#### How to auto scale EC2?
+Auto Scaling Group (ASG) uses a Launch Template to know how to create EC2 instances, and then scales them in or out based on metrics, like CPU usage, using scaling policies
+
+---
+
+#### What are spot instances and what are their benefits?
+Unused EC2 instances that are available for less money. They can be interrupted by AWS if the service needs the capacity back. They are great for fault-tolerant applications or background jobs where it's okay if the instance is stopped suddenly.
+
+---
+
+#### EC2 vs Fargate hosting – advantages?
+- EC2: You have full control over the EC2 instance, including the operating system and installed software.
+- Fargate: This is a serverless option. You don't manage the underlying EC2 instances. You only pay for the resources your containers use.
+
+---
+
+### Storage
+#### S3 features?
+- Versioning: It keeps different versions of an object. This helps protect against accidental deletions or overwrites.
+- Replication: You can automatically copy objects to another S3 bucket in a different region.
+- Lifecycle Policies: You can set rules to automatically move objects to cheaper storage classes (like Glacier) or delete them after a certain period.
+- Event Notifications: S3 can send notifications to other services when an event happens, like when a new object is uploaded.
+
+---
+
+#### EBS vs EFS vs Instance Store?
+- EBS: block storage for one EC2, persistent, can snapshot.
+- EFS: network file system, can attach to many EC2s, scales automatically.
+- Instance Store: temporary storage directly on the host. Data lost if instance stops.
+
+---
+
+#### What is point-in-time recovery?
+Point-in-time recovery (PITR) is a backup feature that allows you to restore your data to any specific second within a defined period. It's commonly used with databases like AWS Aurora and DynamoDB to recover from accidental data loss or corruption without having to restore from a full backup.
+
+---
+
+#### Read Replica?
+Read replicas are used to scale read-heavy workloads, reduce load on the primary instance, and can also be promoted for disaster recovery.
+
+---
+
+#### S3 Glacier offering?
+Glacier is for long-term, low-cost archival storage. Retrieval time can be minutes or hours.
+
+---
+
+### Cost Optimization
+#### How to reduce cost in AWS?
+- Use auto scaling so resources match demand.
+- Move workloads to serverless when possible.
+- Use spot instances for batch jobs.
+- Use S3 lifecycle rules to move data to cheaper storage (Glacier).
+- Use reserved instances or saving plans for steady workloads.
+
+---
+
+### Observability
+#### Tell me about observability services in AWS.
+- CloudWatch: collects metrics, logs, and alarms for resources like EC2, Lambda.
+- CloudTrail: records API calls and user actions for auditing.
+- VPC Flow Logs: These logs capture all the IP traffic going to and from the network interfaces in my VPC.
+- X-Ray: Distributed tracing. It lets me follow a single request as it travels through all the different microservices in my application.
+
+
+
