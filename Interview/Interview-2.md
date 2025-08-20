@@ -328,5 +328,76 @@ Glacier is for long-term, low-cost archival storage. Retrieval time can be minut
 - VPC Flow Logs: These logs capture all the IP traffic going to and from the network interfaces in my VPC.
 - X-Ray: Distributed tracing. It lets me follow a single request as it travels through all the different microservices in my application.
 
+## Terraform
+
+### Why Infrastructure as Code (IaC)?
+IaC means managing infrastructure with code instead of manual steps. It gives repeatability, version control, and easy automation
+
+---
+
+### What is Idempotency?
+Idempotency means when I apply the same code again, the result is the same. No duplicate or unexpected resources are created.
+
+---
+
+### What is the Terraform state file?(terraform.tfstate)
+State file keeps the mapping between my Terraform code and real resources in the cloud. Terraform uses it to know what exists.
+
+---
+
+### What are the best practices for managing the state file?
+- Storage: Store the state file remotely in a service like AWS S3 . This makes it accessible to the whole team.
+- Locking: Use a locking mechanism, like DynamoDB with S3. Locking prevents two people from running terraform apply at the same time, which could corrupt the state.
+- Encryption: The state file can contain sensitive information, so it must be encrypted at rest. Most remote backends like S3 handle this automatically.
+- Versioning: Enable versioning on your remote storage (like an S3 bucket). This keeps a history of your state file, so you can roll back if something goes wrong.
+- Access Control: Use IAM policies to restrict who can read and write the state file.
+
+---
+
+### What is a Terraform provider?
+A provider is a plugin that allows Terraform to communicate with a specific API. For example, the AWS provider knows how to talk to the AWS API to create resources like EC2 instances or S3 buckets.
+
+---
+
+### What is the difference between variables and locals?
+- Variables: input values from user or tfvars file.
+- Locals: internal values calculated from variables, used to simplify code.(DRY)
+
+---
+
+### What is the difference between count and for_each?
+- count is used to create multiple identical resources by index (0,1,2...).
+- For each: Create resources with different configurations using map
+
+---
+
+### How to delete existing resources in Terraform?
+- The standard way: You remove the resource's code block from your .tf file. Then, when you run terraform apply, Terraform sees that the resource is no longer in the code and destroys it.
+- The direct way: You can run the terraform destroy -target=resource.name command.
+
+---
+
+### How can you import existing infrastructure to a fresh Terraform project?
+First, you write the Terraform code for the resource that already exists. For example, you write the aws_s3_bucket resource block in a .tf file.
+
+Then, you run the command terraform import <resource_address> <resource_id>. This tells Terraform to connect your code to the existing resource and save its details into the state file.
+
+---
+
+### How can you restrict someone from deleting resources?
+- IAM Policies: In AWS, you can create an IAM policy that  Deny for delete actions like ec2:TerminateInstances. This can be difficult to manage for all services.
+- Policy as Code: A better way is to use a policy-as-code tool like Sentinel (in Terraform Cloud) or Open Policy Agent (OPA). You can write a policy that inspects the Terraform plan. If the plan includes a "destroy" action, the policy will automatically fail the pipeline before the apply step, preventing the deletion.
+
+---
+
+### What is configuration drift and how do you deal with it?
+Configuration drift is when real infrastructure changes outside Terraform.
+To fix, I run terraform plan and apply to sync code with reality
+
+---
+
+### How can you avoid storing secrets in Terraform files?
+I never hardcode secrets in code.The best practice is to store them in a dedicated secrets manager, like AWS Secrets Manager or HashiCorp Vault.Then, in your Terraform code, you use a data source to read the secret from the secrets manager at runtime (during the plan or apply)
+
 
 
