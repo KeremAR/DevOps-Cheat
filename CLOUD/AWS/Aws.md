@@ -116,7 +116,7 @@ network that you define. You define the IP range using a CIDR block. The size ca
 -   **NAT Gateway:** Allows instances in **private subnets** to initiate **outbound-only** internet traffic (e.g., for software updates). It must be placed in a public subnet and have an Elastic IP.
 -   **VPC Peering:** Connects two VPCs privately. It's a 1-to-1 connection and is **not transitive** (if A is peered with B, and B with C, A cannot talk to C).
 -   **Transit Gateway (TGW):** A central "cloud router" (hub-and-spoke model) that simplifies connecting many VPCs and on-premises networks. It is **transitive**.
--   **VPC Endpoints:** Enables private connections to AWS services (like S3) without using the internet.
+-   **VPC Endpoints:** Enables private connections to AWS services (like S3) from within your VPC without using the internet. Normally, traffic to AWS services from a private subnet would have to go through a costly NAT Gateway to reach the public endpoint. By using a VPC Endpoint, traffic stays within the AWS private network, which is more secure, faster, and significantly reduces NAT Gateway costs.
     -   **Gateway Endpoint:** A route target in your route table. Free. (S3 & DynamoDB only).
     -   **Interface Endpoint:** An ENI with a private IP in your subnet. Costs money. (Most other services).
 
@@ -149,7 +149,7 @@ network that you define. You define the IP range using a CIDR block. The size ca
 
 -   **CloudFront:** AWS's **Content Delivery Network (CDN)**. It caches your content (videos, images, APIs) in edge locations around the world, closer to your users, which significantly reduces latency.
     -   **Geo-restriction:** A CloudFront feature that allows you to block or allow users from specific countries from accessing your content.
--   **AWS Direct Connect:** A dedicated, private physical network connection between your on--premises data center and AWS. It provides higher bandwidth, a more consistent network experience, and increased security compared to a standard VPN connection over the internet.
+-   **AWS Direct Connect:** A dedicated, private fiber optic network connection between your on-premises data center and AWS. Unlike a standard internet connection, this is not a shared line; it provides a more consistent, high-bandwidth, and secure network experience compared to a standard VPN over the internet.
 
 ### 📊 7. Monitoring & Pricing
 
