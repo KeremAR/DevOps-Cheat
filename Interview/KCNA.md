@@ -78,7 +78,7 @@ Scoring (Priorities)
 - Load balancing and service discovery.
 - Communication security (e.g., mTLS).
 
-*A service mesh provides a dedicated infrastructure layer for making service-to-service communication safe, fast, and reliable.*
+*A service mesh provides a dedicated infrastructure layer for making service-to-service communication safe, fast, and reliable. It handles load balancing by intelligently routing traffic, service discovery by keeping a catalog of services, and security by automatically encrypting communication with mTLS.*
 
 ### Q15: Which component is responsible for monitoring resource utilization and scaling decisions in Kubernetes Autoscaling?
 Metrics Server
@@ -109,7 +109,7 @@ Kubecost.
 ### Q20: In distributed system tracing, what is the term used to refer to a request as it passes through a single component of the distributed system?
 Span
 
-*A span represents a single unit of work in a distributed system, and a collection of spans forms a complete trace.*
+*A **Trace** is the full request journey across services. A **Span** is one step in that journey for a single component. **Logs** are events or messages from a component.*
 
 ### Q21: Which of the following are not the metrics for Site Reliability Engineering?
 A- Service Level Objectives 'SLO'
@@ -117,7 +117,7 @@ B- Service Level Agreements 'SLA'
 C- Service Level Indicators 'SLI'
 ANSWER:D- Service Level Definition 'SLD'
 
-*While SLOs, SLAs, and SLIs are core SRE concepts for measuring reliability, 'SLD' is not a standard term in this context.*
+*SREs create SLAs, SLOs, and SLIs to define and implement standards for application and infrastructure reliability. A Service Level Agreement (SLA) is a contract defining service reliability, an SLO is a goal for that reliability, and an SLI is the measurement of it. 'SLD' is not a standard SRE metric.*
 
 ### Q22: What is the command to list all the available objects in your Kubernetes cluster?
 `kubectl api-resources`
