@@ -83,8 +83,9 @@ The Control Plane components act as the brain of the cluster. They are the core 
     -   Backup and restore of the entire cluster state is made from etcd snapshots.
     -   A consistent and highly-available distributed key-value store.
 -   **kube-scheduler (Scheduler):**
-    -   Assigns newly created Pods (which it discovers via the kube-apiserver) to available Nodes.
-    -   Considers various factors for scheduling decisions: resource requirements, affinity/anti-affinity rules, taints/tolerations, Pod priority, and other policies/constraints.
+    -   Assigns newly created Pods (which it discovers via the kube-apiserver) to available Nodes. It makes this decision in a two-step process:
+        1.  **Filtering (Predicates):** The scheduler first filters out the list of all nodes to find a set of feasible nodes where the Pod can be scheduled. It removes nodes that don't meet the Pod's requirements (e.g., insufficient CPU/memory, has taints the Pod can't tolerate, doesn't match node selectors/affinity).
+        2.  **Scoring (Priorities):** After filtering, if there is more than one feasible node, the scheduler scores each one to find the "best" fit. It ranks the nodes based on a set of priority rules (e.g., spreading Pods across nodes, preferring nodes with fewer allocated resources). The Pod is then scheduled on the node with the highest score.
 -   **kube-controller-manager (Controller Manager):**
     -   Runs controller processes that monitor the cluster state.
     -   Works to make the current cluster state match the desired state stored in etcd.
@@ -103,9 +104,22 @@ Worker Node components are the services that run on every node. Their primary jo
     -   It is the primary agent that runs on **every node** in the cluster (both control-plane and worker).
     -   Its startup parameters (environment variables) can be found in `/var/lib/kubelet/kubeadm-flags.env`, which is useful for debugging node configuration issues.
 -   **Container Runtime:**
-    -   The software responsible for running containers (e.g., downloading images, starting/stopping containers).
-    -   Kubernetes supports various runtimes via the Container Runtime Interface (CRI).
-    -   Examples: Docker, containerd, CRI-O.
+    -   The software responsible for **running container images**. Crucially, a runtime does not *build* images; it only executes pre-built ones. The kubelet communicates with it using the **Container Runtime Interface (CRI)**, a standard that decouples Kubernetes from specific container runtimes.
+    -   There are two levels of runtimes:
+        -   **High-level Runtimes (e.g., `containerd`, `CRI-O`):** These are full lifecycle managers. They handle tasks like pulling images from a registry, managing container storage, and handing off the container to a low-level runtime to actually run it.
+        -   **Low-level Runtimes (e.g., `runC`):** This is the minimal, **OCI (Open Container Initiative) compliant** runtime that actually starts the container process. It uses Linux primitives like namespaces and cgroups to create the isolated environment for the container. `runC` is the de-facto standard low-level runtime used by `containerd`, `CRI-O`, and Docker.
+        -   **Shared Kernel Security Model**: A fundamental concept is that all containers on a node **share the host's Linux kernel**. This process-level isolation is less secure than the hardware-level isolation of Virtual Machines (VMs), which each have their own kernel. A vulnerability in the host kernel could potentially impact all containers on that node.
+        -   **RuntimeClass**: A feature used to select the container runtime configuration. It allows a cluster to support multiple runtimes (e.g., the standard `runc` and a sandboxed runtime like `gVisor`) and lets users choose which one to use for their Pods via the `runtimeClassName` field in the Pod spec.
+    -   **Execution Flow:**
+        ```
+        Kubelet
+          ↓ (via CRI)
+        containerd (manages images, containers)
+          ↓
+        runc (launches container process)
+          ↓
+        Linux Kernel (namespaces, cgroups)
+        ```
 -   **kube-proxy:**
     -   Responsible for implementing the Kubernetes Service concept.
     -   Maintains network rules on nodes to route traffic to a Service's IP address and port to the correct backend Pods (load balancing).
@@ -120,6 +134,7 @@ Worker Node components are the services that run on every node. Their primary jo
 
 Kubernetes objects are persistent entities within the Kubernetes system representing the state of your cluster.
 
+-   **API Versioning (`apiVersion`)**: The Kubernetes API is versioned to ensure stability and compatibility. Each object manifest must specify an `apiVersion` (e.g., `v1`, `apps/v1`, `batch/v1`). This allows the API to evolve over time without breaking existing clients or automation that rely on a specific version of a resource's structure. It's a key mechanism for providing a consistent and reliable interaction point for all clients.
 -   **Key Fields:**
     -   `spec`: Provided by the user, defining the *desired state* of the object.
     -   `status`: Provided by Kubernetes, describing the *current state* of the object. Kubernetes constantly works to match the current state to the desired state.
@@ -213,7 +228,8 @@ metadata:
   labels:
     app: nginx
 spec:
-  priorityClassName: high-priority # Assigns a pre-defined PriorityClass
+  runtimeClassName: my-sandboxed-runtime # Example: Selects a specific runtime configuration (optional)
+  priorityClassName: high-priority # Assigns a pre-defined PriorityClass (optional)
   containers:
   - name: main
     image: busybox:1.34
@@ -688,6 +704,18 @@ Pod Affinity and Anti-Affinity schedule pods based on the labels of other pods a
     -   **Pod Affinity** answers: "*Which other pods should this pod run near?*" (e.g., "Run this web server pod on the same node as the redis cache pod for low latency").
     -   **Pod Anti-Affinity** answers: "*Which other pods should this pod stay away from?*" (e.g., "Ensure that replicas of my database pod run on different nodes for high availability").
     
+
+
+
+
+### Kubernetes Networking Model - The Fundamentals
+
+Before diving into Services, it's crucial to understand the basic networking rules Kubernetes enforces. These principles ensure that applications can be ported from VMs to containers without modification.
+
+-   **IP-per-Pod**: Every Pod gets its own unique IP address within the cluster. This is the core principle.
+-   **Flat Network (No NAT)**: All Pods can communicate with all other Pods on any node **without** Network Address Translation (NAT). A Pod on one node can directly reach a Pod on another node using its IP address.
+-   **Node-to-Pod Communication**: All nodes can communicate with all Pods on them (and vice-versa) without NAT.
+
 ### Service
 
 Pods are frequently created and destroyed, causing their IP addresses to change. A Service provides a stable, virtual IP address (ClusterIP) and a consistent DNS name, ensuring reliable access to the application even as individual Pods come and go.
@@ -1473,6 +1501,8 @@ When you run `kubectl get pods`, the `STATUS` column gives you a quick insight.
 -   **`kubectl logs <pod-name>`**: Essential for `CrashLoopBackOff`. This command prints the logs from the application running inside the container, which usually reveals the cause of the crash (e.g., a configuration error, a bug in the code).
     -   Use `kubectl logs <pod-name> --previous` to see logs from a previously crashed instance of the container.
 -   **`kubectl get pods -l app=<label>`**: The most practical way to find all Pods belonging to a specific deployment or service is by using its labels.
+-   **`kubectl api-resources`**: Lists all available object types that you can create or interact with in your cluster, showing their names, shortnames, API versions, and whether they are namespaced. It's a great tool for discovering what is available in the cluster.
+-   **`kubectl config view`**: Displays the merged kubeconfig settings. This is useful for verifying the current context, server URL, and user that `kubectl` is configured to use, which is a common first step in troubleshooting connection issues.
 -   **Node-level debugging**: If `kubectl` is not enough, you may need to SSH into the node to investigate.
     -   **Log files**: Check `/var/log/pods/` and `/var/log/containers/`.
     -   **Container runtime**: Use `crictl ps` to list containers and `crictl logs <container-ID>` to get logs directly from the runtime (or use `docker` equivalents if applicable).
@@ -1733,6 +1763,18 @@ Helm is a tool for managing **Charts**, which are packages of pre-configured Kub
     *   `helm install <your-release-name> <chart-repo>/<chart-name>`: Install a chart (e.g., `helm install happy-panda bitnami/wordpress`).
     *   `helm list`: List all releases in the current namespace.
     *   `helm uninstall <your-release-name>`: Uninstall a release.
+
+
+### Common Ecosystem Tools
+
+While not part of the core Kubernetes project, several third-party tools are widely used in the ecosystem to extend its functionality.
+
+*   **Kubecost**: An open-source tool for monitoring and managing the cost efficiency of applications deployed on Kubernetes. It breaks down costs by Kubernetes concepts like namespace, deployment, or label, helping teams understand and optimize their cloud spending.
+*   **Kustomize**: A template-free tool for customizing Kubernetes object configuration. It's built into `kubectl` and allows you to manage application configurations using patch files without modifying original YAMLs.
+*   **k9s**: A terminal-based UI to manage Kubernetes clusters. It provides a fast and efficient way to navigate, observe, and manage deployed applications in real-time.
+*   **k3s**: A lightweight, certified Kubernetes distribution. It's packaged as a single small binary, designed for resource-constrained environments like Edge and IoT.
+*   **Rook**: An open-source cloud-native storage orchestrator for Kubernetes. It turns distributed storage systems like Ceph into self-managing, self-scaling, and self-healing storage services.
+*   **kOps (Kubernetes Operations)**: A tool for creating, destroying, upgrading, and maintaining production-grade, highly available Kubernetes clusters from the command line, with strong support for cloud providers like AWS.
 
 ### Custom Resource Definitions (CRDs) in Kubernetes
 
