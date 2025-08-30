@@ -102,6 +102,7 @@ Worker Node components are the services that run on every node. Their primary jo
 -   **kubelet:**
     -   Reports node and pod health/status back to the control plane (kube-apiserver).
     -   It is the primary agent that runs on **every node** in the cluster (both control-plane and worker).
+    -   It communicates with the container runtime to start, stop, and manage the containers.
     -   Its startup parameters (environment variables) can be found in `/var/lib/kubelet/kubeadm-flags.env`, which is useful for debugging node configuration issues.
 -   **Container Runtime:**
     -   The software responsible for **running container images**. Crucially, a runtime does not *build* images; it only executes pre-built ones. The kubelet communicates with it using the **Container Runtime Interface (CRI)**, a standard that decouples Kubernetes from specific container runtimes.
@@ -714,6 +715,7 @@ Before diving into Services, it's crucial to understand the basic networking rul
 
 -   **IP-per-Pod**: Every Pod gets its own unique IP address within the cluster. This is the core principle.
 -   **Flat Network (No NAT)**: All Pods can communicate with all other Pods on any node **without** Network Address Translation (NAT). A Pod on one node can directly reach a Pod on another node using its IP address.
+-   **How it's Achieved (CNI & Overlay Networks)**: This flat, pod-to-pod communication across nodes is made possible by a **CNI (Container Network Interface)** plugin. Most CNI plugins (like Flannel, Calico, Weave Net) create an **overlay network**, which is a virtual network that sits on top of the physical node-to-node network to handle routing pod traffic.
 -   **Node-to-Pod Communication**: All nodes can communicate with all Pods on them (and vice-versa) without NAT.
 
 ### Service
