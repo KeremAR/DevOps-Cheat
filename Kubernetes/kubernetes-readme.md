@@ -74,6 +74,7 @@ The Control Plane components act as the brain of the cluster. They are the core 
     - Central management point for the entire cluster. 
     - It exposes the Kubernetes API which is the main entry point for all cluster operations, processing all requests from `kubectl`, other components, and external clients.
     -   Validates and processes requests: performs authentication, authorization, and admission control (e.g., applying security policies, resource quotas) before persisting objects to etcd.
+        -   **Authorization Mode**: The `--authorization-mode=AlwaysAllow` flag configures the API server to allow all requests by default, which is insecure. For production, it is recommended to use `RBAC` (Role-Based Access Control).
     -   The only component that directly interacts with `etcd` to store and retrieve cluster state and configuration.
     -   Coordinates actions between other control plane components (like kube-scheduler, kube-controller-manager) and worker node agents (kubelets) by serving as their primary interface to the cluster state.
     -   Designed to scale horizontally for high availability (can run multiple instances).
@@ -123,6 +124,23 @@ Kubernetes objects are persistent entities within the Kubernetes system represen
     -   `spec`: Provided by the user, defining the *desired state* of the object.
     -   `status`: Provided by Kubernetes, describing the *current state* of the object. Kubernetes constantly works to match the current state to the desired state.
 -   **Interaction:** Managed via the Kubernetes API (e.g., using `kubectl` or client libraries).
+
+### Understanding Object Specs with `kubectl explain`
+
+-   `kubectl explain` is a powerful, built-in documentation tool that helps you understand the structure of a Kubernetes object, its fields, and what they do, directly from your terminal. It reads the API specification of the resources.
+-   This is extremely useful when writing YAML manifests, as it saves you from constantly checking the official documentation.
+
+-   **How to use it:**
+    ```bash
+    # Get documentation for a resource (e.g., Pod)
+    kubectl explain pod
+
+    # Drill down into a specific field (e.g., a Pod's spec)
+    kubectl explain pod.spec
+
+    # Go deeper into nested fields (e.g., a container's properties within a Pod's spec)
+    kubectl explain pod.spec.containers
+    ```
 
 ### Labels and Selectors
 
@@ -1413,7 +1431,28 @@ kubectl create job <new-job-name> --from=cronjob/<your-cronjob-name> -n <namespa
 # kubectl create job manual-run-1 --from=cronjob/hello -n default
 ```
 
+### Autoscaling in Kubernetes
 
+A key feature of Kubernetes is its ability to automatically scale workloads and infrastructure to meet demand. This is handled by several components.
+
+#### Core Components for Autoscaling
+
+*   **Metrics Server**: A cluster-wide aggregator of resource usage data (CPU and memory). It collects metrics from the kubelets on each node and exposes them through the Kubernetes Metrics API. This data is essential for autoscalers like HPA and VPA to make scaling decisions. Without the Metrics Server, autoscaling based on resource usage is not possible.
+*   **Controller Manager**: Executes the scaling actions decided by the HPA. For example, when the HPA decides to scale up, it's the Controller Manager that actually creates the new Pods.
+
+#### Types of Autoscaling
+
+1.  **Horizontal Pod Autoscaler (HPA)**:
+    *   **What it is**: Pod replica scaling (horizontal).
+    *   **How it works**: Scales the number of Pod replicas in an object like a Deployment or ReplicaSet based on metrics (e.g., CPU utilization) gathered from the Metrics Server.
+
+2.  **Cluster Autoscaler (CA)**:
+    *   **What it is**: Node-level scaling.
+    *   **How it works**: Adds or removes nodes in the cluster based on resource demand. If Pods are `Pending` because there aren't enough resources, it adds nodes. If nodes are underutilized, it removes them to save costs.
+
+3.  **Vertical Pod Autoscaler (VPA)**:
+    *   **What it is**: Pod resource scaling (vertical).
+    *   **How it works**: Adjusts the CPU and memory requests and limits for the containers in a Pod to "right-size" them, which helps in optimizing resource utilization. This usually requires a Pod restart.
 
 ### Troubleshooting in Kubernetes
 
