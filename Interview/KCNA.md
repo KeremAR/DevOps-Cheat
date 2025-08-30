@@ -148,3 +148,90 @@ Dynamically
 Kubernetes Operations
 
 *Kops helps you create, destroy, upgrade, and maintain production-grade, highly available Kubernetes clusters from the command line.*
+
+### Q28: Observability tools are commonly used for multiple purposes. Which of the following is not commonly monitored by them?
+a) Log files
+b) Network latency
+c) Network throughput
+d) Application restarts
+ANSWER: a) Log files
+
+*This question focuses on the technical definition of "monitoring." While observability tools process logs, they actively "monitor" metrics like latency, throughput, and restarts, which are changing numerical values that can trigger alerts. Logs are treated as a data source to be collected, parsed, and queried, rather than a metric to be continuously monitored in the same way.*
+
+### Q29: Which logging option should be used to collect log information directly from a Pod?
+a) Application level logging
+b) Node level logging
+c) Cluster level logging
+d) Sidecar container-based logging
+ANSWER: d) Sidecar container-based logging
+
+*A sidecar container is a second container that runs inside the same Pod as the application container. This pattern allows you to extend or enhance the main application's functionality. For logging, a sidecar container (like Fluentd) can collect logs directly from the application container (e.g., by reading from a shared volume) and forward them to a logging backend. This is considered the most direct method as the collection agent operates within the Pod's own boundary.*
+
+### Q30: Which type of Kubernetes networking is handled by the overlay network?
+a) Container-to-container
+b) Pod-to-Pod
+c) Pod-to-service
+d) External-to-service
+ANSWER: b) Pod-to-Pod
+
+*The primary role of an overlay network (implemented by CNI plugins like Flannel or Calico) is to create a flat, virtual network that spans all nodes in the cluster. This ensures that every Pod gets a unique IP address and can communicate directly with any other Pod on any other node without NAT. Container-to-container communication happens locally within a Pod, while Pod-to-service and external traffic are managed by higher-level abstractions like kube-proxy and Ingress controllers.*
+
+### Q31: Which Kubernetes component is running on a worker node and is contacted by the kube-scheduler to run Pods?
+a) The container runtime
+b) kubelet
+c) kube-proxy
+d) service
+ANSWER: b) kubelet
+
+*The kube-scheduler decides which node a Pod should run on. After this decision, the kubelet on that specific worker node is the agent responsible for taking the Pod specification and ensuring its containers are started and running. The kubelet directly communicates with the container runtime to manage the container lifecycle on the node.*
+
+### Q32: Using container volumes offers different benefits. Which of the following is not one of them?
+a) it allows data to survive container life time
+b) it allows sharing storage between different containers
+c) It offers increased security
+d) it separates site specific data from generic code
+ANSWER: c) It offers increased security
+
+*Volumes are essential for data persistence (surviving container restarts), sharing data between containers in a Pod, and decoupling configuration/data from the container image. However, they are not inherently a security feature. While some volume types and configurations can be secured, their primary purpose is storage management, not enhancing security. In fact, misconfigured volumes (like `hostPath` volumes) can create significant security risks.*
+
+### Q33: What is the name of the foundation that aims at standardization in the container landscape?
+a) Container Foundation
+b) Open Containers Initiative
+c) Cloud Native Computing Foundation
+d) Linux Foundation
+ANSWER: b) Open Containers Initiative
+
+*The Open Containers Initiative (OCI) is a project under the Linux Foundation specifically created to establish open industry standards for container formats and runtimes (e.g., the Image Specification and the Runtime Specification). While the CNCF also operates under the Linux Foundation, its goal is to promote and host cloud-native projects (like Kubernetes), not to create the low-level container standards themselves.*
+
+### Additional Notes: Observability
+
+Observability is a measure of how well we can understand the internal state of a system from the external outputs it produces (metrics, logs, traces). It allows us not just to know that "something is wrong," but also to understand "why it's wrong." In the Cloud Native world, it is critical for understanding distributed and dynamic systems.
+
+#### The Three Pillars of Observability
+
+**1. Metrics**
+*   **What are they?** Numerical data collected over a period of time. They provide real-time information about the overall health and performance of the system (e.g., CPU usage, memory consumption, request count).
+*   **What are they used for?** Used to detect anomalies, create alerts, and monitor performance trends.
+*   **Key Tool:** **Prometheus** is the de facto standard CNCF project for metrics-based monitoring and alerting.
+
+**2. Logs**
+*   **What are they?** Timestamped, immutable records of events that occurred within an application or system. They provide detailed context when an error occurs or a specific transaction takes place.
+*   **What are they used for?** Used for debugging, root cause analysis, and security audits.
+*   **Key Tools:** **Fluentd** is a CNCF tool for log collection and forwarding. The ELK Stack (Elasticsearch, Logstash, Kibana) is also a popular solution.
+
+**3. Traces**
+*   **What are they?** Records that show the end-to-end journey of a request through a distributed system. They show which services a request passes through and how much time it spends in each service.
+*   **What are they used for?** Used to find performance bottlenecks, understand inter-service dependencies, and analyze latency issues.
+*   **Key Tools:** **Jaeger** and **Zipkin** are popular open-source distributed tracing systems. **OpenTelemetry** is a next-generation CNCF project that has emerged to collect metrics, logs, and traces in a standardized way.
+
+#### Kubernetes Logging Patterns
+
+Beyond the three pillars, it's important to understand how logs are collected in a Kubernetes environment. The primary methods are:
+
+*   **Node-level Logging:** This is the most common and fundamental approach. A logging agent (like Fluentd or Fluent Bit) is deployed as a `DaemonSet` on each node. This agent collects logs from all containers on that node by reading the container log files managed by the kubelet. It's robust because it doesn't depend on the individual application pods.
+
+*   **Sidecar Container-based Logging:** As explained in Q29, a dedicated logging container runs within the same Pod as the application. This is useful when an application has specific logging requirements or writes to files that are not on stdout/stderr. The sidecar container tails these logs and forwards them, encapsulating the logging logic for that specific application.
+
+*   **Application-level Logging:** In this pattern, the application code itself is responsible for sending its logs directly to a logging backend. This gives developers granular control but also tightly couples the application to the logging system, which can be inflexible.
+
+*   **Cluster-level Logging:** This refers to the centralized logging backend that aggregates logs from all across the cluster. Typically, node-level or sidecar agents forward their collected logs to this central system (e.g., an Elasticsearch, Logstash, and Kibana - ELK stack) for storage, indexing, and analysis.
