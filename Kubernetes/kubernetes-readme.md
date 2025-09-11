@@ -457,6 +457,12 @@ kubectl scale deployments.apps my-dep --replicas=5
     ```bash
     kubectl autoscale deployment my-dep --min=2 --max=10 --cpu-percent=80
     ```
+-   **Restart a Deployment:**
+    ```bash
+    # This triggers a rolling restart of the pods in the deployment.
+    # It's useful for applying configuration changes that don't change the pod template (e.g., updated ConfigMaps or Secrets mounted as volumes).
+    kubectl rollout restart deployment <deployment-name>
+    ```
 
 #### Rollback a Deployment
 
@@ -795,6 +801,16 @@ Ingress is a Kubernetes API object that manages external access to services with
     -   The Ingress resource itself doesn't do anything on its own. It's a set of rules. An Ingress controller is an application (typically a reverse proxy like NGINX, Traefik, or HAProxy) that runs in the cluster and is responsible for fulfilling the Ingress rules by watching the API server for Ingress resources.
     -   When an Ingress resource is created, the Ingress controller configures itself (e.g., updates its NGINX configuration) to route traffic according to those rules.
     -   You need to have an Ingress controller deployed in your cluster for Ingress resources to work. Common controllers include NGINX Ingress Controller, Traefik Kubernetes Ingress provider, and HAProxy Ingress. Cloud providers often offer their own managed Ingress controllers.
+
+    **Installing the NGINX Ingress Controller**
+
+    One of the most common Ingress controllers is for NGINX. You can typically install it with a single command. The exact command may vary by environment (cloud, Docker Desktop, bare-metal), but a common method is:
+    ```bash
+    # This command applies the necessary manifests to deploy the NGINX Ingress Controller.
+    # Always check the official NGINX Ingress Controller documentation for the latest version and instructions.
+    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.1/deploy/static/provider/cloud/deploy.yaml
+    ```
+    After running this, the controller will be deployed, usually in its own `ingress-nginx` namespace.
 -   **IngressClass:** A resource that specifies which Ingress controller should handle the Ingress. It's necessary when you have multiple controllers in your cluster (e.g., one for internal traffic, another for external). An Ingress object requests a class using the `spec.ingressClassName` field.
 -   **Rules:** Define how traffic is routed. Rules can be based on:
     -   **Host:** Direct traffic based on the requested hostname (e.g., `api.example.com`, `blog.example.com`). This is also known as virtual hosting.
@@ -1502,6 +1518,7 @@ When you run `kubectl get pods`, the `STATUS` column gives you a quick insight.
 -   **`kubectl describe pod <pod-name>`**: The most important command for debugging. Shows a Pod's configuration, status, and most importantly, a list of recent **Events**. Events will often tell you exactly why a Pod is `Pending` or failing (e.g., "FailedScheduling", "FailedMount").
 -   **`kubectl logs <pod-name>`**: Essential for `CrashLoopBackOff`. This command prints the logs from the application running inside the container, which usually reveals the cause of the crash (e.g., a configuration error, a bug in the code).
     -   Use `kubectl logs <pod-name> --previous` to see logs from a previously crashed instance of the container.
+-   **`kubectl get all -n <namespace-name>`**: Lists most of the resources (Pods, Services, Deployments, ReplicaSets, etc.) within a specific namespace. It's a great command for getting a quick overview of everything running in a namespace, but note that it doesn't show *all* objects (e.g., Secrets, ConfigMaps, and NetworkPolicies are excluded).
 -   **`kubectl get pods -l app=<label>`**: The most practical way to find all Pods belonging to a specific deployment or service is by using its labels.
 -   **`kubectl api-resources`**: Lists all available object types that you can create or interact with in your cluster, showing their names, shortnames, API versions, and whether they are namespaced. It's a great tool for discovering what is available in the cluster.
 -   **`kubectl config view`**: Displays the merged kubeconfig settings. This is useful for verifying the current context, server URL, and user that `kubectl` is configured to use, which is a common first step in troubleshooting connection issues.
@@ -1860,6 +1877,16 @@ Helm uses Go templates to generate Kubernetes YAML.
     {{- end }}
     ```
 *   **Sprig Functions**: Helm includes the [Sprig template library](http://masterminds.github.io/sprig/), which provides over 60 useful functions for manipulating values in your templates (e.g., `upper`, `trim`, `b64enc`).
+
+    For example, here is how you can use sprig functions to manipulate strings for labels.
+    Assuming `.Values.app.name` is `nginx-myapp`:
+    ```yaml
+    app: {{ .Values.app.name }}
+    # The 'addon' label will be "MYAPP"
+    addon: {{ .Values.app.name | trimPrefix "nginx-" | upper }}
+    # The 'triple' label will be "nginx-myappnginx-myappnginx-myapp"
+    triple: {{ repeat 3 .Values.app.name }}
+    ```
 
 **Advanced Concepts**
 *   **Umbrella Charts**: A Helm chart that packages other charts as dependencies (subcharts). This is useful for managing complex applications with multiple microservices.
