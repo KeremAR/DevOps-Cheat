@@ -803,11 +803,9 @@ Ingress is a Kubernetes API object that manages external access to services with
     -   You need to have an Ingress controller deployed in your cluster for Ingress resources to work. Common controllers include NGINX Ingress Controller, Traefik Kubernetes Ingress provider, and HAProxy Ingress. Cloud providers often offer their own managed Ingress controllers.
 
     **Installing the NGINX Ingress Controller**
-
-    One of the most common Ingress controllers is for NGINX. You can typically install it with a single command. The exact command may vary by environment (cloud, Docker Desktop, bare-metal), but a common method is:
+    One of the most common Ingress controllers is for NGINX. You can typically install it with a single command. 
     ```bash
     # This command applies the necessary manifests to deploy the NGINX Ingress Controller.
-    # Always check the official NGINX Ingress Controller documentation for the latest version and instructions.
     kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.1/deploy/static/provider/cloud/deploy.yaml
     ```
     After running this, the controller will be deployed, usually in its own `ingress-nginx` namespace.
@@ -2049,3 +2047,140 @@ kubectl apply -f my-db-cluster.yaml
 ## Conclusion
 
 Kubernetes automates container management, making systems more resilient, scalable, and efficient. While Docker is used to build and package containers, Kubernetes is responsible for managing and orchestrating them.
+
+### Kustomize: Template-Free Kubernetes Configuration
+
+Kustomize is a configuration management tool for Kubernetes that lets you customize raw, template-free YAML files for multiple environments. It is built directly into `kubectl`, making it a native and convenient way to manage application configurations without the complexity of templating languages.
+
+#### Core Concepts
+
+*   **`kustomization.yaml`**: The heart of Kustomize. This file declares how to find, patch, and generate Kubernetes resources. It acts as a "makefile" for your YAML.
+*   **Base**: A directory containing the common, unmodified set of YAML resources for an application. This is the foundation that you will customize.
+*   **Overlay**: A directory that customizes a `base`. Each overlay typically corresponds to a specific environment (e.g., `development`, `staging`, `production`) and contains a `kustomization.yaml` file with patches and environment-specific settings.
+*   **Patch**: A file containing a partial YAML structure that modifies a resource defined in the `base`. Kustomize uses patches to change things like image tags, replica counts, or environment variables without altering the original base files.
+*   **Generators**: Special fields in `kustomization.yaml` that generate resources like `ConfigMap`s and `Secret`s from files or literal values, ensuring their names are unique to prevent collisions.
+
+#### The Kustomize Workflow & Directory Structure
+
+The typical workflow involves organizing your configurations into a `base` and one or more `overlays`.
+
+**1. Project Structure**
+
+A common Kustomize project structure looks like this:
+```
+my-app/
+├── base/
+│   ├── deployment.yaml
+│   ├── service.yaml
+│   └── kustomization.yaml
+└── overlays/
+    ├── staging/
+    │   ├── deployment-patch.yaml
+    │   ├── replicas.yaml
+    │   └── kustomization.yaml
+    └── production/
+        ├── kustomization.yaml
+        └── replicas.yaml
+```
+
+**2. The `base` Configuration**
+
+The `base/kustomization.yaml` file lists the resources that make up the application.
+
+```yaml
+# base/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- deployment.yaml
+- service.yaml
+```
+
+**3. The `overlay` Configuration**
+
+The `overlays/staging/kustomization.yaml` file points to the `base` and applies customizations.
+
+```yaml
+# overlays/staging/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Inherit from the base
+bases:
+- ../../base
+
+# Change the name prefix for all resources to avoid conflicts
+namePrefix: staging-
+
+# Change the image tag for all containers named 'nginx'
+images:
+- name: nginx
+  newTag: 1.8.1
+
+# Apply a patch to modify the number of replicas
+patches:
+- path: replicas.yaml
+  target:
+    kind: Deployment
+    name: nginx-deployment
+```
+
+The `replicas.yaml` patch file would be very simple:
+```yaml
+# overlays/staging/replicas.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment # This name must match the base resource
+spec:
+  replicas: 2 # Override the number of replicas for staging
+```
+
+#### Common Commands
+
+Since Kustomize is built into `kubectl`, you use the `-k` flag.
+
+*   **Previewing the Output (`kubectl kustomize`)**
+    This command is like `helm template`. It renders the final YAML manifests without applying them to the cluster, allowing you to inspect the result of your customizations.
+
+    ```bash
+    # Preview the configuration for the staging environment
+    kubectl kustomize overlays/staging
+    ```
+
+*   **Applying the Configuration (`kubectl apply -k`)**
+    This command builds the resources using Kustomize and applies them to the cluster. It's the equivalent of `helm install` or `helm upgrade`.
+
+    ```bash
+    # Apply the staging configuration to the cluster
+    kubectl apply -k overlays/staging
+
+    # Apply the production configuration
+    kubectl apply -k overlays/production
+    ```
+
+#### Generators for ConfigMaps and Secrets
+
+Kustomize can generate `ConfigMap` and `Secret` objects and append a hash to their names. This ensures that when the data changes, a new object is created, which automatically triggers a rolling update for any Deployments that use it.
+
+```yaml
+# In a kustomization.yaml file
+
+configMapGenerator:
+- name: my-app-config
+  files:
+  - config.properties
+  literals:
+  - app.mode=staging
+
+secretGenerator:
+- name: my-db-credentials
+  literals:
+  - username=admin
+  - password=s3cr3t
+```
+
+### Common Ecosystem Tools
+
+While not part of the core Kubernetes project, several third-party tools are widely used in the ecosystem to extend its functionality.
