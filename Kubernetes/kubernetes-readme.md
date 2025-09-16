@@ -1802,7 +1802,8 @@ This command deploys a chart to your Kubernetes cluster, creating a new `release
 
 **Useful Flags for `install`**:
 *   `--set <key=value>`: Override a default value inline. (e.g., `--set service.type=LoadBalancer`)
-*   `-f <values-file.yaml>`: Override default values using a YAML file.
+*   `-f <values-file.yaml>`: Override default values using a YAML file. Helm merges the values from the specified file over the chart's default `values.yaml`. If a key exists in both, the value from your file takes precedence. This is the primary way to apply environment-specific configurations (e.g., `values-staging.yaml`, `values-prod.yaml`).
+*   `--create-namespace`: If the release namespace does not exist, it will be created.
 *   `--dry-run --debug`: **Pre-flight Check**. Simulates an install and shows the generated templates. Highly recommended to catch errors before deployment.
 *   `--wait`: Waits until all the resources in the chart are in a ready state before marking the release as successful.
 *   `--timeout <duration>`: Sets the time to wait for Kubernetes commands (e.g., `5m30s`). Used in conjunction with `--wait`.
@@ -1827,6 +1828,7 @@ This command upgrades an existing release to a new version of a chart or with ne
 helm upgrade my-blog bitnami/wordpress --version 15.0.0 --set nameOverride="My Awesome Blog"
 ```
 **Useful Flags for `upgrade`**:
+*   `--install`: If a release with the specified name does not exist, this flag will run `helm install` instead.
 *   `--atomic`: If the upgrade fails, Helm automatically rolls back the release to the previous stable version.
 *   `--cleanup-on-fail`: Deletes any new resources that were created during a failed upgrade, preventing orphaned resources.
 
@@ -1921,132 +1923,6 @@ Helm uses Go templates to generate Kubernetes YAML.
           annotations:
             checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
     ```
-
-### Common Ecosystem Tools
-
-While not part of the core Kubernetes project, several third-party tools are widely used in the ecosystem to extend its functionality.
-
-### Common Ecosystem Tools
-
-While not part of the core Kubernetes project, several third-party tools are widely used in the ecosystem to extend its functionality.
-
-*   **Kubecost**: An open-source tool for monitoring and managing the cost efficiency of applications deployed on Kubernetes. It breaks down costs by Kubernetes concepts like namespace, deployment, or label, helping teams understand and optimize their cloud spending.
-*   **Kustomize**: A template-free tool for customizing Kubernetes object configuration. It's built into `kubectl` and allows you to manage application configurations using patch files without modifying original YAMLs.
-*   **k9s**: A terminal-based UI to manage Kubernetes clusters. It provides a fast and efficient way to navigate, observe, and manage deployed applications in real-time.
-*   **k3s**: A lightweight, certified Kubernetes distribution. It's packaged as a single small binary, designed for resource-constrained environments like Edge and IoT.
-*   **Rook**: An open-source cloud-native storage orchestrator for Kubernetes. It turns distributed storage systems like Ceph into self-managing, self-scaling, and self-healing storage services.
-*   **kOps (Kubernetes Operations)**: A tool for creating, destroying, upgrading, and maintaining production-grade, highly available Kubernetes clusters from the command line, with strong support for cloud providers like AWS.
-
-### Custom Resource Definitions (CRDs) in Kubernetes
-
-🧩 **What is a CRD in Kubernetes?**
-
-CRD stands for Custom Resource Definition.
-
-It allows you to define your own resource types in Kubernetes, just like built-in ones like `Pod`, `Service`, or `Deployment`.
-
-💡 **In Simple Terms:**
-
-Kubernetes comes with built-in resources like this:
-
-```yaml
-apiVersion: v1
-kind: Pod
-```
-
-But with CRDs, you can create your own `kind`s, for example:
-
-```yaml
-apiVersion: mycompany.com/v1
-kind: MyApp
-```
-
-Then, you can create and manage `MyApp` resources in your cluster — just like you would with Pods or Deployments.
-
-✅ **What problem does CRD solve?**
-
-Kubernetes is extensible — not everything has to be built-in.
-
-CRDs allow developers and platform teams to:
-
-*   Add new kinds of resources.
-*   Build custom controllers/operators to manage them.
-*   Store structured data within Kubernetes.
-*   Extend Kubernetes to support any type of application or infrastructure.
-
-🔧 **How does it work?**
-
-1.  You define a CRD, which registers a new resource type with the API server.
-2.  You can now `kubectl get`, `apply`, etc., your custom resource (CR).
-3.  (Optional) You write a controller or operator to watch and act on these CRs.
-
-🛠️ **Example**
-
-Let's say you're building a database operator. You define a CRD for `MySQLCluster`:
-
-```yaml
-apiVersion: apiextensions.k8s.io/v1
-kind: CustomResourceDefinition
-metadata:
-  name: mysqlclusters.mycompany.com
-spec:
-  group: mycompany.com
-  versions:
-    - name: v1
-      served: true
-      storage: true
-      schema:
-        openAPIV3Schema:
-          type: object
-          properties:
-            spec:
-              type: object
-              properties:
-                replicas:
-                  type: integer
-  scope: Namespaced
-  names:
-    plural: mysqlclusters
-    singular: mysqlcluster
-    kind: MySQLCluster
-```
-
-Now you can do:
-
-```bash
-kubectl get mysqlclusters
-kubectl apply -f my-db-cluster.yaml
-```
-
-🧠 **CRD vs Controller vs Operator**
-
-| Concept      | Description                                                                 |
-|--------------|-----------------------------------------------------------------------------|
-| CRD          | Schema/definition of your custom resource (e.g., "I have a new kind called `MySQLCluster`) |
-| Custom Resource (CR) | An instance of your CRD (e.g., `mysql-db-prod`)                               |
-| Controller   | A process that watches CRs and takes action based on their state             |
-| Operator     | A specific type of controller, typically for managing complex apps (e.g., databases, queues) | 
-
-📦 **Real-world Examples of CRDs**
-
-| Tool/Platform        | Custom Resources it defines             |
-|----------------------|-----------------------------------------|
-| Cert-Manager         | `Certificate`, `Issuer`                 |
-| Prometheus Operator  | `Prometheus`, `ServiceMonitor`          |
-| ArgoCD               | `Application`                           |
-| Istio                | `VirtualService`, `Gateway`             |
-| Crossplane           | `Composition`, `XRD`, etc.              |
-
-🚀 **Summary**
-
-*   CRD = way to define your own Kubernetes resource types.
-*   Used to extend Kubernetes without modifying its core.
-*   Powerful when paired with a controller/operator.
-*   Enables building platform APIs on top of Kubernetes.
-
-## Conclusion
-
-Kubernetes automates container management, making systems more resilient, scalable, and efficient. While Docker is used to build and package containers, Kubernetes is responsible for managing and orchestrating them.
 
 ### Kustomize: Template-Free Kubernetes Configuration
 
@@ -2184,3 +2060,122 @@ secretGenerator:
 ### Common Ecosystem Tools
 
 While not part of the core Kubernetes project, several third-party tools are widely used in the ecosystem to extend its functionality.
+
+*   **Kubecost**: An open-source tool for monitoring and managing the cost efficiency of applications deployed on Kubernetes. It breaks down costs by Kubernetes concepts like namespace, deployment, or label, helping teams understand and optimize their cloud spending.
+*   **k9s**: A terminal-based UI to manage Kubernetes clusters. It provides a fast and efficient way to navigate, observe, and manage deployed applications in real-time.
+*   **k3s**: A lightweight, certified Kubernetes distribution. It's packaged as a single small binary, designed for resource-constrained environments like Edge and IoT.
+*   **Rook**: An open-source cloud-native storage orchestrator for Kubernetes. It turns distributed storage systems like Ceph into self-managing, self-scaling, and self-healing storage services.
+*   **kOps (Kubernetes Operations)**: A tool for creating, destroying, upgrading, and maintaining production-grade, highly available Kubernetes clusters from the command line, with strong support for cloud providers like AWS.
+
+### Custom Resource Definitions (CRDs) in Kubernetes
+
+🧩 **What is a CRD in Kubernetes?**
+
+CRD stands for Custom Resource Definition.
+
+It allows you to define your own resource types in Kubernetes, just like built-in ones like `Pod`, `Service`, or `Deployment`.
+
+💡 **In Simple Terms:**
+
+Kubernetes comes with built-in resources like this:
+
+```yaml
+apiVersion: v1
+kind: Pod
+```
+
+But with CRDs, you can create your own `kind`s, for example:
+
+```yaml
+apiVersion: mycompany.com/v1
+kind: MyApp
+```
+
+Then, you can create and manage `MyApp` resources in your cluster — just like you would with Pods or Deployments.
+
+✅ **What problem does CRD solve?**
+
+Kubernetes is extensible — not everything has to be built-in.
+
+CRDs allow developers and platform teams to:
+
+*   Add new kinds of resources.
+*   Build custom controllers/operators to manage them.
+*   Store structured data within Kubernetes.
+*   Extend Kubernetes to support any type of application or infrastructure.
+
+🔧 **How does it work?**
+
+1.  You define a CRD, which registers a new resource type with the API server.
+2.  You can now `kubectl get`, `apply`, etc., your custom resource (CR).
+3.  (Optional) You write a controller or operator to watch and act on these CRs.
+
+🛠️ **Example**
+
+Let's say you're building a database operator. You define a CRD for `MySQLCluster`:
+
+```yaml
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: mysqlclusters.mycompany.com
+spec:
+  group: mycompany.com
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                replicas:
+                  type: integer
+  scope: Namespaced
+  names:
+    plural: mysqlclusters
+    singular: mysqlcluster
+    kind: MySQLCluster
+```
+
+Now you can do:
+
+```bash
+kubectl get mysqlclusters
+kubectl apply -f my-db-cluster.yaml
+```
+
+🧠 **CRD vs Controller vs Operator**
+
+| Concept      | Description                                                                 |
+|--------------|-----------------------------------------------------------------------------|
+| CRD          | Schema/definition of your custom resource (e.g., "I have a new kind called `MySQLCluster`) |
+| Custom Resource (CR) | An instance of your CRD (e.g., `mysql-db-prod`)                               |
+| Controller   | A process that watches CRs and takes action based on their state             |
+| Operator     | A specific type of controller, typically for managing complex apps (e.g., databases, queues) | 
+
+📦 **Real-world Examples of CRDs**
+
+| Tool/Platform        | Custom Resources it defines             |
+|----------------------|-----------------------------------------|
+| Cert-Manager         | `Certificate`, `Issuer`                 |
+| Prometheus Operator  | `Prometheus`, `ServiceMonitor`          |
+| ArgoCD               | `Application`                           |
+| Istio                | `VirtualService`, `Gateway`             |
+| Crossplane           | `Composition`, `XRD`, etc.              |
+
+🚀 **Summary**
+
+*   CRD = way to define your own Kubernetes resource types.
+*   Used to extend Kubernetes without modifying its core.
+*   Powerful when paired with a controller/operator.
+*   Enables building platform APIs on top of Kubernetes.
+
+## Conclusion
+
+Kubernetes automates container management, making systems more resilient, scalable, and efficient. While Docker is used to build and package containers, Kubernetes is responsible for managing and orchestrating them.
+
+
