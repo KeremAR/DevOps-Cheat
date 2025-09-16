@@ -283,9 +283,11 @@ $ git merge --squash <branch>   # Combine all commits into one
 
 ## Rebase
 
-git rebase means taking a branch and rewriting it on top of another branch's latest commit.
+**Rebase** reapplies commits from one branch onto the tip of another, creating a cleaner, linear project history.
 
-It's like saying "show these changes as if they were made after that point".
+**How it works:** It temporarily sets aside your commits, pulls the latest commits from the target branch (e.g., `main`), and then reapplies your commits one by one on top.
+
+**Result:** A straight, linear history (`A -> B -> C'`) with no merge commits.
 
 <table width="100%">
 <tr>
@@ -298,10 +300,12 @@ It's like saying "show these changes as if they were made after that point".
 </tr>
 </table>
 
-**Use rebase when:**
-- Cleaning up feature branch history before merging
-- Incorporating main branch updates into feature branch
-- Making project history linear and easier to follow
+**Advantage:**
+- **Clean History:** Creates a linear and easy-to-read project history.
+
+**Disadvantage:**
+- **Rewrites History:** Changes commit hashes.
+- **Risky on Shared Branches:** Can cause major conflicts if used on a remote branch others are using. It's best practice to only rebase your own local feature branches to clean them up before merging.
 
 ```bash
 $ git checkout feature          # Switch to feature branch
@@ -310,8 +314,8 @@ $ git rebase -i HEAD~3         # Interactive rebase last 3 commits
 ```
 
 **Rebase vs Merge:**
-- **Merge:** Preserves branch history, creates merge commits
-- **Rebase:** Creates linear history, rewrites commit history
+- **Merge:** Preserves the true project history and creates a merge commit.
+- **Rebase:** Creates a linear history but rewrites commit history.
 
 ## Cherry Pick
 
@@ -379,6 +383,14 @@ $ git fetch <remote>            # Download changes without merging
 $ git fetch origin <branch>     # Fetch specific branch
 $ git pull                      # Fetch and merge remote changes
 $ git pull --rebase origin main # Fetch and rebase instead of merge
+```
+
+### Configuring Pull Behavior
+You can change the default behavior of `git pull`:
+```bash
+$ git config pull.rebase false  # Always merge (default)
+$ git config pull.rebase true   # Always rebase
+$ git config pull.ff only       # Only allow fast-forward merges
 ```
 
 **Fetch vs Pull:**
