@@ -389,6 +389,54 @@ DORA (DevOps Research and Assessment) metrics are four key indicators used to me
 3.  **Change Failure Rate**: The percentage of deployments that cause a failure in production. (Elite: < 15%).
 4.  **Time to Restore Service**: How long it takes to recover from a production failure. (Elite: Less than one hour).
 
+### The Four Key Stages of a CI/CD Pipeline
+
+A robust CI/CD process can be understood as four distinct pipeline stages, each triggered by a specific Git event. This separation ensures that feedback is delivered at the right time and that the `main` branch is always stable and deployable.
+
+#### Stage 1: Feature Pipeline (On Feature Branch Push)
+
+*   **Trigger**: A developer pushes a commit to their own `feature/*` branch.
+*   **Core Question**: *"Does my own code work correctly in isolation?"*
+*   **Context**: This is about "my code." The pipeline validates the changes on the feature branch itself, providing fast feedback directly to the developer.
+*   **Key Actions**:
+    *   Checkout the feature branch code.
+    *   Run fast validation steps: Linting, Static Analysis, Unit Tests.
+    *   Build the code to ensure it compiles.
+*   **Result**: The developer confirms their individual changes haven't broken anything at a basic level before sharing them.
+
+#### Stage 2: Pull Request Pipeline (On PR Creation/Update)
+
+*   **Trigger**: A Pull Request (PR) is opened to merge a feature branch into the `main` branch.
+*   **Core Question**: *"Will my code work correctly when integrated with the main codebase?"*
+*   **Context**: This is the crucial shift from "my code" to "our code." The CI tool runs tests on a temporary, virtual merge of the feature branch and the `main` branch.
+*   **Key Actions**:
+    *   Run all validation steps from Stage 1 again in this new, integrated context.
+*   **Why NOT Deploy to Staging?**: Staging is for testing the official, merged state of the application. Deploying unapproved PRs would create a chaotic and unreliable environment. This stage is a simulation, not a deployment.
+*   **Result**: The team has high confidence that merging the PR will not break the `main` branch.
+
+#### Stage 3: Integration Pipeline (On Merge to `main`)
+
+*   **Trigger**: The PR is approved and merged into the `main` branch.
+*   **Core Question**: *"Let's create the official new version of our application and confirm it works in a production-like environment."*
+*   **Context**: This is the "single source of truth." The `main` branch represents the definitive state of the project.
+*   **Key Actions**:
+    1.  **Re-run All Tests**: Tests are run one last time on the actual `main` branch to catch any subtle integration issues that might have arisen from concurrent merges.
+    2.  **Build & Push Immutable Artifact**: A versioned, permanent artifact (e.g., a Docker image tagged with the build number/commit hash) is created and pushed to a repository. This is the official build.
+    3.  **Deploy to Staging**: This immutable artifact is deployed to the staging environment.
+    4.  **Run Post-Deployment Tests**: More comprehensive tests (Integration, End-to-End) are run against the staging environment.
+*   **Result**: A stable, tested, and deployable version of the application is running on Staging, ready for final approval.
+
+#### Stage 4: Production Pipeline (On Tag)
+
+*   **Trigger**: A developer or release manager creates a Git tag (e.g., `v1.2.0`) on a commit in the `main` branch.
+*   **Core Question**: *"The version on Staging is approved. How do we get that exact version to production?"*
+*   **Context**: This is a promotion process, not a build process. The goal is to release the exact code that was already tested.
+*   **Key Actions**:
+    *   **NO Re-building**: The pipeline does **not** re-build the application.
+    *   **Find and Deploy Artifact**: The pipeline fetches the immutable artifact that was created in Stage 3 from the artifact repository.
+    *   **Deploy to Production**: This exact, pre-tested artifact is deployed to the production environment.
+*   **Result**: The new version is live in production. The principle of "Immutable Artifact Promotion" ensures that what was tested is what gets released, minimizing risk.
+
 ## GitHub Actions: CI/CD Automation
 
 GitHub Actions allows you to automate your software development workflows directly within your GitHub repository. It's commonly used for Continuous Integration (CI) and Continuous Delivery (CD).
