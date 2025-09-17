@@ -1923,6 +1923,47 @@ Helm uses Go templates to generate Kubernetes YAML.
           annotations:
             checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
     ```
+#### Helm Troubleshooting: Why a Successful Upgrade Didn't Redeploy Pods
+
+A common pitfall is observing a successful `helm upgrade` message, but seeing that none of the Pods in your Deployment have been restarted with the new image.
+
+**The Core Reason: Kubernetes Only Cares About the Pod Template**
+
+Kubernetes triggers a rolling update for a Deployment **only if the `spec.template` section of the Deployment manifest changes**. If your `helm upgrade` command results in a rendered template that is identical to the one already running in the cluster, Kubernetes sees no reason to act, and nothing happens.
+
+**The Problem Scenario:**
+
+Imagine your CI/CD pipeline runs this command:
+`helm upgrade my-release ./my-chart --set image.tag=1.2.3`
+
+But your `deployment.yaml` template is trying to read a service-specific value like this:
+`image: "my-repo:{{ .Values.myService.image.tag }}"`
+
+Because the path `image.tag` does not match `myService.image.tag`, the template falls back to its default value (e.g., `latest`). The final rendered manifest sent to Kubernetes is unchanged from the previous release, so no rolling update is triggered.
+
+**The Solution: Use `global` Values for Shared Configuration**
+
+The standard and most effective solution is to use a `global` value that can be applied across all subcharts and templates.
+
+1.  **Update your CI/CD command** to set a global tag:
+    ```bash
+    helm upgrade my-release ./my-chart --set global.image.tag=1.2.3
+    ```
+
+2.  **Update your `deployment.yaml` template** to prioritize the global value, but fall back to a specific value if the global one isn't provided. This is done using the `default` template function.
+
+    ```yaml
+    spec:
+      template:
+        spec:
+          containers:
+            - name: my-container
+              # Use the global tag if it exists, otherwise use the service-specific tag.
+              image: "my-repo:{{ .Values.global.image.tag | default .Values.myService.image.tag }}"
+    ```
+
+**Result:** Now, the pipeline sends a `global.image.tag`. This value is used in the template, changing the `spec.template` of the Deployment. Kubernetes detects this change and correctly initiates a rolling update to deploy the new Pods.
+
 
 ### Kustomize: Template-Free Kubernetes Configuration
 
