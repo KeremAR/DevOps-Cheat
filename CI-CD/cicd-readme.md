@@ -411,7 +411,7 @@ A robust CI/CD process can be understood as four distinct pipeline stages, each 
 *   **Context**: This is the crucial shift from "my code" to "our code." The CI tool runs tests on a temporary, virtual merge of the feature branch and the `main` branch.
 *   **Key Actions**:
     *   Run all validation steps from Stage 1 again in this new, integrated context.
-*   **Why NOT Deploy to Staging?**: Staging is for testing the official, merged state of the application. Deploying unapproved PRs would create a chaotic and unreliable environment. This stage is a simulation, not a deployment.
+*   **Why NOT Deploy to Staging?**: A staging environment should reflect the stable, official state of the project (`main` branch). Deploying every open PR would lead to chaos, as multiple unapproved and potentially conflicting features would overwrite each other. Staging is for testing "our code," not just "my code.
 *   **Result**: The team has high confidence that merging the PR will not break the `main` branch.
 
 #### Stage 3: Integration Pipeline (On Merge to `main`)
@@ -420,7 +420,7 @@ A robust CI/CD process can be understood as four distinct pipeline stages, each 
 *   **Core Question**: *"Let's create the official new version of our application and confirm it works in a production-like environment."*
 *   **Context**: This is the "single source of truth." The `main` branch represents the definitive state of the project.
 *   **Key Actions**:
-    1.  **Re-run All Tests**: Tests are run one last time on the actual `main` branch to catch any subtle integration issues that might have arisen from concurrent merges.
+    1.  **Re-run All Tests**: This is critical. Even if the PR's checks passed, another developer's code might have been merged into `main` in the meantime. Re-running tests on the new `main` state ensures that the combination of all recent features works correctly.
     2.  **Build & Push Immutable Artifact**: A versioned, permanent artifact (e.g., a Docker image tagged with the build number/commit hash) is created and pushed to a repository. This is the official build.
     3.  **Deploy to Staging**: This immutable artifact is deployed to the staging environment.
     4.  **Run Post-Deployment Tests**: More comprehensive tests (Integration, End-to-End) are run against the staging environment.
@@ -428,11 +428,11 @@ A robust CI/CD process can be understood as four distinct pipeline stages, each 
 
 #### Stage 4: Production Pipeline (On Tag)
 
-*   **Trigger**: A developer or release manager creates a Git tag (e.g., `v1.2.0`) on a commit in the `main` branch.
+*   **Trigger**: A Git tag (e.g., `v1.2.0`) is created on a commit in the `main` branch. This is often a manual action signifying a business decision to release.
 *   **Core Question**: *"The version on Staging is approved. How do we get that exact version to production?"*
 *   **Context**: This is a promotion process, not a build process. The goal is to release the exact code that was already tested.
 *   **Key Actions**:
-    *   **NO Re-building**: The pipeline does **not** re-build the application.
+    *   **No Re-building or Re-testing**: The pipeline does **not** build a new artifact. Doing so would risk introducing new, untested changes.
     *   **Find and Deploy Artifact**: The pipeline fetches the immutable artifact that was created in Stage 3 from the artifact repository.
     *   **Deploy to Production**: This exact, pre-tested artifact is deployed to the production environment.
 *   **Result**: The new version is live in production. The principle of "Immutable Artifact Promotion" ensures that what was tested is what gets released, minimizing risk.
