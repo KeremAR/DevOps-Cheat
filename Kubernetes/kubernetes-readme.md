@@ -479,6 +479,41 @@ kubectl rollout undo deployment/<deployment-name>
 kubectl rollout undo deployment/<deployment-name> --to-revision=2
 ```
 
+#### Protecting Applications with PodDisruptionBudget (PDB)
+
+A `PodDisruptionBudget` (PDB) is a Kubernetes object that limits the number of Pods of a replicated application that can be voluntarily disrupted at the same time. It's a crucial tool for ensuring high availability during planned maintenance, such as draining a node for an upgrade or a kernel patch.
+
+**What is a Voluntary Disruption?**
+A voluntary disruption is an intentional action that causes Pods to be terminated. Examples include:
+- Running `kubectl drain` to perform node maintenance.
+- A cluster administrator deleting a Pod to free up resources.
+- A rolling update triggered by a Deployment change (though this is managed by the Deployment's own rollout strategy).
+
+A PDB **does not** protect against involuntary disruptions like hardware failure, kernel panic, or network partitions.
+
+**How it Works**
+You define a PDB to select a set of Pods (usually belonging to a `Deployment` or `StatefulSet`) and specify either `minAvailable` or `maxUnavailable`.
+
+-   `minAvailable`: The minimum number or percentage of Pods that must remain running.
+-   `maxUnavailable`: The maximum number or percentage of Pods that can be taken down.
+
+When a voluntary disruption is requested (e.g., via `kubectl drain`), Kubernetes will respect the PDB. The operation will pause until the number of disrupted pods is within the budget defined by the PDB.
+
+**Example PDB YAML:**
+This PDB ensures that at least 2 replicas of the `nginx-deployment` are always available.
+
+```yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: nginx-pdb
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: nginx
+```
+
 ### StatefulSet
 
 -   Manages the deployment and scaling of a set of Pods, specifically designed for **stateful applications**.
@@ -1977,9 +2012,9 @@ Kustomize is a configuration management tool for Kubernetes that lets you custom
 *   **Patch**: A file containing a partial YAML structure that modifies a resource defined in the `base`. Kustomize uses patches to change things like image tags, replica counts, or environment variables without altering the original base files.
 *   **Generators**: Special fields in `kustomization.yaml` that generate resources like `ConfigMap`s and `Secret`s from files or literal values, ensuring their names are unique to prevent collisions.
 
-#### The Kustomize Workflow & Directory Structure
+#### The Kustomize Workflow & Common Commands
 
-The typical workflow involves organizing your configurations into a `base` and one or more `overlays`.
+The typical workflow involves organizing your configurations into a `base` and one or more `overlays`, and then using `kubectl` to preview and apply the changes.
 
 **1. Project Structure**
 
@@ -2016,8 +2051,7 @@ resources:
 
 **3. The `overlay` Configuration**
 
-The `overlays/staging/kustomization.yaml` file points to the `base` and applies customizations.
-
+The `overlays/staging/kustomization.yaml` file points to the `base` and applies environment-specific customizations.
 ```yaml
 # overlays/staging/kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -2042,8 +2076,7 @@ patches:
     kind: Deployment
     name: nginx-deployment
 ```
-
-The `replicas.yaml` patch file would be very simple:
+The patch file itself (`replicas.yaml`) is a small snippet of YAML that overrides specific fields:
 ```yaml
 # overlays/staging/replicas.yaml
 apiVersion: apps/v1
@@ -2054,9 +2087,9 @@ spec:
   replicas: 2 # Override the number of replicas for staging
 ```
 
-#### Common Commands
+**4. Previewing and Applying Configurations**
 
-Since Kustomize is built into `kubectl`, you use the `-k` flag.
+Since Kustomize is built into `kubectl`, you use the `-k` flag to work with your directories.
 
 *   **Previewing the Output (`kubectl kustomize`)**
     This command is like `helm template`. It renders the final YAML manifests without applying them to the cluster, allowing you to inspect the result of your customizations.
@@ -2072,9 +2105,33 @@ Since Kustomize is built into `kubectl`, you use the `-k` flag.
     ```bash
     # Apply the staging configuration to the cluster
     kubectl apply -k overlays/staging
+    ```
 
-    # Apply the production configuration
-    kubectl apply -k overlays/production
+**5. Deleting Configurations**
+
+*   **Cleaning Up Resources (`kubectl delete -k`)**: You can also use the `-k` flag to delete all the resources that were created from a Kustomize directory. This is a clean way to tear down an environment.
+    ```bash
+    # Delete the staging configuration from the cluster
+    kubectl delete -k overlays/staging
+    ```
+
+**6. Advanced Usage and Other Commands**
+
+*   **Using Standalone `kustomize build`**: While `kubectl apply -k` is convenient, you might use the standalone `kustomize build` command, which pipes the generated YAML to `kubectl`. This is useful with older `kubectl` versions or for more complex scripting. The `--load-restrictor LoadRestrictionsNone` flag is a security setting that allows Kustomize to read files outside of its root directory, which can be necessary for complex project structures. **Use this flag with caution**.
+    ```bash
+    # Apply a configuration
+    kustomize build overlays/staging --load-restrictor LoadRestrictionsNone | kubectl apply -f -
+
+    # Do a 'dry run' to see which resources would be deleted
+    kustomize build overlays/staging --load-restrictor LoadRestrictionsNone | kubectl delete --dry-run=client -f -
+
+    # Actually delete the resources
+    kustomize build overlays/staging --load-restrictor LoadRestrictionsNone | kubectl delete -f -
+    ```
+
+*   **Fixing `kustomization.yaml` files**: The `kustomize edit fix` command helps ensure your `kustomization.yaml` files are up-to-date with the latest syntax and structure.
+    ```bash
+    kustomize edit fix
     ```
 
 #### Generators for ConfigMaps and Secrets
