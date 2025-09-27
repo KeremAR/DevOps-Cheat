@@ -293,3 +293,81 @@ drop_cpu_view = View(
 # Register the views when creating the provider
 provider = MeterProvider(metric_readers=[reader], views=[custom_histogram_view, drop_cpu_view])
 ```
+
+### Lab 5: Manual Instrumentation - Logging in Practice: Python Example 📝
+
+This lab covers how to integrate Python's standard logging module with OpenTelemetry to create correlated, structured logs.
+
+#### 1. Python's logging Module (Quick Refresher)
+
+Python's built-in logging module is the standard way to emit logs. You can configure its level and format.
+
+```python
+import logging
+
+# Configure the root logger to show INFO level messages and a specific format
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+
+# Standard log calls remain the same throughout your code
+logging.info("This is a standard log message.")
+# Output: 2025-09-27 21:02:05,123 - INFO - This is a standard log message.
+```
+
+#### 2. Bridging logging with OpenTelemetry
+
+The goal is to automatically enrich these standard Python logs with OTel context like `trace_id` and `span_id`, directly linking them to your traces. This is done by creating an OTel LoggingHandler and attaching it to Python's root logger.
+
+**The Setup (Pattern)**
+
+```python
+import logging
+from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+from opentelemetry.sdk._logs.export import ConsoleLogExporter, SimpleLogRecordProcessor
+from opentelemetry.sdk.resources import Resource
+
+# 1. Create a LoggerProvider with a Resource to identify your service
+logger_provider = LoggerProvider(
+    resource=Resource.create({"service.name": "my-python-app"})
+)
+
+# 2. Set up the export pipeline (e.g., print logs to the console)
+# SimpleLogRecordProcessor exports logs immediately. Batch is better for production.
+processor = SimpleLogRecordProcessor(ConsoleLogExporter())
+logger_provider.add_log_record_processor(processor)
+
+# 3. Create an OTel LoggingHandler using the configured provider
+otel_handler = LoggingHandler(logger_provider=logger_provider)
+
+# 4. Attach the OTel handler to the root logger.
+# This is the "bridge" that connects Python's logging to OTel.
+logging.getLogger().addHandler(otel_handler)
+```
+
+#### 3. The Result: Enriched, Structured Logs
+
+After the setup, any call to `logging.info()`, `logging.warning()`, etc., in your application will now be processed by OpenTelemetry.
+
+**Before (Standard Log):**
+```
+INFO:root:User with id 123 found.
+```
+
+**After (OTel Log Record):** The log is now a structured JSON object, automatically enriched with context.
+
+```json
+{
+  "body": "User with id 123 found.",
+  "severity_text": "INFO",
+  "resource": {
+    "service.name": "my-python-app"
+  },
+  "trace_id": "0x123abc...",
+  "span_id": "0x456def...",
+  "timestamp": "2025-09-27T18:02:05.456Z"
+}
+```
+
+Now your logs are directly correlated with your traces, making debugging distributed systems much easier.
