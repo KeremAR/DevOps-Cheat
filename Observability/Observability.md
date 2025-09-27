@@ -182,7 +182,7 @@ There are three main ways to apply instrumentation, each with different trade-of
 ---
 
 ### Collector
-- **What it is**: The Collector decouples telemetry generation from its processing and exporting. It is a separate process that runs outside the application. It is not embedded into the application code, unlike SDK-based telemetry, which requires instrumentation within the application itself. Which makes it more flexible and vendor-agnostic.
+- **What it is**: The Collector decouples telemetry generation from its processing and exporting. It is a separate process that runs outside the application. Which makes it more flexible and vendor-agnostic. It is not embedded into the application code, unlike SDK-based telemetry, which requires instrumentation within the application itself. 
 Receivers → Processors → Exporters
 - **Primary Jobs**:
     - **Receives**: Gathers data from many sources in many formats (e.g., OTLP, Jaeger, Prometheus).
@@ -213,6 +213,44 @@ There are three common ways to deploy a Collector, and they are often used toget
   - *Best for*: Centralized, heavy processing (like tail-based sampling), aggregation, and routing telemetry to multiple backends.
 
 **Production Strategy**: A common pattern is to use Node Agents for initial collection and batching, which then forward all their data to a Standalone Service (Gateway) for final processing and exporting.
+
+## Common Collector Components
+
+### Receivers
+
+Receivers are the "front door" of the Collector, responsible for getting data in. They listen for data in specific formats and convert it to OpenTelemetry's internal format.
+
+- **otlp Receiver**
+  - *What it does*: Listens for logs, metrics, and traces using the native OpenTelemetry Protocol (OTLP), typically over gRPC or HTTP.
+  - *Why it's important*: This is the standard and preferred receiver for any application that is instrumented with an OpenTelemetry SDK.
+
+- **prometheus Receiver**
+  - *What it does*: Scrapes a `/metrics` endpoint at regular intervals, just like a Prometheus server would (a "pull" model).
+  - *Why it's important*: It allows you to collect metrics from applications and systems that are already instrumented for Prometheus but that you now want to route through your OTel Collector.
+
+- **jaeger / zipkin Receivers**
+  - *What they do*: Listen for traces in their respective native formats (e.g., Jaeger Thrift, Zipkin JSON/Proto).
+  - *Why they're important*: They provide backwards compatibility. You can use them to migrate an existing Jaeger or Zipkin setup to an OpenTelemetry Collector pipeline without having to immediately re-instrument all your applications.
+
+### Processors
+
+Processors modify telemetry data after it's received but before it's exported.
+
+- **batch Processor**
+  - *What it does*: Groups telemetry (spans, metrics, logs) into batches before sending them to an exporter.
+  - *Why it's important*: This is a crucial performance optimization. Instead of making a network request for every single span, it makes one request per batch. This significantly reduces network traffic and the load on your backend. It's recommended for nearly all production pipelines.
+
+- **attributes Processor**
+  - *What it does*: Modifies the attributes on telemetry data. It can insert, update, upsert, or delete attributes.
+  - *Why it's important*: It's used for data governance and enrichment. You can add static metadata (e.g., `environment: "production"`), remove sensitive information, or rename attributes to standardize them across different services.
+
+### Exporters
+
+Exporters are responsible for sending the processed data to a final destination.
+
+- **debug Exporter**
+  - *What it does*: Prints the telemetry it receives directly to the Collector's own console output (stdout).
+  - *Why it's important*: This is an essential troubleshooting and debugging tool. You use it to verify that your Collector is receiving data correctly and to inspect the exact structure and content of your telemetry before configuring a real backend exporter.
 
 ### OTLP (OpenTelemetry Protocol)
 - **What it is**: The standard wire protocol for sending telemetry data between different components (e.g., from your app to the Collector, or from the Collector to a backend).

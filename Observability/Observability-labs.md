@@ -371,3 +371,105 @@ INFO:root:User with id 123 found.
 ```
 
 Now your logs are directly correlated with your traces, making debugging distributed systems much easier.
+
+## The Collector in Practice: A Basic Pipeline 🚀
+
+This lab demonstrates how to configure a standalone OpenTelemetry Collector to receive, process, and export telemetry from a Python application.
+
+### 1. The Goal: Moving from SDK Export to Collector Export
+
+In previous labs, our Python application exported telemetry directly from the SDK to the console. The goal now is to have the application send all its data to the Collector, which will then handle the processing and exporting.
+
+**Before:** Application (SDK) → ConsoleExporter → stdout
+
+**After:** Application (SDK) → OTLPExporter → Collector → debug Exporter → stdout
+
+### 2. Modifying the Application (Client-Side)
+
+The only change needed in the Python application is to switch the exporters from `Console...Exporter` to `OTLP...Exporter`. This tells the OTel SDK to send data to an OTLP endpoint instead of printing it.
+
+```python
+# In logging_utils.py, metric_utils.py, and trace_utils.py...
+
+# Before:
+from opentelemetry.sdk.trace.export import ConsoleSpanExporter
+exporter = ConsoleSpanExporter()
+
+# After:
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+# The 'insecure=True' is for local dev; a real deployment would use TLS.
+exporter = OTLPSpanExporter(insecure=True)
+```
+
+### 3. Configuring the Collector (Server-Side)
+
+The Collector's behavior is defined entirely in a `otel-collector-config.yml` file.
+
+**The Pipeline:** receivers → processors → exporters
+
+The core of the configuration is defining the components and connecting them in the service section.
+
+```yaml
+# 1. Define the components (the "building blocks")
+
+# Receivers: How data gets IN.
+receivers:
+  otlp: # A receiver named 'otlp'
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317 # Listens for OTLP gRPC data on port 4317
+
+# Processors: What happens to data IN THE MIDDLE.
+processors:
+  batch: # Groups telemetry into batches to be more efficient.
+  attributes/add_hello: # Example: an attributes processor to add a new field
+    actions:
+      - key: "hello.from"
+        action: insert
+        value: "collector"
+
+# Exporters: How data gets OUT.
+exporters:
+  debug: # Prints telemetry to the Collector's own console (stdout).
+    verbosity: detailed
+
+# ----------------------------------------------------------------
+
+# 2. Connect the components into pipelines under the 'service' section.
+
+service:
+  pipelines:
+    # A pipeline for TRACES
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug]
+    
+    # A pipeline for METRICS
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug]
+
+    # A pipeline for LOGS
+    logs:
+      receivers: [otlp]
+      # Logs will go through two processors in sequence
+      processors: [batch, attributes/add_hello] 
+      exporters: [debug]
+```
+
+### 4. Running the System
+
+With the configuration complete, you run the Collector and the application.
+
+```bash
+# In one terminal, start the Collector using Docker Compose
+docker compose up
+
+# In another terminal, run the Python app
+# It will now send its OTLP data to the Collector container
+python src/app.py
+```
+
+The Collector's terminal will now display the detailed, structured telemetry it receives from the application, proving the pipeline is working.
