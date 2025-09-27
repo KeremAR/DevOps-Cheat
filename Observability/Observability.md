@@ -182,11 +182,37 @@ There are three main ways to apply instrumentation, each with different trade-of
 ---
 
 ### Collector
-- **What it is**: A standalone telemetry processor that acts as a highly flexible and powerful pipeline for your data. It's not part of your application.
+- **What it is**: The Collector decouples telemetry generation from its processing and exporting. It is a separate process that runs outside the application. It is not embedded into the application code, unlike SDK-based telemetry, which requires instrumentation within the application itself. Which makes it more flexible and vendor-agnostic.
+Receivers → Processors → Exporters
 - **Primary Jobs**:
     - **Receives**: Gathers data from many sources in many formats (e.g., OTLP, Jaeger, Prometheus).
     - **Processes**: Transforms the data (e.g., adds attributes, filters out noise, removes sensitive info, batches).
     - **Exports**: Sends the processed data to one or more backends (e.g., Datadog, Grafana, Splunk).
+
+    ## Why Use a Collector? (SDK vs. Collector)
+
+While you can export telemetry directly from the OTel SDK in your application, using a Collector provides major advantages:
+
+- **Separation of Concerns**: Frees application developers from managing telemetry configuration. Operators can manage the pipeline centrally.
+- **Centralized Management**: A single place to configure batching, retrying, sampling, and data enrichment for all your services.
+- **Improved Performance**: Offloads the work of processing and exporting telemetry from your application, freeing up its resources.
+- **No Redeploys**: You can change where or how telemetry is sent by updating the Collector's configuration, without needing to redeploy your applications.
+- **Vendor Agnostic**: Easily switch or add new backends (e.g., from Jaeger to Datadog) by only changing the Collector's exporter configuration.
+
+### Deployment Topologies
+
+There are three common ways to deploy a Collector, and they are often used together.
+
+- **Sidecar**: One Collector container runs alongside each application container in the same pod.
+  - *Best for*: Quickly offloading telemetry from the application over a fast and reliable local connection.
+
+- **Node Agent**: One Collector runs on each host/node in your cluster. It gathers telemetry from all application pods on that node.
+  - *Best for*: Centralizing collection on a per-node basis and collecting host-level metrics (CPU, memory, etc.).
+
+- **Standalone Service (Gateway)**: A dedicated, horizontally scalable fleet of Collectors running as its own service.
+  - *Best for*: Centralized, heavy processing (like tail-based sampling), aggregation, and routing telemetry to multiple backends.
+
+**Production Strategy**: A common pattern is to use Node Agents for initial collection and batching, which then forward all their data to a Standalone Service (Gateway) for final processing and exporting.
 
 ### OTLP (OpenTelemetry Protocol)
 - **What it is**: The standard wire protocol for sending telemetry data between different components (e.g., from your app to the Collector, or from the Collector to a backend).
