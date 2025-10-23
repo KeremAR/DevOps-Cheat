@@ -75,67 +75,7 @@ Continuous deployment (CD) is a software release process that uses automated tes
 - Continuous Deployment is one step beyond Continuous Delivery and means that deployment to the production environment is fully automated.
 - In Continuous Delivery, the code is production-ready, but deployment can be done with a manual approval step. In Continuous Deployment, the code is always automatically deployed to production.
 
-## Jenkins
 
-### Jenkins Extensibility
-Jenkins extensibility is implemented via Jenkins plugins.
-
-### Jenkins Plugin Management
-Jenkins plugins can be managed through the web interface or using the Jenkins CLI. Here are the common plugin management commands using jenkins-cli.jar:
-
-```bash
-# List all installed plugins
-java -jar jenkins-cli.jar -s http://localhost:8080/ list-plugins
-
-# Enable plugin(s)
-java -jar jenkins-cli.jar -s http://localhost:8080/ enable-plugin PLUGIN_NAME [PLUGIN_NAME2 ...] [-restart]
-
-# Disable plugin(s)
-java -jar jenkins-cli.jar -s http://localhost:8080/ disable-plugin PLUGIN_NAME [PLUGIN_NAME2 ...] [-restart]
-
-# Install plugin(s)
-java -jar jenkins-cli.jar -s http://localhost:8080/ install-plugin PLUGIN_NAME [PLUGIN_NAME2 ...] [-restart]
-```
-
-**Notes:**
-- Replace `http://localhost:8080/` with your Jenkins server URL if different
-- The `-restart` flag is optional and will restart Jenkins after the operation
-- You can specify multiple plugin names in a single command
-- These commands require the jenkins-cli.jar file and Java to be installed
-
-### Manual Plugin Removal
-Jenkins CLI does not support direct plugin removal. To manually remove a plugin:
-
-1. Navigate to the plugins directory on your Jenkins server:
-```bash
-$JENKINS_HOME/plugins/
-```
-
-2. Delete the following files for the plugin you want to remove:
-   - The plugin's `.jpi` or `.hpi` file
-   - The `.jpi.pinned` file (if it exists)
-
-3. Restart Jenkins
-
-**Note:** Make sure to backup your Jenkins configuration before manually removing plugins.
-
-### Jenkins Backup
-How to create a full backup in Jenkins?
-- Copy Jenkins home directory and create database backup
-
-### Jenkins Master-Slave Architecture
-Jenkins supports distributed builds through a master-slave (controller-agent) architecture, which allows you to distribute workload across multiple machines.(Running builds on different OS/environments)
-- **Master (Controller)**: Central server that manages build configuration, distributes builds to agents and handles UI
-- **Slave (Agent)**: Worker machines that execute build jobs
-- **Benefits**: Scalability, load balancing, environment isolation
-
-### Jenkins Pipeline
-Jenkins Pipeline is a set of plugins that supports implementing and integrating Continuous Delivery pipelines into Jenkins.
-
-Key Points:
-- Pipeline is defined in a `Jenkinsfile` (Pipeline as Code)
-- Two syntax types: Declarative (newer, easier) and Scripted (traditional, Groovy-based)
-- Blue Ocean provides visual pipeline editor and monitoring
 
 ## Build Automation Tools
 Build automation tools automate the process of compiling source code, running tests, and packaging applications.
@@ -436,6 +376,273 @@ A robust CI/CD process can be understood as four distinct pipeline stages, each 
     *   **Find and Deploy Artifact**: The pipeline fetches the immutable artifact that was created in Stage 3 from the artifact repository.
     *   **Deploy to Production**: This exact, pre-tested artifact is deployed to the production environment.
 *   **Result**: The new version is live in production. The principle of "Immutable Artifact Promotion" ensures that what was tested is what gets released, minimizing risk.
+
+
+
+## Jenkins
+
+### Jenkins Extensibility
+Jenkins extensibility is implemented via Jenkins plugins.
+
+### Jenkins Plugin Management
+Jenkins plugins can be managed through the web interface or using the Jenkins CLI. Here are the common plugin management commands using jenkins-cli.jar:
+
+```bash
+# List all installed plugins
+java -jar jenkins-cli.jar -s http://localhost:8080/ list-plugins
+
+# Enable plugin(s)
+java -jar jenkins-cli.jar -s http://localhost:8080/ enable-plugin PLUGIN_NAME [PLUGIN_NAME2 ...] [-restart]
+
+# Disable plugin(s)
+java -jar jenkins-cli.jar -s http://localhost:8080/ disable-plugin PLUGIN_NAME [PLUGIN_NAME2 ...] [-restart]
+
+# Install plugin(s)
+java -jar jenkins-cli.jar -s http://localhost:8080/ install-plugin PLUGIN_NAME [PLUGIN_NAME2 ...] [-restart]
+```
+
+**Notes:**
+- Replace `http://localhost:8080/` with your Jenkins server URL if different
+- The `-restart` flag is optional and will restart Jenkins after the operation
+- You can specify multiple plugin names in a single command
+- These commands require the jenkins-cli.jar file and Java to be installed
+
+### Manual Plugin Removal
+Jenkins CLI does not support direct plugin removal. To manually remove a plugin:
+
+1. Navigate to the plugins directory on your Jenkins server:
+```bash
+$JENKINS_HOME/plugins/
+```
+
+2. Delete the following files for the plugin you want to remove:
+   - The plugin's `.jpi` or `.hpi` file
+   - The `.jpi.pinned` file (if it exists)
+
+3. Restart Jenkins
+
+**Note:** Make sure to backup your Jenkins configuration before manually removing plugins.
+
+### Jenkins Backup
+How to create a full backup in Jenkins?
+- Copy Jenkins home directory and create database backup
+
+### Jenkins Master-Slave Architecture
+Jenkins supports distributed builds through a master-slave (controller-agent) architecture, which allows you to distribute workload across multiple machines.(Running builds on different OS/environments)
+- **Master (Controller)**: Central server that manages build configuration, distributes builds to agents and handles UI
+- **Slave (Agent)**: Worker machines that execute build jobs
+- **Benefits**: Scalability, load balancing, environment isolation
+
+## Jenkins Pipeline & Groovy Shared Library: A Guide to Variables and Scripting
+
+This guide explains the different types of variables in a Jenkins pipeline, how they are passed to and used within a Groovy Shared Library, and clarifies common scripting patterns.
+
+### 1. The Four Main Types of Variables
+
+There are four primary ways data is managed and accessed in your pipeline. Understanding their scope and purpose is key.
+
+#### 1.1. Jenkins Environment Variables (`env.*`)
+
+These are global variables available throughout the entire pipeline execution.
+
+*   **Where are they defined?**
+    1.  **Dynamic (from Jenkins & Plugins):** Jenkins and its plugins automatically provide many for every job, like `env.BUILD_NUMBER`, `env.BRANCH_NAME` (from the Git plugin), or `env.TAG_NAME`. These change with every build.
+    2.  **Static (User-Defined):** You can define variables that are consistent for a specific pipeline or for the whole Jenkins instance.
+        *   **In a `Jenkinsfile`:** Use the `environment {}` block. Variables here are scoped **only to the specific pipeline run** they are in.
+        *   **In the Jenkins UI:** Defined in `Manage Jenkins` -> `Configure System` -> `Global properties`. Variables here are available to **all pipelines** on the entire Jenkins server. Use this for true constants like a SonarQube URL.
+
+*   **How are they used?**
+    They are accessed anywhere in a `Jenkinsfile` or a shared library using the `env` prefix.
+
+    *   **Example (in `vars/myLibraryStep.groovy`):**
+        ```groovy
+        def call() {
+            // Dynamic variable from a plugin
+            echo "This pipeline is running on branch: ${env.BRANCH_NAME}"
+            // Static variable defined in the Jenkins UI
+            echo "The global SonarQube URL is: ${env.SONARQUBE_URL}"
+            // Accessing inside a shell command
+            sh "echo The build number from the shell is ${env.BUILD_NUMBER}"
+        }
+        ```
+
+#### 1.2. Project Configuration (`config` Map)
+
+This is a project-specific "settings file" you define as a Groovy map in your `Jenkinsfile`. It's the best practice for keeping a `Jenkinsfile` clean and project-specific settings organized.
+
+*   **Where is it defined?**
+    *   At the top of your `Jenkinsfile` inside a `def config = [...]` block.
+
+*   **How is it used?**
+    The `config` map is passed as an argument to your shared library functions. This can be done in several ways.
+
+    1.  **Passing Data to a Library Function**
+        You can either pass the entire map, or just specific key-value pairs from it.
+
+        *   **Option A: Pass the entire `config` object.** This is useful when the library function needs access to many configuration values.
+            ```groovy
+            // In Jenkinsfile
+            myDeployStep(config)
+
+            // In vars/myDeployStep.groovy
+            // The entire `config` map is passed into the `pipelineConfig` variable.
+            def call(Map config) {
+                echo "Deploying app: ${config.appName}"
+            }
+            ```
+
+        *   **Option B: Pass specific key-value pairs.** This is cleaner when a function only needs a few specific inputs.
+            ```groovy
+            // In Jenkinsfile
+            runLinter(
+                filesToLint: config.sourceFiles,
+                ignoreRules: config.linterIgnoreRules
+            )
+
+            // In vars/runLinter.groovy
+            // Groovy collects the named parameters `filesToLint` and `ignoreRules`
+            // into a map variable named `config`. The name is up to you.
+            def call(Map config) {
+                // config.filesToLint and config.ignoreRules are available here
+                sh "linter --ignore ${config.ignoreRules.join(',')} ${config.filesToLint.join(' ')}"
+            }
+            ```
+
+    2.  **Handling Arguments Inside the Library**
+
+        *   **Function Signatures: `def call(Map config)` vs `def call(Map config = [:])`**
+            *   `def call(Map config)`: This function *requires* an argument.
+            *   `def call(Map config = [:])`: This is safer. It provides an empty map (`[:]`) as a default, preventing `NullPointerException` if the function is called with no arguments.
+
+        *   **Providing Default Values with the Elvis Operator (`?:`)**
+            This is a clean way to provide a fallback if a key is missing from the `config` map.
+            ```groovy
+            // In vars/myLibraryStep.groovy
+            def call(Map config) {
+                def credentialId = config.registryCredentialId ?: 'default-registry-creds'
+                echo "Using credential: ${credentialId}"
+                // If config.registryCredentialId is null, it will use 'default-registry-creds'
+            }
+            ```
+
+#### 1.3. Credentials
+
+These are sensitive values (tokens, passwords) managed securely by Jenkins.
+
+*   **Where are they defined?**
+    *   In the Jenkins Credential Manager (`Manage Jenkins` -> `Credentials`).
+
+*   **How are they used?**
+    *   They are used in a secure, two-step process to avoid exposing secrets.
+        1.  **Step 1: Determine the Credential ID.** Your code decides *which* credential to use. This ID is often passed in via the `config` map to make your library flexible.
+        2.  **Step 2: Fetch the Secret with `withCredentials`.** This block takes the ID, finds the matching credential in Jenkins, and safely loads its secret value into a temporary variable. This prevents the secret from ever being printed in logs.
+
+    *   **Example (in `vars/myLibraryStep.groovy`):**
+        ```groovy
+        def call(Map config) {
+            // Step 1: Determine which credential ID to use.
+            // If `config.apiCredentialId` is provided, use it. Otherwise, use a default value.
+            def credentialIdForApi = config.apiCredentialId ?: 'default-api-token'
+
+            echo "Preparing to use credential with ID: '${credentialIdForApi}'"
+
+            // Step 2: Safely access the secret value within this block.
+            withCredentials([string(credentialsId: credentialIdForApi, variable: 'API_TOKEN')]) {
+                // Inside this block, API_TOKEN is a Groovy variable containing the secret.
+                // It's also injected as a shell environment variable for `sh` steps.
+                echo "Secret fetched. Now making a secure API call."
+                sh "curl -H \"Authorization: Bearer \$API_TOKEN\" https://api.example.com/data"
+            }
+            // The `API_TOKEN` variable is destroyed and no longer exists here.
+        }
+        ```
+
+#### 1.4. Temporary Variables (`withEnv`)
+
+**Analogy: The Post-it Note.** `withEnv` creates temporary environment variables for a specific block, often acting as a bridge to pass Groovy variables to a shell command.
+
+*   **Where are they defined?**
+    *   Inside the list passed to a `withEnv([...])` block.
+
+*   **Why are they used?**
+    *   A shell (`sh`) step runs in its own process and cannot directly read Groovy variables. `withEnv` "sticks a Post-it note" on that shell process, letting it read the values it needs from its environment.
+
+    *   **Example (in `vars/myLibraryStep.groovy`):**
+        ```groovy
+        def call(Map config) {
+            // These are Groovy variables
+            def appName = config.appName
+            def targetEnv = "staging"
+
+            // Pass them to the shell's environment
+            withEnv([
+                "APP_NAME_FOR_SHELL=${appName}",
+                "TARGET_ENV_FOR_SHELL=${targetEnv}"
+            ]) {
+                // The shell can now read these environment variables
+                sh "echo Deploying \$APP_NAME_FOR_SHELL to \$TARGET_ENV_FOR_SHELL"
+            }
+        }
+        ```
+
+---
+
+### 2. Scripting Nuances
+
+#### 2.1. The `sh` Step: Single, Double, and Triple Quotes
+
+The type of quote you use is critical because it controls **Groovy String Interpolation** (when `${variable}` is replaced by its value).
+
+*   **Double Quotes (`"..."`)**: **Interpolation Enabled.** Groovy will replace `${...}` placeholders.
+    ```groovy
+    def imageTag = "1.2.3"
+    sh "docker build -t my-app:${imageTag} ."
+    // Executes: docker build -t my-app:1.2.3 .
+    ```
+
+*   **Single Quotes (`'...'`)**: **No Interpolation.** The string is passed to the shell as-is. Use this to protect shell variables.
+    ```groovy
+    sh 'for i in $(seq 1 3); do echo "Loop count: $i"; done'
+    // Executes the literal command. The shell handles the value of $i.
+    ```
+
+*   **Triple-Double Quotes (`"""..."""`)**: **Multi-line with Interpolation.** Best for long, readable scripts that need Groovy variables.
+    ```groovy
+    def gitBranch = "feature/new-login"
+    def message = "Committing changes"
+    sh """
+       git checkout ${gitBranch}
+       git commit -m "${message}"
+       echo "Changes committed to ${gitBranch}"
+    """
+    ```
+
+*   **Triple-Single Quotes (`'''...'''`)**: **Multi-line, No Interpolation.** Perfect for long shell scripts with no Groovy variables.
+    ```groovy
+    sh '''
+      # This is a shell comment
+      echo "Starting deployment script..."
+      # The $HOME variable below belongs to the shell, not Groovy
+      export KUBECONFIG=$HOME/.kube/config
+      echo "Script finished."
+    '''
+    ```
+
+#### 2.2. Why Use `script {}`?
+
+*   **In a Declarative `Jenkinsfile`**: The `script` block is an "escape hatch" to run more complex, imperative logic (like `if/else`, loops, calling custom functions) inside a declarative `stage`.
+*   **In a Shared Library (`.groovy` file)**: It's often necessary when working inside other blocks that expect a series of pipeline *steps*. The `script` block groups Groovy logic and multiple steps into a single "chunk" that other steps (like `container{}`) can execute.
+    *   **Example:**
+        ```groovy
+        container('docker') {
+            script { // This is required to run logic + multiple steps inside 'container'
+                def imageName = "my-app:latest"
+                echo "Building ${imageName}"
+                sh "docker build -t ${imageName} ."
+                return imageName // Return a value from the script block
+            }
+        }
+        ```
 
 ## GitHub Actions: CI/CD Automation
 
