@@ -962,6 +962,41 @@ spec:
     kubectl delete ingress my-ingress-example
     ```
 
+### Kubernetes DNS Deep Dive: Understanding `ndots` and the `search` list
+
+Kubernetes's default `ndots:5` setting can cause resolution issues for fully-qualified domain names (FQDNs) that have fewer than 5 dots. This happens because it assumes they are short names and attempts to append domains from the Pod's `search` list, leading to incorrect lookups.
+
+**1. The `search` List: Search Domains for Short Names**
+This list in a Pod's `/etc/resolv.conf` file defines the domains (e.g., `my-namespace.svc.cluster.local`, `svc.cluster.local`) that are appended to a short name like `my-service` to find its full address. The list is automatically generated based on the Pod's namespace.
+
+**2. The `ndots:5` Rule and The Problem**
+This rule tells the resolver not to treat a name as an FQDN if it has fewer than 5 dots. For example, it will mistake an FQDN with 4 dots like `my-service.staging.svc.cluster.local` for a short name and start incorrectly appending domains from the `search` list (e.g., `...local.staging.svc.cluster.local`), causing the lookup to fail.
+
+#### Solutions
+
+**Solution 1: Add a Trailing Dot (.)**
+Adding a dot (`.`) to the end of a domain name signifies it as an "absolute" FQDN, which prevents the `search` list from being used. This ensures the DNS query is made directly and correctly.
+```bash
+curl "http://my-service.staging.svc.cluster.local."
+```
+
+**Solution 2: Lower `ndots` with `dnsConfig` for the Pod**
+Lowering the `ndots` value to `"1"` by adding `dnsConfig` to the Pod spec ensures that any name with at least one dot is treated as an FQDN. This prevents the `search` list from being triggered for FQDNs.
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-app
+spec:
+  containers:
+  - name: my-container
+    image: my-image
+  dnsConfig:
+    options:
+      - name: ndots
+        value: "1"
+```
+
 ### NetworkPolicy
 
 A `NetworkPolicy` acts as a firewall for Pods in Kubernetes. It defines rules to specify which Pods can communicate with each other and other network endpoints, which is crucial for security and creating isolated environments. By default, all pods in a cluster can communicate freely with each other
