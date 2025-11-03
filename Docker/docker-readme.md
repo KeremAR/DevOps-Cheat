@@ -298,10 +298,13 @@ By default, data generated within a container **does not persist** when the cont
     docker run -d -v /etc/nginx nginx
     ```
 
-#### Bind Mounts
-*   **How they work:** A file or directory on the **host machine** is mounted directly into a container. The path on the host machine is specified. Changes made in the container are reflected on the host, and vice-versa.
-*   **Use Cases:** Useful for sharing configuration files, source code during development, or accessing host resources. Performance can be lower than volumes, especially on Docker Desktop (macOS/Windows).
-*   **Example:** `docker run -v /opt/data:/var/lib/mysql -d --name mysql-db -e MYSQL_ROOT_PASSWORD=db_pass123 mysql` → Runs MySQL, **mounting the host directory `/opt/data` to the container's `/var/lib/mysql` (`-v`) for persistent database storage**.
+#### Bind Mounts (Live Code Sync for Development)
+
+The primary use case for bind mounts during development is to **see code changes instantly inside a running container without rebuilding the image**. This is achieved by creating a live, two-way sync between a folder on your host machine and a folder inside the container.
+
+*   **How they work:** Think of it as a "magic portal". A file or directory on the **host machine** is mounted directly into a container. When you change a file on your host, the change is immediately reflected inside the container, and vice-versa.
+*   **Use Cases:** Essential for development workflows (live code reloading), sharing configuration files, or accessing host resources. Performance can be lower than volumes, especially on Docker Desktop (macOS/Windows).
+*   **Example:** `docker run -v /path/on/host:/path/in/container -d my_image` → Runs a container, mounting the host directory `/path/on/host` to the container's `/path/in/container`.
 *   **Warning:** Bind mounts rely on the host's directory structure and can have permission issues if the UID/GID inside the container doesn't match the host path's ownership.
 
 #### Tmpfs Mounts
@@ -384,6 +387,18 @@ services: # Defines the different containers (services)
     my_vol:
       name: my-vol
 ```
+
+#### The Magic of `volumes: - .:/app`
+
+The `volumes` key in the `docker-compose.yml` example is what enables live code synchronization for development:
+
+-   `volumes: - .:/var/www/html`
+
+This line means:
+-   **`.` (the part left of the colon):** "Take the current directory on my host machine (where the `docker-compose.yml` file is)."
+-   **`/var/www/html` (the part right of the colon):** "...and mount/sync it into the `/var/www/html` directory inside the container."
+
+As a result, any change you make to your code on your host machine is instantly available inside the container, eliminating the need to run `docker build` after every change.
 
 ### Docker Compose Commands
 - `docker-compose up -d` → Runs multiple containers defined in a Compose file.
