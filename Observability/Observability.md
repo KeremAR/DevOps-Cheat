@@ -55,6 +55,20 @@ A **vendor-neutral, open-source standard** and set of tools for generating and c
 
 ---
 
+## Why is OpenTelemetry Essential? The Core Problem It Solves
+
+OpenTelemetry's most critical and unique contribution is making **Distributed Tracing** possible. While it enhances logs and metrics, it is the only way to trace a request's full journey across a distributed system.
+
+- **For Tracing (Essential):** This is the one thing that is **impossible** to do from outside the application. To follow a request's journey (via a `trace_id`) from a frontend service to a user-service, you need an agent like OpenTelemetry *inside* both applications to propagate the context.
+
+- **For Logs (Enrichment):** You can collect basic logs from outside a container (e.g., reading `stdout`). OTel's advantage is enriching those logs by automatically adding the `trace_id` from within the application, answering: *"Which user request caused this log line?"*
+
+- **For Metrics (Deepening):** You can collect basic infrastructure metrics (CPU, RAM) from outside. OTel's advantage is capturing application-specific business metrics from within, such as *"how many items were added to the cart?"* or *"how long did the payment function take?"*
+
+> **Conclusion**: OpenTelemetry **enriches** logs and **deepens** metrics, but it is the technology that truly **enables** Distributed Tracing.
+
+---
+
 ## Anatomy of a Span 🔬
 
 A Span is the basic building block of a trace, representing a single operation (e.g., a database query, an HTTP call). Think of it as one step in a request's journey.
