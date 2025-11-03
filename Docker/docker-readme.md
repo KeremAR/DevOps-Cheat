@@ -235,6 +235,12 @@ By using a multi-stage build, you can:
 - **Copy only the final build artifact** (e.g., the compiled binary, the `dist` folder) into a later, clean stage that is based on a minimal runtime image.
 - This results in a much smaller final image, as all the build-time dependencies are discarded.
 
+> **A Note on `as` vs. `AS`**
+> 
+> In the `FROM <image> AS <name>` instruction, the `AS` keyword is **case-insensitive** for Docker's own builder. This means `as builder` and `AS builder` are functionally identical.
+> 
+> However, some third-party static analysis tools or linters, like SonarQube, may enforce a specific convention (e.g., uppercase `AS`) for code consistency or due to their own parsing rules. If your tooling reports an issue, it's best to follow its recommended convention.
+
 **Example of a Multi-Stage Build (Node.js):**
 
 ```dockerfile
