@@ -405,6 +405,22 @@ metadata:
     app: nginx
 spec:
   replicas: 3
+  # The strategy block defines how to replace old Pods with new ones
+  strategy:
+    type: RollingUpdate # Default type. Use "Recreate" for downtime.
+    rollingUpdate:
+      # maxUnavailable: How many pods can be unavailable during the update.
+      # Can be an absolute number (e.g., 1) or a percentage (e.g., "25%").
+      # Default is 25%.
+      maxUnavailable: 0
+
+      # maxSurge: How many extra pods can be created above the desired count.
+      # Can be an absolute number (e.g., 1) or a percentage (e.g., "25%").
+      # Default is 25%.
+      maxSurge: 1
+  # How many old ReplicaSets to retain to allow rollback.
+  # Default is 10. Setting to 0 means no history is kept.
+  revisionHistoryLimit: 2
   selector:
     matchLabels:
       app: nginx
