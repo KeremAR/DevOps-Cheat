@@ -62,14 +62,44 @@ echo $SHELL
 
 ### File Systems
 
-**Linux Native File Systems:**
-- **ext4**: Default and most commonly used in modern Linux distributions
-- **ext3**: Older, journaling file system
-- **ext2**: Non-journaling file system, used in some older systems or for specialized uses
-- **Btrfs**: Advanced features like snapshots, copy-on-write, and RAID functionality
-- **XFS**: High-performance file system, best for large files and enterprise environments
-- **ReiserFS**: Less commonly used, optimized for small files
-- **F2FS**: Optimized for flash storage devices
+**Linux File Systems: A Comparison**
+
+While there are many Linux file systems, the most common choices for modern systems are ext4, Btrfs, XFS, and ZFS. Each has distinct features suited for different use cases.
+
+- **ext4 (Fourth Extended Filesystem)**
+  - **Role:** The default, most widely used, and most stable filesystem for the majority of Linux distributions. It is the successor to ext3.
+  - **Key Features:**
+    - **Journaling:** Protects against data corruption from crashes by keeping a log (journal) of changes before they are committed.
+    - **Stability & Maturity:** Extremely well-tested and reliable. It's the "it just works" choice for desktops and servers.
+    - **Good All-Round Performance:** Performs well for a wide variety of workloads, from small files to large ones.
+  - **Best For:** General purpose use on desktops, laptops, and application servers where advanced features like snapshots are not a primary requirement.
+
+- **Btrfs (B-tree File System)**
+  - **Role:** A modern, feature-rich filesystem designed to address the limitations of older filesystems. Often seen as a "next-generation" choice.
+  - **Key Features:**
+    - **Copy-on-Write (CoW):** Instead of overwriting data, changes are written to a new location. This is the foundation for its other features.
+    - **Snapshots:** Create near-instant, low-space "copies" of the filesystem state. Excellent for backups and safe system updates (you can roll back if something breaks).
+    - **Data Integrity:** Uses checksums on data and metadata to detect and report corruption.
+    - **Built-in RAID & Volume Management:** Can manage multiple disks in various RAID configurations without needing `mdadm` or LVM.
+    - **Transparent Compression:** Can compress files on the fly to save space.
+  - **Best For:** Systems where data integrity, snapshots for backups/rollbacks, and flexible volume management are critical. Popular with Arch Linux users and on some NAS devices.
+
+- **XFS (XFS File System)**
+  - **Role:** A high-performance 64-bit journaling filesystem created by SGI, now common in enterprise Linux distributions (like RHEL and its derivatives).
+  - **Key Features:**
+    - **Excellent Large File Performance:** Highly optimized for handling very large files and large filesystems (terabytes to petabytes).
+    - **Parallel I/O:** Designed for high concurrency, making it very fast in multi-threaded, parallel I/O operations.
+    - **Efficient Metadata Handling:** Scales well as the number of files grows.
+  - **Best For:** Enterprise servers, media storage, scientific computing, and any workload involving very large files or high-performance needs.
+
+- **ZFS (Zettabyte File System)**
+  - **Role:** A combined filesystem and logical volume manager with an extreme focus on data integrity. Originally from Sun Microsystems, it's available on Linux via the OpenZFS project.
+  - **Key Features:**
+    - **Unyielding Data Integrity:** Its primary design goal. Uses end-to-end checksums to detect and, if configured with redundancy (RAID-Z), automatically repair "silent" data corruption.
+    - **Copy-on-Write (CoW), Snapshots, and Clones:** Similar to Btrfs, it offers powerful snapshotting capabilities.
+    - **Built-in RAID (RAID-Z):** Provides a more robust implementation of RAID-5/6 that avoids the "write hole" problem.
+    - **Licensing:** Its CDDL license is incompatible with the GPL license of the Linux kernel, so it is not included by default and must be installed separately.
+  - **Best For:** Mission-critical data storage, NAS builds, servers, and any environment where protecting data from corruption is the absolute top priority.
 
 **Pseudo Filesystems:**
 - **/proc**: Virtual filesystem providing an interface to kernel data structures
