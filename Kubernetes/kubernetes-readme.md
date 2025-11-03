@@ -1366,6 +1366,16 @@ spec:
     server: nfs-server.example.com # Address of the NFS server
 ```
 
+###### Understanding `persistentVolumeReclaimPolicy`
+
+The `persistentVolumeReclaimPolicy` of a PV determines what happens to the underlying storage volume after the PersistentVolumeClaim (PVC) using it is deleted.
+
+-   **`Retain` (Default for manual PVs):** When the PVC is deleted, the PV object remains in a "Released" state, and the data on the storage volume (e.g., AWS EBS volume, NFS files) is **preserved**. This is the safest policy, preventing accidental data loss. An administrator must manually clean up the PV and the underlying storage before it can be reused.
+
+-   **`Delete` (Default for dynamic provisioners):** When the PVC is deleted, both the PV object and the associated storage asset in the external infrastructure (like the AWS EBS volume or GCE disk) are **automatically deleted**. This is useful for scratch data or development where you don't need to keep the data after the PVC is gone.
+
+-   **`Recycle` (Deprecated):** Performs a basic scrub on the volume (`rm -rf /thevolume/*`) and makes it available again for a new PVC. This policy is **deprecated** and should not be used; dynamic provisioning with the `Delete` policy is the recommended modern approach.
+
 ##### PersistentVolumeClaim (PVC)
 
 -   A **PersistentVolumeClaim (PVC)** is a request for storage by a user or Pod, similar to how a Pod requests CPU/memory. PVCs specify desired storage capacity, access modes, and optionally a StorageClass.
@@ -1447,6 +1457,27 @@ allowVolumeExpansion: true # If true, allows PVCs of this class to be resized la
     *   A PVC requests storage.
     *   It attempts to bind to a suitable, available PV.
     *   If no matching PV is found, and a StorageClass is defined (either in the PVC or as a cluster default), a new PV is dynamically provisioned according to that class and then bound to the PVC.
+
+#### The Local Storage Scheduling Trap (`hostPath` & `local-path`)
+
+A Pod can get stuck in a `Pending` state when using node-local storage if the specific node hosting the storage lacks resources (like RAM/CPU), as the scheduler is forced to place the Pod on that single node.
+
+**The Core Problem: Node-Specific Storage**
+- **`hostPath` Volume:** A manual volume in a Pod spec that mounts a directory directly from the host node. It tightly couples the Pod to one specific node.
+- **`local-path` StorageClass:** A dynamic provisioner that automates the creation of `PersistentVolumes` which are backed by a `hostPath`. While it brings `hostPath` into the convenient PV/PVC model, the single-node limitation remains.
+- **Automatic Node Affinity:** In both cases, Kubernetes enforces `nodeAffinity`, requiring the Pod to run on the *exact same node* where the storage is located. If that node is out of resources (e.g., a busy `master` node), the Pod cannot be scheduled, even if other worker nodes are free.
+
+#### Solutions to the Local Storage Trap
+
+**Solution 1: Use Network Storage (NFS, Ceph, Longhorn)**
+The most robust solution is to use a network-based `StorageClass` where storage is accessible from any node. This decouples the Pod from the storage location. The Pod can be scheduled on any node with sufficient resources (`Node A`, `Node B`, etc.) and access its data over the network, completely avoiding this scheduling conflict.
+
+**Solution 2: Correctly Manage Local Storage**
+If you must use local storage (e.g., for high performance), ensure the PV is provisioned on a worker node with enough capacity. This keeps application workloads off the master node and aligns the Pod's resource needs with the node that has both the storage and the capacity to run it.
+
+**Scenario Summary:**
+- **Problem (Local Storage):** Pod → wants PVC → PVC binds to a PV on `master` node → Scheduler *must* send Pod to `master` → `master` has no RAM → **Pod `Pending`**.
+- **Solution (Network Storage):** Pod → wants PVC → PV is on network → Scheduler sends Pod to any free `worker` node → Pod accesses PV over network → **Pod `Running`**.
 
 ### Job
 
