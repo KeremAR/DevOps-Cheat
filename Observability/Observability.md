@@ -297,3 +297,59 @@ environment:
   - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
 ```
   This tells the application's OTel SDK to send all traces, metrics, and logs to the collector at that gRPC endpoint (`4317` is the default for gRPC).
+
+---
+
+## Prometheus & Kubernetes Metric Discovery
+*This section covers how Prometheus and compatible agents (like Alloy or the OTel Collector) discover what to monitor in a Kubernetes environment.*
+
+### Target Discovery: How does Prometheus find what to scrape?
+The core challenge is automatically detecting new applications as they are deployed. There are two main models for this.
+
+#### 1. Prometheus-Style Discovery (Manual Configuration)
+- **How it works**: You explicitly define scrape jobs in your configuration file (e.g., `prometheus.yml` or an Alloy config). You specify which Kubernetes objects to look for based on namespaces, labels, and ports.
+- **Example**: Using `discovery.kubernetes` to find all pods with the label `app=my-api` in the `production` namespace.
+- **Advantage**: Full, granular control is in your hands.
+- **Disadvantage**: You must manually update the configuration file every time a new type of service needs to be monitored.
+
+#### 2. Operator CRD-Style Discovery (Automated via Kubernetes Objects)
+- **How it works**: This model uses the **Prometheus Operator**, which introduces new Kubernetes object types called Custom Resource Definitions (CRDs), specifically `ServiceMonitor` and `PodMonitor`.
+- **The Goal**: To allow developers to manage monitoring for their own applications without ever touching the central Prometheus configuration. This is "configless onboarding."
+- **The Workflow**:
+    1. A developer deploys a new microservice.
+    2. Alongside their `Deployment` and `Service`, they also deploy a `ServiceMonitor` (or `PodMonitor`) YAML file.
+    3. The Prometheus Operator (or a compatible agent like Alloy) is watching the Kubernetes API for these objects.
+    4. When it sees the new `ServiceMonitor`, it automatically generates the correct scrape configuration and adds the service to its list of targets.
+- **Advantage**: Highly scalable and automated. Empowers development teams to self-serve their monitoring needs.
+- **Disadvantage**: Adds more complexity. It requires the Prometheus Operator and its CRDs to be installed in the cluster.
+
+### "Operator-Free" Discovery: The Annotation Contract
+This is a hybrid approach that provides auto-discovery without needing the Prometheus Operator and its CRDs.
+
+- **What it is**: A convention where the collector agent (like Alloy or an OTel Collector) is configured to scan the cluster for any Pod or Service that has a specific annotation.
+- **The "Contract"**:
+    1. **Collector Agent**: Is configured with a rule like: "Find any pod that has the annotation `prometheus.io/scrape: "true"`."
+    2. **Developer**: When deploying an application that exposes a `/metrics` endpoint, they add `prometheus.io/scrape: "true"` to their `Deployment` or `Service` metadata.
+- **How it works**: The agent sees the annotation, discovers the pod, and automatically begins scraping its `/metrics` endpoint.
+- **`up` metric**: The `up` metric in Prometheus tells you the status of this discovery.
+    - `up == 1`: The agent successfully found and scraped a `/metrics` endpoint on the target.
+    - `up == 0`: The agent tried to scrape the target (because it had the annotation) but failed, usually because the application doesn't actually expose a `/metrics` endpoint.
+
+### Pod/Service Discovery vs. kube-state-metrics
+It's critical to know what *kind* of metrics you're getting from different sources.
+
+#### 🔍 Pod/Service Discovery
+- **What it does**: Finds and scrapes the `/metrics` endpoint that an application **exposes itself**.
+- **Analogy**: Asking the pod, "How are you doing internally?"
+- **Metrics you get**: Application-specific metrics.
+  - `http_requests_total` (from a web server library)
+  - `jvm_memory_used_bytes` (from a Java application)
+  - `active_cart_users` (a custom business metric)
+
+#### 📊 kube-state-metrics (KSM)
+- **What it does**: Watches the Kubernetes API server and converts the state of Kubernetes objects (like Deployments, Pods, Nodes) into metrics.
+- **Analogy**: Asking the Kubernetes API, "What is the overall status of the cluster and its objects?"
+- **Metrics you get**: Kubernetes object metadata and status.
+  - `kube_deployment_status_replicas_available` (How many pods for a deployment are ready?)
+  - `kube_pod_status_phase` (Is the pod `Running`, `Pending`, or `Failed`?)
+  - `kube_node_status_condition` (Is the node healthy?)
