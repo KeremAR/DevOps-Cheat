@@ -145,6 +145,63 @@ Popularized by the Google SRE book, these four signals are considered the most c
 
 ---
 
+## RED vs. USE Methodologies 📉
+*Two complementary frameworks for structuring your monitoring strategy.*
+
+### RED Method (Service-Centric)
+These metrics provide a comprehensive view of your service's health and performance, focuses on measuring the experience of your users and service consumers.
+
+- **Rate**: The number of requests the service is handling per second.
+  - *Context*: It serves as the baseline for monitoring. A sudden drop might indicate upstream failures, while a spike could warn of capacity issues. It provides context for errors (e.g., errors during peak traffic matter more).
+- **Errors**: The number of failed requests per second.
+  - *Context*: Tracks explicit errors (HTTP 5xx), timeouts, or failed operations. Tracking absolute counts is often more valuable than percentages to understand the true scale of user impact.
+- **Duration**: The amount of time successful requests take to process (Latency).
+  - *Context*: **Never use averages**; they mask issues. Use percentiles: **p50** (typical user experience) and **p99** (worst-case experience) to identify performance degradation before it affects everyone.
+
+### USE Method (Resource-Centric)
+These metrics provide a systematic approach to analyzing system performance and identifying bottlenecks, focusing on the underlying infrastructure resources and capacity.
+
+- **Utilization**: The percentage of time a resource is busy processing work.
+  - *Context*: Tells you "how much" of the resource is used (e.g., CPU at 90%). High utilization isn't always bad, but it signals you are nearing capacity limits.
+- **Saturation**: The amount of work **waiting in a queue** because the resource is busy.
+  - *Context*: This is the **leading indicator** of performance issues (e.g., CPU load average, disk queue length). If utilization is 100% but saturation is 0, performance might be stable. If saturation > 0, you have a bottleneck.
+- **Errors**: The count of internal device or infrastructure failures.
+  - *Context*: Distinct from application errors. These are physical/OS level issues like disk read errors, network packet drops, or memory allocation failures. They often predict imminent hardware failure.
+
+> **Summary**: Use **RED** to detect *that* there is a problem (User perspective), and use **USE** to figure out *why* it is happening (Infrastructure perspective).
+
+---
+
+## Black Box vs. White Box Monitoring 📦
+
+### Black Box Monitoring (External)
+*Testing the system from the outside, treating it like a "black box" without knowing its internals.*
+
+- **What it is**: Focuses on the visible behavior of the system, such as availability (Is it up?) and responsiveness (Is it fast?).
+- **Key Tool**: **Synthetic Monitoring**.
+- **Goal**: To answer "Can users access the system?" regardless of internal state.
+
+### Synthetic Monitoring (Active) 🤖
+An **active** monitoring technique that simulates user interactions using automated scripts or bots to test system availability and performance.
+
+- **How it works**: Runs scheduled tests (e.g., every minute) from different global locations to verify endpoints or user flows.
+- **Types**:
+  - **Availability/Uptime**: Simple checks (Ping, HTTP GET) to ensure the service returns a 200 OK.
+  - **Transaction**: Simulates complex multi-step workflows (e.g., Login → Add to Cart → Checkout) to ensure critical business logic works.
+  - **Performance**: Measures page load speeds and latency from specific devices or regions.
+- **Benefit**: Detects issues **proactively** (before users complain) and provides a consistent baseline for performance benchmarking.
+
+### Real User Monitoring (RUM) (Passive) 👥
+A **passive** monitoring technique that records and analyzes the experience of **actual users** interacting with your application.
+
+- **How it works**: JavaScript injected into the browser captures metrics (load time, errors, device type) from real traffic.
+- **Benefit**: Reveals the "truth" of user experience, including edge cases (e.g., a specific slow Android device) that synthetic tests might miss.
+- **Limitation**: Requires active traffic to generate data; you can't monitor a system no one is using.
+
+> **Comparison**: **Synthetic** is predictable and good for alerting (is it down?). **RUM** is variable and good for analysis (how does it feel for real users?).
+
+---
+
 ## OpenTelemetry Framework
 
 ### Signal Specification
