@@ -1683,6 +1683,67 @@ To effectively troubleshoot, you often need to check the resource consumption (C
     kubectl top node
     ```
 
+### Securing a Kubernetes Pod
+
+Securing a Pod involves reducing the attack surface and hardening the configuration to prevent vulnerabilities and mitigate potential breaches.
+
+#### Core Philosophy
+*   **Prevention**: Implementing guardrails to stop vulnerabilities from occurring.
+*   **Mitigation (Assume Breach)**: Assuming the system will be compromised and minimizing the attacker's blast radius.
+
+#### Security Measures Checklist
+
+1.  **Run as Non-Root**:
+    *   **Why**: Default containers run as root, meaning if an attacker compromises the container, they have root privileges which facilitates further attacks.
+    *   **How**: Set `runAsUser` to a non-zero ID (e.g., 1000) in the Pod's `securityContext` or use the `USER` instruction in the Dockerfile (Recommended).
+
+2.  **Minimal Base Images**:
+    *   **Why**: Large images (Ubuntu, Debian) contain tools like `curl` and `bash` that attackers can use to further their attack ("Living off the Land").
+    *   **How**: Use minimal images like **Alpine** or **Distroless** which lack these tools, restricting the attacker's capabilities.
+
+3.  **Prevent Privilege Escalation**:
+    *   **Why**: Prevents a process from gaining more privileges than its parent process (like `sudo`).
+    *   **How**: Set `allowPrivilegeEscalation: false` in the `securityContext`.
+
+4.  **Enforce RunAsNonRoot**:
+    *   **Why**: Ensures that the Pod is strictly forbidden from starting if the container image is configured to run as root.
+    *   **How**: Set `runAsNonRoot: true` in the `securityContext`. This acts as a gatekeeper.
+
+5.  **Read-Only Root Filesystem**:
+    *   **Why**: Prevents attackers from downloading malware, writing scripts, or creating backdoors in the container's filesystem.
+    *   **How**: Set `readOnlyRootFilesystem: true`. Since most microservices are stateless, they shouldn't need to write to the root FS (use volume mounts for specific writable paths if needed).
+
+6.  **Drop Linux Capabilities**:
+    *   **Why**: The Linux kernel grants "capabilities" (like changing system time) that web apps don't need but attackers can exploit.
+    *   **How**: Drop all capabilities by default using `capabilities: drop: ["ALL"]`.
+
+7.  **Use Scratch Images (Advanced)**:
+    *   **Why**: Provides the smallest possible attack surface for static binaries (Go, Rust) as the image contains absolutely nothing (no shell, no package manager).
+    *   **How**: Use `FROM scratch` in the Dockerfile. Note that debugging is harder as there is no shell.
+
+#### Secure Pod Manifest Example
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: secure-pod
+spec:
+  securityContext:
+    runAsUser: 1000            # Step 1: Run as non-root user
+    runAsGroup: 3000
+    fsGroup: 2000
+  containers:
+  - name: my-secure-app
+    image: my-app:alpine       # Step 2: Minimal Base Image
+    securityContext:
+      allowPrivilegeEscalation: false  # Step 3: Prevent privilege escalation
+      runAsNonRoot: true               # Step 4: Enforce non-root
+      readOnlyRootFilesystem: true     # Step 5: Read-only filesystem
+      capabilities:
+        drop: ["ALL"]                  # Step 6: Drop all capabilities
+```
+
 ### Role-Based Access Control (RBAC)
 
 It is a method of regulating access to computer or network resources based on the roles of individual users within an organization. In Kubernetes, RBAC allows administrators to precisely define who can perform what actions on which resources, adhering to the principle of least privilege and enhancing cluster security.
