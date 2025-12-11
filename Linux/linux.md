@@ -255,3 +255,76 @@ Eğer "apt ile başlayan her şeyi yapabilsin (update, install, search, purge vs
 Cmnd_Alias YAZILIM_YONETIMI = /usr/bin/apt *
 ```
 *Bu yöntem çok daha kısadır ama kullanıcı `sudo apt purge mysql-server` gibi tehlikeli (senin listende olmayan) komutları da çalıştırabilir.*
+
+## Örnek: Systemctl ile Servis Yönetimi (Wildcard Kullanımı)
+
+Eğer kullanıcıya birden fazla servisi yönetme yetkisi vermek istiyorsan (docker, kafka, redis vb.) ve bu servislere sadece belirli komutları (start, stop, restart vb.) uygulayabilsin istiyorsan, iki yol var:
+
+### Yol 1: Her Servis İçin Ayrı Satır (Uzun Ama Açık)
+Her servis ve her komut kombinasyonunu tek tek yazarsın:
+
+```sudoers
+Cmnd_Alias SERVIS_YONETIMI = \
+    /usr/bin/systemctl start docker*, \
+    /usr/bin/systemctl stop docker*, \
+    /usr/bin/systemctl restart docker*, \
+    /usr/bin/systemctl enable docker*, \
+    /usr/bin/systemctl disable docker*, \
+    /usr/bin/systemctl start kafka*, \
+    /usr/bin/systemctl stop kafka*, \
+    /usr/bin/systemctl restart kafka*, \
+    /usr/bin/systemctl enable kafka*, \
+    /usr/bin/systemctl disable kafka*, \
+    /usr/bin/systemctl start redis*, \
+    /usr/bin/systemctl stop redis*, \
+    /usr/bin/systemctl restart redis*, \
+    /usr/bin/systemctl enable redis*, \
+    /usr/bin/systemctl disable redis*, \
+    /usr/bin/systemctl start mysql*, \
+    /usr/bin/systemctl stop mysql*, \
+    /usr/bin/systemctl restart mysql*, \
+    /usr/bin/systemctl enable mysql*, \
+    /usr/bin/systemctl disable mysql*, \
+    /usr/bin/systemctl start postgresql*, \
+    /usr/bin/systemctl stop postgresql*, \
+    /usr/bin/systemctl restart postgresql*, \
+    /usr/bin/systemctl enable postgresql*, \
+    /usr/bin/systemctl disable postgresql*, \
+    /usr/bin/systemctl start zookeeper*, \
+    /usr/bin/systemctl stop zookeeper*, \
+    /usr/bin/systemctl restart zookeeper*, \
+    /usr/bin/systemctl enable zookeeper*, \
+    /usr/bin/systemctl disable zookeeper*, \
+    /usr/bin/systemctl start elasticsearch*, \
+    /usr/bin/systemctl stop elasticsearch*, \
+    /usr/bin/systemctl restart elasticsearch*, \
+    /usr/bin/systemctl enable elasticsearch*, \
+    /usr/bin/systemctl disable elasticsearch*, \
+    /usr/bin/systemctl start nginx*, \
+    /usr/bin/systemctl stop nginx*, \
+    /usr/bin/systemctl restart nginx*, \
+    /usr/bin/systemctl enable nginx*, \
+    /usr/bin/systemctl disable nginx*
+```
+
+### Yol 2: Tek Wildcard ile Kısayol (En Pratik Ama Dikkatli Kullan)
+Eğer "systemctl'in belirli komutlarını her servise uygulayabilsin" dersen:
+
+```sudoers
+# Sadece belirli systemctl komutlarına izin ver, servis ismi ne olursa olsun:
+Cmnd_Alias SERVIS_YONETIMI = \
+    /usr/bin/systemctl start *, \
+    /usr/bin/systemctl stop *, \
+    /usr/bin/systemctl restart *, \
+    /usr/bin/systemctl enable *, \
+    /usr/bin/systemctl disable *
+```
+*Bu yöntemle kullanıcı `sudo systemctl start apache2` veya `sudo systemctl stop sshd` gibi komutları da çalıştırabilir. Sadece listedeki servislere izin vermek istiyorsan Yol 1'i kullan.*
+
+### Yol 3: En Gevşek - Tüm Systemctl İşlemleri
+Eğer "systemctl ile ilgili her şeyi yapabilsin" dersen (ÇOK RİSKLİ):
+
+```sudoers
+Cmnd_Alias SERVIS_YONETIMI = /usr/bin/systemctl *
+```
+⚠️ **Uyarı:** Bu yöntem kullanıcıya `sudo systemctl daemon-reload`, `sudo systemctl mask`, `sudo systemctl poweroff` gibi kritik komutları da çalıştırma yetkisi verir. Önerilmez!
