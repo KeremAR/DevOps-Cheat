@@ -225,3 +225,33 @@ Cmnd_Alias RISKLI_ARACLAR = /usr/bin/vim, /usr/bin/less
 
 **En Güvenli Yöntem:**
 Kullanıcılara asla editör (`vim`, `nano`) yetkisini doğrudan sudo ile vermeyin. Dosya düzenlemeleri gerekiyorsa `sudoedit` kullanmalarını sağlayın veya sadece gerekli scriptleri çalıştırmalarına izin verin.
+
+# Sudoers: Alias Tanımlarında Wildcard (Yıldız) Kullanımı
+
+Sudoers dosyasında komutları tanımlarken iki seçeneğin var. `apt` gibi komutlar için `*` (wildcard) kullanabilirsin ama güvenlik farklarını bilmek gerekir.
+
+## Yol 1: Tek Tek Tanımlama (Güvenli Yöntem)
+En güvenli yöntem, sadece izin vermek istediğin alt komutları açıkça yazmaktır.
+Ancak dikkat: `update` tek başına çalışır ama `install` ve `remove` yanına paket ismi ister. Bu yüzden onlara `*` eklemen gerekir.
+
+```sudoers
+# update ve upgrade yanına parametre almaz (genelde)
+# install ve remove ise yanına paket ismi alacağı için sonlarına * koyarız.
+
+Cmnd_Alias YAZILIM_YONETIMI = \
+    /usr/bin/apt update, \
+    /usr/bin/apt upgrade, \
+    /usr/bin/apt install *, \
+    /usr/bin/apt remove *
+```
+*Bu yöntem sayesinde kullanıcı `apt purge` veya `apt autoremove` yapamaz. Sadece senin izin verdiklerini yapar.*
+
+## Yol 2: Wildcard Kullanımı (Gevşek Yöntem)
+Eğer "apt ile başlayan her şeyi yapabilsin (update, install, search, purge vs.)" dersen, komutun sonuna tek bir `*` koyman yeterlidir.
+
+```sudoers
+# /usr/bin/apt komutundan sonra ne gelirse gelsin kabul et:
+
+Cmnd_Alias YAZILIM_YONETIMI = /usr/bin/apt *
+```
+*Bu yöntem çok daha kısadır ama kullanıcı `sudo apt purge mysql-server` gibi tehlikeli (senin listende olmayan) komutları da çalıştırabilir.*
