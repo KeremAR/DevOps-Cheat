@@ -225,3 +225,118 @@ Cmnd_Alias RISKLI_ARACLAR = /usr/bin/vim, /usr/bin/less
 
 **En Güvenli Yöntem:**
 Kullanıcılara asla editör (`vim`, `nano`) yetkisini doğrudan sudo ile vermeyin. Dosya düzenlemeleri gerekiyorsa `sudoedit` kullanmalarını sağlayın veya sadece gerekli scriptleri çalıştırmalarına izin verin.
+
+```bash
+# --- ALIAS DEFINITIONS ---
+Cmnd_Alias APT = \
+    /usr/bin/apt update, \
+    /usr/bin/apt upgrade, \
+    /usr/bin/apt install *, \
+    /usr/bin/apt remove *, \
+    /usr/bin/apt-get update, \
+    /usr/bin/apt-get upgrade, \
+    /usr/bin/apt-get install *, \
+    /usr/bin/apt-get remove *
+    
+Cmnd_Alias SYSTEMCTL = \
+    /usr/bin/systemctl start docker*, \
+    /usr/bin/systemctl stop docker*, \
+    /usr/bin/systemctl restart docker*, \
+    /usr/bin/systemctl enable docker*, \
+    /usr/bin/systemctl disable docker*, \
+    /usr/bin/systemctl start kafka*, \
+    /usr/bin/systemctl stop kafka*, \
+    /usr/bin/systemctl restart kafka*, \
+    /usr/bin/systemctl enable kafka*, \
+    /usr/bin/systemctl disable kafka*, \
+    /usr/bin/systemctl start redis*, \
+    /usr/bin/systemctl stop redis*, \
+    /usr/bin/systemctl restart redis*, \
+    /usr/bin/systemctl enable redis*, \
+    /usr/bin/systemctl disable redis*, \
+    /usr/bin/systemctl start mysql*, \
+    /usr/bin/systemctl stop mysql*, \
+    /usr/bin/systemctl restart mysql*, \
+    /usr/bin/systemctl enable mysql*, \
+    /usr/bin/systemctl disable mysql*, \
+    /usr/bin/systemctl start postgresql*, \
+    /usr/bin/systemctl stop postgresql*, \
+    /usr/bin/systemctl restart postgresql*, \
+    /usr/bin/systemctl enable postgresql*, \
+    /usr/bin/systemctl disable postgresql*, \
+    /usr/bin/systemctl start zookeeper*, \
+    /usr/bin/systemctl stop zookeeper*, \
+    /usr/bin/systemctl restart zookeeper*, \
+    /usr/bin/systemctl enable zookeeper*, \
+    /usr/bin/systemctl disable zookeeper*, \
+    /usr/bin/systemctl start elasticsearch*, \
+    /usr/bin/systemctl stop elasticsearch*, \
+    /usr/bin/systemctl restart elasticsearch*, \
+    /usr/bin/systemctl enable elasticsearch*, \
+    /usr/bin/systemctl disable elasticsearch*, \
+    /usr/bin/systemctl start nginx*, \
+    /usr/bin/systemctl stop nginx*, \
+    /usr/bin/systemctl restart nginx*, \
+    /usr/bin/systemctl enable nginx*, \
+    /usr/bin/systemctl disable nginx*, \
+    /usr/bin/systemctl enable ssh, \ 
+    /usr/bin/systemctl status * , \
+    /usr/bin/systemctl start NetworkManager*, \
+    /usr/bin/systemctl stop NetworkManager*, \
+    /usr/bin/systemctl restart NetworkManager*, \
+    /usr/bin/systemctl enable NetworkManager*, \
+    /usr/bin/systemctl disable NetworkManager
+
+Cmnd_Alias DOCKER = \
+    /usr/bin/docker *
+
+
+
+Cmnd_Alias SYSTEM = \
+    /usr/bin/dmesg, \
+    /usr/bin/systemd-cgtop, \
+    /usr/bin/lsof, \
+    /usr/bin/gpg, \
+    /usr/bin/journalctl, \
+    /usr/bin/vmstat, \
+    /usr/bin/timedatectl
+
+
+Cmnd_Alias FILE = \
+    /usr/bin/cat, \
+    /usr/bin/gedit, \
+    /usr/bin/chown, \
+    /usr/bin/chmod, \
+    /usr/bin/mount
+
+Cmnd_Alias NETWORK = \
+    /usr/bin/tcpdump, \
+    /usr/bin/openfortivpn, \
+    /usr/sbin/openvpn, \
+    /usr/sbin/ufw , \
+    /usr/bin/firewall-cmd
+
+Cmnd_Alias PROCESS = \
+    /usr/bin/kill
+
+
+Cmnd_Alias PACKET_MANAGEMENT = \
+    /usr/bin/gem, \
+    /usr/bin/dpkg, \
+    /usr/sbin/update-java-alternatives
+
+#NOEXEC for shell escape protection
+Cmnd_Alias SHELL_ESCAPE = \
+    /usr/bin/vi, \
+    /usr/bin/vim, \
+    /usr/bin/nano, \
+    /usr/bin/less 
+
+    
+
+# --- Authorization (Using UID) ---
+# Writing #1001 instead of username
+# #1001 (i.e., the person with UID 1000) can execute these commands by entering their password.
+
+#1001 ALL=(ALL) APT, SYSTEMCTL, SYSTEM, FILE, NETWORK, PROCESS, PACKET_MANAGEMENT, NOEXEC: SHELL_ESCAPE
+```
